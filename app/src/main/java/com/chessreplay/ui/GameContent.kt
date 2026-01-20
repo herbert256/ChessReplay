@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chessreplay.chess.PieceColor
 import com.chessreplay.chess.Square
+import com.chessreplay.data.ChessSource
 
 // Chess piece Unicode symbols for game display
 private const val WHITE_KING = "♔"
@@ -253,10 +254,10 @@ fun GameContent(
         }
     }
 
-    // Game info card - shows graph and result bar in analyse mode, just graph in manual mode
+    // Game info card - shows graph and result bar in analyse mode, just graph in manual/preview mode
     val GameInfoCard: @Composable () -> Unit = {
         GraphContent()
-        if (uiState.currentStage != AnalysisStage.MANUAL) {
+        if (uiState.currentStage == AnalysisStage.ANALYSE) {
             Spacer(modifier = Modifier.height(8.dp))
             ResultBar()
         }
@@ -274,8 +275,8 @@ fun GameContent(
         Spacer(modifier = Modifier.height(4.dp))
     }
 
-    // Always show the board (no hiding during any stage)
-    run {
+    // Show the board (hide during Preview stage)
+    if (uiState.currentStage != AnalysisStage.PREVIEW) {
         // Player bar above board (opponent when not flipped, or player when flipped)
         val topIsBlack = !uiState.flippedBoard
         PlayerBar(
@@ -525,6 +526,16 @@ fun GameContent(
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
+            // Chess server
+            val serverName = when (uiState.lastSource) {
+                ChessSource.LICHESS -> "lichess.org"
+                ChessSource.CHESS_COM -> "chess.com"
+            }
+            Text(
+                text = "Server: $serverName",
+                fontSize = 13.sp,
+                color = Color.White
+            )
             // White player
             Text(
                 text = "White: $whiteName${whiteRating?.let { " ($it)" } ?: ""}",
