@@ -195,7 +195,7 @@ fun GameContent(
                         "M${kotlin.math.abs(displayScore.mateIn)}"
                     } else {
                         val absScore = kotlin.math.abs(displayScore.score)
-                        if (displayScore.score >= 0) "+%.1f".format(absScore) else "-%.1f".format(absScore)
+                        if (displayScore.score >= 0) "-%.1f".format(absScore) else "+%.1f".format(absScore)
                     }
                     val scoreColor = when {
                         displayScore.isMate && displayScore.mateIn > 0 -> Color(0xFFFF5252)  // Red for white winning mate

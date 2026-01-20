@@ -291,8 +291,8 @@ private fun PvLineRow(
     val displayScore = if (line.isMate) {
         if (adjustedMateIn > 0) "M$adjustedMateIn" else "M${kotlin.math.abs(adjustedMateIn)}"
     } else {
-        if (adjustedScore >= 0) "+%.1f".format(adjustedScore)
-        else "%.1f".format(adjustedScore)
+        if (adjustedScore >= 0) "-%.1f".format(kotlin.math.abs(adjustedScore))
+        else "+%.1f".format(kotlin.math.abs(adjustedScore))
     }
 
     val scoreColor = when {
