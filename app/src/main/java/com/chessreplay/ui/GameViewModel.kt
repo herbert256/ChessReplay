@@ -26,18 +26,6 @@ enum class AnalysisStage {
     MANUAL          // Manual exploration - final stage
 }
 
-// Analyse sequence options (order in which moves are analyzed)
-enum class AnalyseSequence {
-    FORWARDS,   // Analyze from move 1 to end
-    BACKWARDS,  // Analyze from end to move 1
-    MIXED       // Analyze last 10 moves backwards, then rest forwards from move 1
-}
-
-// General analyse settings (sequence only - timing now comes from stage settings)
-data class AnalyseSettings(
-    val sequence: AnalyseSequence = AnalyseSequence.BACKWARDS
-)
-
 // Settings for Preview Stage (quick analysis during navigation)
 data class PreviewStageSettings(
     val secondsForMove: Float = 0.10f,  // 0.01, 0.05, 0.10, 0.25, 0.50
@@ -113,7 +101,6 @@ data class GameUiState(
     val stockfishReady: Boolean = false,
     val flippedBoard: Boolean = false,
     val stockfishSettings: StockfishSettings = StockfishSettings(),
-    val analyseSettings: AnalyseSettings = AnalyseSettings(),
     val showSettingsDialog: Boolean = false,
     // Exploring line state
     val isExploringLine: Boolean = false,
@@ -149,7 +136,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var settingsOnDialogOpen: SettingsSnapshot? = null
 
     private data class SettingsSnapshot(
-        val analyseSettings: AnalyseSettings,
         val previewStageSettings: PreviewStageSettings,
         val analyseStageSettings: AnalyseStageSettings,
         val manualStageSettings: ManualStageSettings
@@ -189,8 +175,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         private const val KEY_MANUAL_SHOWNUMBERS = "manual_shownumbers"
         private const val KEY_MANUAL_WHITE_ARROW_COLOR = "manual_white_arrow_color"
         private const val KEY_MANUAL_BLACK_ARROW_COLOR = "manual_black_arrow_color"
-        // General analyse settings
-        private const val KEY_ANALYSE_SEQUENCE = "analyse_sequence"
         // First run tracking - stores the app version code when user first made a choice
         private const val KEY_FIRST_GAME_RETRIEVED_VERSION = "first_game_retrieved_version"
     }
@@ -245,18 +229,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             .putBoolean(KEY_MANUAL_SHOWNUMBERS, settings.manualStage.showArrowNumbers)
             .putLong(KEY_MANUAL_WHITE_ARROW_COLOR, settings.manualStage.whiteArrowColor)
             .putLong(KEY_MANUAL_BLACK_ARROW_COLOR, settings.manualStage.blackArrowColor)
-            .apply()
-    }
-
-    private fun loadAnalyseSettings(): AnalyseSettings {
-        val sequenceOrdinal = prefs.getInt(KEY_ANALYSE_SEQUENCE, AnalyseSequence.BACKWARDS.ordinal)
-        val sequence = AnalyseSequence.entries.getOrNull(sequenceOrdinal) ?: AnalyseSequence.BACKWARDS
-        return AnalyseSettings(sequence = sequence)
-    }
-
-    private fun saveAnalyseSettings(settings: AnalyseSettings) {
-        prefs.edit()
-            .putInt(KEY_ANALYSE_SEQUENCE, settings.sequence.ordinal)
             .apply()
     }
 
@@ -332,8 +304,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             .remove(KEY_MANUAL_HASH)
             .remove(KEY_MANUAL_MULTIPV)
             .remove(KEY_MANUAL_NNUE)
-            // General analyse settings
-            .remove(KEY_ANALYSE_SEQUENCE)
             // Source settings
             .remove(KEY_LICHESS_MAX_GAMES)
             .remove(KEY_CHESSCOM_MAX_GAMES)
@@ -349,13 +319,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         // Load saved settings (will use defaults if reset or not previously set)
         val settings = loadStockfishSettings()
-        val analyseSettings = loadAnalyseSettings()
         val lastSource = loadLastSource()
         val lichessMaxGames = prefs.getInt(KEY_LICHESS_MAX_GAMES, 10)
         val chessComMaxGames = prefs.getInt(KEY_CHESSCOM_MAX_GAMES, 10)
         _uiState.value = _uiState.value.copy(
             stockfishSettings = settings,
-            analyseSettings = analyseSettings,
             lastSource = lastSource,
             lichessMaxGames = lichessMaxGames,
             chessComMaxGames = chessComMaxGames
@@ -871,7 +839,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun showSettingsDialog() {
         // Store current settings to detect changes when dialog closes
         settingsOnDialogOpen = SettingsSnapshot(
-            analyseSettings = _uiState.value.analyseSettings,
             previewStageSettings = _uiState.value.stockfishSettings.previewStage,
             analyseStageSettings = _uiState.value.stockfishSettings.analyseStage,
             manualStageSettings = _uiState.value.stockfishSettings.manualStage
@@ -884,12 +851,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         // Check what settings changed
         val originalSettings = settingsOnDialogOpen
-        val currentAnalyseSettings = _uiState.value.analyseSettings
         val currentPreviewStageSettings = _uiState.value.stockfishSettings.previewStage
         val currentAnalyseStageSettings = _uiState.value.stockfishSettings.analyseStage
         val currentManualStageSettings = _uiState.value.stockfishSettings.manualStage
 
-        val analyseSettingsChanged = originalSettings?.analyseSettings != currentAnalyseSettings
         val previewStageSettingsChanged = originalSettings?.previewStageSettings != currentPreviewStageSettings
         val analyseStageSettingsChanged = originalSettings?.analyseStageSettings != currentAnalyseStageSettings
         val manualStageSettingsChanged = originalSettings?.manualStageSettings != currentManualStageSettings
@@ -899,7 +864,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         // If no game loaded or no settings changed, nothing to do
         if (_uiState.value.game == null) return
-        if (!analyseSettingsChanged && !previewStageSettingsChanged && !analyseStageSettingsChanged && !manualStageSettingsChanged) return
+        if (!previewStageSettingsChanged && !analyseStageSettingsChanged && !manualStageSettingsChanged) return
 
         viewModelScope.launch {
             // Stop any ongoing analysis
@@ -928,8 +893,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             // Decide which mode to activate based on what changed
-            if (analyseSettingsChanged || previewStageSettingsChanged || analyseStageSettingsChanged) {
-                // Analyse settings or Stockfish stage settings changed
+            if (previewStageSettingsChanged || analyseStageSettingsChanged) {
+                // Stockfish stage settings changed
                 // -> Restart analysis from Preview stage
                 _uiState.value = _uiState.value.copy(
                     currentStage = AnalysisStage.PREVIEW,
@@ -966,13 +931,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 analyzeCurrentPosition()
             }
         }
-    }
-
-    fun updateAnalyseSettings(settings: AnalyseSettings) {
-        saveAnalyseSettings(settings)
-        _uiState.value = _uiState.value.copy(
-            analyseSettings = settings
-        )
     }
 
     private var manualAnalysisJob: Job? = null
@@ -1061,18 +1019,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         // Failed to get Stockfish analysis after max retries
     }
 
+    /**
+     * Build the list of move indices for analysis based on the current stage.
+     * Preview stage: Forward sequence (move 1 to end)
+     * Analyse stage: Backwards sequence (end to move 1)
+     */
     private fun buildMoveIndices(): List<Int> {
         val moves = _uiState.value.moves
-        val sequence = _uiState.value.analyseSettings.sequence
-        return when (sequence) {
-            AnalyseSequence.FORWARDS -> (0 until moves.size).toList()
-            AnalyseSequence.BACKWARDS -> (moves.size - 1 downTo 0).toList()
-            AnalyseSequence.MIXED -> {
-                // First: last 10 moves backwards, then: rest forwards from move 1
-                val lastTenBackwards = (moves.size - 1 downTo maxOf(0, moves.size - 10)).toList()
-                val restForwards = (0 until maxOf(0, moves.size - 10)).toList()
-                lastTenBackwards + restForwards
-            }
+        return when (_uiState.value.currentStage) {
+            AnalysisStage.PREVIEW -> (0 until moves.size).toList()  // Forward
+            AnalysisStage.ANALYSE -> (moves.size - 1 downTo 0).toList()  // Backwards
+            AnalysisStage.MANUAL -> emptyList()  // No auto-analysis in manual stage
         }
     }
 

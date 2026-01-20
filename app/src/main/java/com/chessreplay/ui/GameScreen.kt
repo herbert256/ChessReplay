@@ -105,10 +105,8 @@ fun GameScreen(
     if (uiState.showSettingsDialog) {
         SettingsScreen(
             stockfishSettings = uiState.stockfishSettings,
-            analyseSettings = uiState.analyseSettings,
             onBack = { viewModel.hideSettingsDialog() },
-            onSaveStockfish = { viewModel.updateStockfishSettings(it) },
-            onSaveAnalyse = { viewModel.updateAnalyseSettings(it) }
+            onSaveStockfish = { viewModel.updateStockfishSettings(it) }
         )
         return
     }
@@ -1932,7 +1930,6 @@ private fun ColorPickerDialog(
 // Settings sub-screen enum
 private enum class SettingsSubScreen {
     MAIN,
-    ANALYSE_MODE,
     MANUAL_MODE,
     STOCKFISH
 }
@@ -1941,10 +1938,8 @@ private enum class SettingsSubScreen {
 @Composable
 private fun SettingsScreen(
     stockfishSettings: StockfishSettings,
-    analyseSettings: AnalyseSettings,
     onBack: () -> Unit,
-    onSaveStockfish: (StockfishSettings) -> Unit,
-    onSaveAnalyse: (AnalyseSettings) -> Unit
+    onSaveStockfish: (StockfishSettings) -> Unit
 ) {
     var currentSubScreen by remember { mutableStateOf(SettingsSubScreen.MAIN) }
 
@@ -1961,11 +1956,6 @@ private fun SettingsScreen(
         SettingsSubScreen.MAIN -> SettingsMainScreen(
             onBack = onBack,
             onNavigate = { currentSubScreen = it }
-        )
-        SettingsSubScreen.ANALYSE_MODE -> AnalyseModeSettingsScreen(
-            analyseSettings = analyseSettings,
-            onBack = { currentSubScreen = SettingsSubScreen.MAIN },
-            onSave = onSaveAnalyse
         )
         SettingsSubScreen.MANUAL_MODE -> ManualModeSettingsScreen(
             stockfishSettings = stockfishSettings,
@@ -2011,13 +2001,6 @@ private fun SettingsMainScreen(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-
-        // Analyse mode card
-        SettingsNavigationCard(
-            title = "Analyse mode",
-            description = "Analysis sequence, rounds, timing",
-            onClick = { onNavigate(SettingsSubScreen.ANALYSE_MODE) }
-        )
 
         // Manual mode card
         SettingsNavigationCard(
@@ -2094,85 +2077,6 @@ private fun SettingsBackButton(onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Text("Back to settings")
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AnalyseModeSettingsScreen(
-    analyseSettings: AnalyseSettings,
-    onBack: () -> Unit,
-    onSave: (AnalyseSettings) -> Unit
-) {
-    var analyseSequence by remember { mutableStateOf(analyseSettings.sequence) }
-    var sequenceExpanded by remember { mutableStateOf(false) }
-
-    fun saveSettings(seq: AnalyseSequence = analyseSequence) {
-        onSave(AnalyseSettings(sequence = seq))
-    }
-
-    val sequenceOptions = listOf(
-        AnalyseSequence.FORWARDS to "Forwards",
-        AnalyseSequence.BACKWARDS to "Backwards",
-        AnalyseSequence.MIXED to "Mixed"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = "Analyse mode",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-
-        SettingsBackButton(onClick = onBack)
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Analyse Sequence dropdown
-        ExposedDropdownMenuBox(
-            expanded = sequenceExpanded,
-            onExpandedChange = { sequenceExpanded = it }
-        ) {
-            OutlinedTextField(
-                value = sequenceOptions.find { it.first == analyseSequence }?.second ?: "Backwards",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Analyse sequence") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = sequenceExpanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor()
-            )
-            ExposedDropdownMenu(expanded = sequenceExpanded, onDismissRequest = { sequenceExpanded = false }) {
-                sequenceOptions.forEach { (seq, label) ->
-                    DropdownMenuItem(
-                        text = { Text(label) },
-                        onClick = {
-                            analyseSequence = seq
-                            sequenceExpanded = false
-                            saveSettings(seq = seq)
-                        }
-                    )
-                }
-            }
-        }
-
-        Text(
-            text = "Note: Analysis timing is now configured in Stockfish settings for each stage (Preview, Analyse, Manual).",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFFAAAAAA),
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SettingsBackButton(onClick = onBack)
     }
 }
 
