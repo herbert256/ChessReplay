@@ -52,8 +52,8 @@ fun EvaluationGraph(
     onMoveSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val greenColor = Color(0xFF4CAF50)
-    val redColor = Color(0xFFF44336)
+    val greenColor = Color(0xFF00E676)  // Bright green
+    val redColor = Color(0xFFFF5252)    // Bright red
     val lineColor = Color(0xFF666666)
     val currentMoveColor = Color(0xFF2196F3)
     val analyseColor = Color(0xFFFFEB3B) // Yellow for analyse stage scores
@@ -153,7 +153,7 @@ fun EvaluationGraph(
                     lineTo(p1.x, centerY)
                     close()
                 }
-                drawPath(path1, color1.copy(alpha = 0.4f))
+                drawPath(path1, color1.copy(alpha = 0.8f))
 
                 // Draw second segment (from crossing point to p2)
                 val color2 = if (p2.score >= 0) greenColor else redColor
@@ -163,7 +163,7 @@ fun EvaluationGraph(
                     lineTo(p2.x, centerY)
                     close()
                 }
-                drawPath(path2, color2.copy(alpha = 0.4f))
+                drawPath(path2, color2.copy(alpha = 0.8f))
 
                 // Draw solid line on top (two segments with different colors)
                 drawLine(color1, Offset(p1.x, p1.y), Offset(crossX, centerY), strokeWidth = 2f)
@@ -179,7 +179,7 @@ fun EvaluationGraph(
                     lineTo(p1.x, centerY)
                     close()
                 }
-                drawPath(path, color.copy(alpha = 0.4f))
+                drawPath(path, color.copy(alpha = 0.8f))
 
                 // Draw solid line on top
                 drawLine(color, Offset(p1.x, p1.y), Offset(p2.x, p2.y), strokeWidth = 2f)
