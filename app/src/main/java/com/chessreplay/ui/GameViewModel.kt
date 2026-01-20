@@ -54,8 +54,8 @@ data class ManualStageSettings(
     val multiPv: Int = 3,               // 1-6
     val useNnue: Boolean = true,
     val drawArrows: Boolean = true,     // Whether to draw arrows at all
-    val numArrows: Int = 2,             // 1-8 (only visible when drawArrows is true)
-    val showArrowNumbers: Boolean = false,
+    val numArrows: Int = 4,             // 1-8 (only visible when drawArrows is true)
+    val showArrowNumbers: Boolean = true,
     val whiteArrowColor: Long = DEFAULT_WHITE_ARROW_COLOR,
     val blackArrowColor: Long = DEFAULT_BLACK_ARROW_COLOR
 )
@@ -202,8 +202,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 multiPv = prefs.getInt(KEY_MANUAL_MULTIPV, 3),
                 useNnue = prefs.getBoolean(KEY_MANUAL_NNUE, true),
                 drawArrows = prefs.getBoolean(KEY_MANUAL_DRAWARROWS, true),
-                numArrows = prefs.getInt(KEY_MANUAL_NUMARROWS, 2),
-                showArrowNumbers = prefs.getBoolean(KEY_MANUAL_SHOWNUMBERS, false),
+                numArrows = prefs.getInt(KEY_MANUAL_NUMARROWS, 4),
+                showArrowNumbers = prefs.getBoolean(KEY_MANUAL_SHOWNUMBERS, true),
                 whiteArrowColor = prefs.getLong(KEY_MANUAL_WHITE_ARROW_COLOR, DEFAULT_WHITE_ARROW_COLOR),
                 blackArrowColor = prefs.getLong(KEY_MANUAL_BLACK_ARROW_COLOR, DEFAULT_BLACK_ARROW_COLOR)
             )

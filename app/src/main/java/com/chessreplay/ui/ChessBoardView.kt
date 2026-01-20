@@ -275,20 +275,26 @@ fun ChessBoardView(
             val endX = toFile * squareSize + squareSize / 2
             val endY = toRank * squareSize + squareSize / 2
 
-            // Arrow width decreases with index: 0=thickest, 7=thinnest
-            val widthMultiplier = when (arrow.index) {
-                0 -> 0.20f
-                1 -> 0.15f
-                2 -> 0.11f
-                3 -> 0.08f
-                4 -> 0.07f
-                5 -> 0.06f
-                6 -> 0.05f
-                else -> 0.04f
+            // Arrow width: same for all when showing numbers, otherwise decreases with index
+            val widthMultiplier = if (showArrowNumbers) {
+                0.12f  // Uniform width when showing numbers
+            } else {
+                when (arrow.index) {
+                    0 -> 0.20f
+                    1 -> 0.15f
+                    2 -> 0.11f
+                    3 -> 0.08f
+                    4 -> 0.07f
+                    5 -> 0.06f
+                    6 -> 0.05f
+                    else -> 0.04f
+                }
             }
             val arrowWidth = squareSize * widthMultiplier
-            val headLength = squareSize * (0.30f + (0.10f * (1 - arrow.index / 7f)))
-            val headWidth = squareSize * (0.30f + (0.10f * (1 - arrow.index / 7f)))
+            // Head size: same for all when showing numbers, otherwise varies with index
+            val headSizeMultiplier = if (showArrowNumbers) 0.30f else (0.30f + (0.10f * (1 - arrow.index / 7f)))
+            val headLength = squareSize * headSizeMultiplier
+            val headWidth = squareSize * headSizeMultiplier
 
             // Use custom colors for white/black moves
             val arrowColor = if (arrow.isWhiteMove) whiteArrowColor else blackArrowColor
@@ -298,12 +304,14 @@ fun ChessBoardView(
             val dy = endY - startY
             val angle = kotlin.math.atan2(dy, dx)
 
-            // Shorten the arrow slightly so it doesn't cover the piece centers
-            val shortenAmount = squareSize * 0.25f
-            val adjustedStartX = startX + kotlin.math.cos(angle) * shortenAmount
-            val adjustedStartY = startY + kotlin.math.sin(angle) * shortenAmount
-            val adjustedEndX = endX - kotlin.math.cos(angle) * shortenAmount
-            val adjustedEndY = endY - kotlin.math.sin(angle) * shortenAmount
+            // Shorten the arrow start so it doesn't cover the piece center
+            // Arrow extends deeper into target cell (less shortening at end)
+            val startShortenAmount = squareSize * 0.25f
+            val endShortenAmount = squareSize * 0.10f
+            val adjustedStartX = startX + kotlin.math.cos(angle) * startShortenAmount
+            val adjustedStartY = startY + kotlin.math.sin(angle) * startShortenAmount
+            val adjustedEndX = endX - kotlin.math.cos(angle) * endShortenAmount
+            val adjustedEndY = endY - kotlin.math.sin(angle) * endShortenAmount
 
             val headBaseX = adjustedEndX - kotlin.math.cos(angle) * headLength
             val headBaseY = adjustedEndY - kotlin.math.sin(angle) * headLength
