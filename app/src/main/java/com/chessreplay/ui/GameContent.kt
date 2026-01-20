@@ -400,34 +400,45 @@ fun GameContent(
                 uiState.currentMoveIndex >= uiState.moveDetails.size - 1
             }
 
-            // Left part: Navigation buttons with fixed positions
+            // Left part: Navigation buttons with fixed positions (slots maintain size even when hidden)
             Row(
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val buttonWidth = 52.dp
+                val spacerWidth = 6.dp
+
                 // Button 1: Go to start (hidden when exploring)
-                if (!uiState.isExploringLine) {
-                    ControlButton("⏮", enabled = !isAtStart) { viewModel.goToStart() }
-                    Spacer(modifier = Modifier.width(6.dp))
+                Box(modifier = Modifier.width(buttonWidth)) {
+                    if (!uiState.isExploringLine) {
+                        ControlButton("⏮", enabled = !isAtStart) { viewModel.goToStart() }
+                    }
                 }
+                Spacer(modifier = Modifier.width(spacerWidth))
 
                 // Button 2: Previous move (hidden when exploring and at start)
-                val showPrevButton = !uiState.isExploringLine || !isAtStart
-                if (showPrevButton) {
-                    ControlButton("◀", enabled = !isAtStart) { viewModel.prevMove() }
-                    Spacer(modifier = Modifier.width(6.dp))
+                Box(modifier = Modifier.width(buttonWidth)) {
+                    val showPrevButton = !uiState.isExploringLine || !isAtStart
+                    if (showPrevButton) {
+                        ControlButton("◀", enabled = !isAtStart) { viewModel.prevMove() }
+                    }
                 }
+                Spacer(modifier = Modifier.width(spacerWidth))
 
                 // Button 3: Next move (hidden when exploring and at end)
-                val showNextButton = !uiState.isExploringLine || !isAtEnd
-                if (showNextButton) {
-                    ControlButton("▶", enabled = !isAtEnd) { viewModel.nextMove() }
+                Box(modifier = Modifier.width(buttonWidth)) {
+                    val showNextButton = !uiState.isExploringLine || !isAtEnd
+                    if (showNextButton) {
+                        ControlButton("▶", enabled = !isAtEnd) { viewModel.nextMove() }
+                    }
                 }
+                Spacer(modifier = Modifier.width(spacerWidth))
 
                 // Button 4: Go to end (hidden when exploring)
-                if (!uiState.isExploringLine) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    ControlButton("⏭", enabled = !isAtEnd) { viewModel.goToEnd() }
+                Box(modifier = Modifier.width(buttonWidth)) {
+                    if (!uiState.isExploringLine) {
+                        ControlButton("⏭", enabled = !isAtEnd) { viewModel.goToEnd() }
+                    }
                 }
             }
 
