@@ -84,6 +84,7 @@ data class MoveDetails(
 )
 
 data class GameUiState(
+    val stockfishInstalled: Boolean = true,  // Assume true until checked
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     // Game list for selection
@@ -305,45 +306,52 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
-        // Reset settings to defaults on first run (fresh install or app update)
-        if (isFirstRun()) {
-            resetSettingsToDefaults()
-        }
+        // Check if Stockfish is installed first
+        val stockfishInstalled = stockfish.isStockfishInstalled()
+        _uiState.value = _uiState.value.copy(stockfishInstalled = stockfishInstalled)
 
-        // Load saved settings (will use defaults if reset or not previously set)
-        val settings = loadStockfishSettings()
-        val lichessMaxGames = prefs.getInt(KEY_LICHESS_MAX_GAMES, 10)
-        _uiState.value = _uiState.value.copy(
-            stockfishSettings = settings,
-            lichessMaxGames = lichessMaxGames
-        )
-
-        // Initialize Stockfish with manual stage settings (default)
-        viewModelScope.launch {
-            val ready = stockfish.initialize()
-            if (ready) {
-                configureForManualStage()
+        // Only proceed with initialization if Stockfish is installed
+        if (stockfishInstalled) {
+            // Reset settings to defaults on first run (fresh install or app update)
+            if (isFirstRun()) {
+                resetSettingsToDefaults()
             }
-            _uiState.value = _uiState.value.copy(stockfishReady = ready)
 
-            // Auto-load the last user's most recent game and start analysis
-            // Skip on first run (after install or update) - user must make a choice first
-            if (ready && !isFirstRun()) {
-                autoLoadLastGame()
-            }
-        }
+            // Load saved settings (will use defaults if reset or not previously set)
+            val settings = loadStockfishSettings()
+            val lichessMaxGames = prefs.getInt(KEY_LICHESS_MAX_GAMES, 10)
+            _uiState.value = _uiState.value.copy(
+                stockfishSettings = settings,
+                lichessMaxGames = lichessMaxGames
+            )
 
-        // Observe analysis results
-        viewModelScope.launch {
-            stockfish.analysisResult.collect { result ->
-                _uiState.value = _uiState.value.copy(analysisResult = result)
-            }
-        }
-
-        // Observe engine ready state
-        viewModelScope.launch {
-            stockfish.isReady.collect { ready ->
+            // Initialize Stockfish with manual stage settings (default)
+            viewModelScope.launch {
+                val ready = stockfish.initialize()
+                if (ready) {
+                    configureForManualStage()
+                }
                 _uiState.value = _uiState.value.copy(stockfishReady = ready)
+
+                // Auto-load the last user's most recent game and start analysis
+                // Skip on first run (after install or update) - user must make a choice first
+                if (ready && !isFirstRun()) {
+                    autoLoadLastGame()
+                }
+            }
+
+            // Observe analysis results
+            viewModelScope.launch {
+                stockfish.analysisResult.collect { result ->
+                    _uiState.value = _uiState.value.copy(analysisResult = result)
+                }
+            }
+
+            // Observe engine ready state
+            viewModelScope.launch {
+                stockfish.isReady.collect { ready ->
+                    _uiState.value = _uiState.value.copy(stockfishReady = ready)
+                }
             }
         }
     }

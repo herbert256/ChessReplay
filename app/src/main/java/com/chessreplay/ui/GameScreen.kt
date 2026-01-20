@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.app.Activity
+import androidx.compose.ui.platform.LocalContext
 
 /**
  * Main game screen composable that handles game selection and display.
@@ -30,6 +32,18 @@ fun GameScreen(
     viewModel: GameViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // Show blocking screen if Stockfish is not installed
+    if (!uiState.stockfishInstalled) {
+        StockfishNotInstalledScreen(
+            onExit = {
+                (context as? Activity)?.finish()
+            }
+        )
+        return
+    }
+
     var lichessUsername by remember { mutableStateOf(viewModel.savedLichessUsername) }
     var lichessGamesCount by remember { mutableStateOf(uiState.lichessMaxGames.toString()) }
     val focusManager = LocalFocusManager.current
@@ -294,6 +308,63 @@ fun GameScreen(
         // Game content
         if (uiState.game != null) {
             GameContent(uiState = uiState, viewModel = viewModel)
+        }
+    }
+}
+
+/**
+ * Blocking screen shown when Stockfish is not installed.
+ * User must install "Stockfish 17.1 Chess Engine" from Google Play Store.
+ */
+@Composable
+fun StockfishNotInstalledScreen(
+    onExit: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF2A2A2A)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            ),
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth(0.9f)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Stockfish Not Installed",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = "This app requires the Stockfish chess engine to analyze games.\n\nPlease install \"Stockfish 17.1 Chess Engine\" from the Google Play Store.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = onExit,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Exit")
+                }
+            }
         }
     }
 }

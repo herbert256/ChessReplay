@@ -59,25 +59,30 @@ class StockfishEngine(private val context: Context) {
     private val pvLines = mutableMapOf<Int, PvLine>()
     private var currentNodes: Long = 0
 
+    /**
+     * Check if Stockfish is installed on the system (com.stockfish141 package).
+     * This is a synchronous check that can be called before initialize().
+     */
+    fun isStockfishInstalled(): Boolean {
+        return try {
+            val packageManager = context.packageManager
+            packageManager.getApplicationInfo("com.stockfish141", 0)
+            true
+        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
     suspend fun initialize(): Boolean = withContext(Dispatchers.IO) {
         try {
-            // First, try to use system-installed Stockfish (com.stockfish141 package)
+            // Use system-installed Stockfish (com.stockfish141 package)
             val systemStockfishPath = findSystemStockfish()
             if (systemStockfishPath != null) {
                 android.util.Log.i("StockfishEngine", "Using system Stockfish: $systemStockfishPath")
                 stockfishPath = systemStockfishPath
             } else {
-                // Fall back to bundled Stockfish from native library directory
-                val nativeLibDir = context.applicationInfo.nativeLibraryDir
-                val stockfishFile = File(nativeLibDir, "libstockfish.so")
-
-                if (!stockfishFile.exists()) {
-                    android.util.Log.e("StockfishEngine", "No Stockfish found (system or bundled)")
-                    return@withContext false
-                }
-
-                android.util.Log.i("StockfishEngine", "Using bundled Stockfish: ${stockfishFile.absolutePath}")
-                stockfishPath = stockfishFile.absolutePath
+                android.util.Log.e("StockfishEngine", "Stockfish 17.1 Chess Engine app not installed")
+                return@withContext false
             }
 
             // Start the process
