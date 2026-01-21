@@ -29,13 +29,14 @@ fun BoardLayoutSettingsScreen(
 ) {
     var showCoordinates by remember { mutableStateOf(boardLayoutSettings.showCoordinates) }
     var showLastMove by remember { mutableStateOf(boardLayoutSettings.showLastMove) }
+    var playerBarMode by remember { mutableStateOf(boardLayoutSettings.playerBarMode) }
+    var showRedBorderForPlayerToMove by remember { mutableStateOf(boardLayoutSettings.showRedBorderForPlayerToMove) }
     var whiteSquareColor by remember { mutableStateOf(boardLayoutSettings.whiteSquareColor) }
     var blackSquareColor by remember { mutableStateOf(boardLayoutSettings.blackSquareColor) }
     var whitePieceColor by remember { mutableStateOf(boardLayoutSettings.whitePieceColor) }
     var blackPieceColor by remember { mutableStateOf(boardLayoutSettings.blackPieceColor) }
 
-    var showCoordinatesExpanded by remember { mutableStateOf(false) }
-    var showLastMoveExpanded by remember { mutableStateOf(false) }
+    var playerBarModeExpanded by remember { mutableStateOf(false) }
     var showWhiteSquareColorPicker by remember { mutableStateOf(false) }
     var showBlackSquareColorPicker by remember { mutableStateOf(false) }
     var showWhitePieceColorPicker by remember { mutableStateOf(false) }
@@ -44,6 +45,8 @@ fun BoardLayoutSettingsScreen(
     fun saveSettings(
         newShowCoordinates: Boolean = showCoordinates,
         newShowLastMove: Boolean = showLastMove,
+        newPlayerBarMode: PlayerBarMode = playerBarMode,
+        newShowRedBorderForPlayerToMove: Boolean = showRedBorderForPlayerToMove,
         newWhiteSquareColor: Long = whiteSquareColor,
         newBlackSquareColor: Long = blackSquareColor,
         newWhitePieceColor: Long = whitePieceColor,
@@ -52,6 +55,8 @@ fun BoardLayoutSettingsScreen(
         onSave(BoardLayoutSettings(
             showCoordinates = newShowCoordinates,
             showLastMove = newShowLastMove,
+            playerBarMode = newPlayerBarMode,
+            showRedBorderForPlayerToMove = newShowRedBorderForPlayerToMove,
             whiteSquareColor = newWhiteSquareColor,
             blackSquareColor = newBlackSquareColor,
             whitePieceColor = newWhitePieceColor,
@@ -78,70 +83,93 @@ fun BoardLayoutSettingsScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Show coordinates dropdown
+        // Show coordinates toggle
+        SettingsToggle(
+            label = "Show coordinates",
+            checked = showCoordinates,
+            onCheckedChange = {
+                showCoordinates = it
+                saveSettings(newShowCoordinates = it)
+            }
+        )
+
+        // Show last move toggle
+        SettingsToggle(
+            label = "Show last move",
+            checked = showLastMove,
+            onCheckedChange = {
+                showLastMove = it
+                saveSettings(newShowLastMove = it)
+            }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Player bar(s) dropdown
         ExposedDropdownMenuBox(
-            expanded = showCoordinatesExpanded,
-            onExpandedChange = { showCoordinatesExpanded = it }
+            expanded = playerBarModeExpanded,
+            onExpandedChange = { playerBarModeExpanded = it }
         ) {
+            val displayText = when (playerBarMode) {
+                PlayerBarMode.NONE -> "None"
+                PlayerBarMode.TOP -> "Top"
+                PlayerBarMode.BOTTOM -> "Bottom"
+                PlayerBarMode.BOTH -> "Both"
+            }
             OutlinedTextField(
-                value = if (showCoordinates) "Yes" else "No",
+                value = displayText,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Show coordinates") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCoordinatesExpanded) },
+                label = { Text("Player bar(s)") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = playerBarModeExpanded) },
                 modifier = Modifier.fillMaxWidth().menuAnchor()
             )
-            ExposedDropdownMenu(expanded = showCoordinatesExpanded, onDismissRequest = { showCoordinatesExpanded = false }) {
+            ExposedDropdownMenu(expanded = playerBarModeExpanded, onDismissRequest = { playerBarModeExpanded = false }) {
                 DropdownMenuItem(
-                    text = { Text("Yes") },
+                    text = { Text("None") },
                     onClick = {
-                        showCoordinates = true
-                        showCoordinatesExpanded = false
-                        saveSettings(newShowCoordinates = true)
+                        playerBarMode = PlayerBarMode.NONE
+                        playerBarModeExpanded = false
+                        saveSettings(newPlayerBarMode = PlayerBarMode.NONE)
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("No") },
+                    text = { Text("Top") },
                     onClick = {
-                        showCoordinates = false
-                        showCoordinatesExpanded = false
-                        saveSettings(newShowCoordinates = false)
+                        playerBarMode = PlayerBarMode.TOP
+                        playerBarModeExpanded = false
+                        saveSettings(newPlayerBarMode = PlayerBarMode.TOP)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Bottom") },
+                    onClick = {
+                        playerBarMode = PlayerBarMode.BOTTOM
+                        playerBarModeExpanded = false
+                        saveSettings(newPlayerBarMode = PlayerBarMode.BOTTOM)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Both") },
+                    onClick = {
+                        playerBarMode = PlayerBarMode.BOTH
+                        playerBarModeExpanded = false
+                        saveSettings(newPlayerBarMode = PlayerBarMode.BOTH)
                     }
                 )
             }
         }
 
-        // Show last move dropdown
-        ExposedDropdownMenuBox(
-            expanded = showLastMoveExpanded,
-            onExpandedChange = { showLastMoveExpanded = it }
-        ) {
-            OutlinedTextField(
-                value = if (showLastMove) "Yes" else "No",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Show last move") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showLastMoveExpanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor()
+        // Red border for player to move - only visible when player bar mode is not NONE
+        if (playerBarMode != PlayerBarMode.NONE) {
+            SettingsToggle(
+                label = "Red border for player to move",
+                checked = showRedBorderForPlayerToMove,
+                onCheckedChange = {
+                    showRedBorderForPlayerToMove = it
+                    saveSettings(newShowRedBorderForPlayerToMove = it)
+                }
             )
-            ExposedDropdownMenu(expanded = showLastMoveExpanded, onDismissRequest = { showLastMoveExpanded = false }) {
-                DropdownMenuItem(
-                    text = { Text("Yes") },
-                    onClick = {
-                        showLastMove = true
-                        showLastMoveExpanded = false
-                        saveSettings(newShowLastMove = true)
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("No") },
-                    onClick = {
-                        showLastMove = false
-                        showLastMoveExpanded = false
-                        saveSettings(newShowLastMove = false)
-                    }
-                )
-            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -184,6 +212,8 @@ fun BoardLayoutSettingsScreen(
                 // Reset all values to defaults
                 showCoordinates = true
                 showLastMove = true
+                playerBarMode = PlayerBarMode.BOTH
+                showRedBorderForPlayerToMove = false
                 whiteSquareColor = DEFAULT_WHITE_SQUARE_COLOR
                 blackSquareColor = DEFAULT_BLACK_SQUARE_COLOR
                 whitePieceColor = DEFAULT_WHITE_PIECE_COLOR
@@ -279,6 +309,25 @@ private fun ColorSettingRow(
                 .clip(RoundedCornerShape(8.dp))
                 .background(color)
                 .border(2.dp, Color.White, RoundedCornerShape(8.dp))
+        )
+    }
+}
+
+@Composable
+private fun SettingsToggle(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Color.White)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
         )
     }
 }

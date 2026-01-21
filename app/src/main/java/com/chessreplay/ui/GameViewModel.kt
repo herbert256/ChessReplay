@@ -84,10 +84,20 @@ const val DEFAULT_BLACK_SQUARE_COLOR = 0xFFB58863L  // Dark brown
 const val DEFAULT_WHITE_PIECE_COLOR = 0xFFFFFFFF   // White
 const val DEFAULT_BLACK_PIECE_COLOR = 0xFF000000L  // Black
 
+// Player bar display mode
+enum class PlayerBarMode {
+    NONE,    // No player bars
+    TOP,     // Single combined bar at top
+    BOTTOM,  // Single combined bar at bottom
+    BOTH     // Separate bars above and below board (default)
+}
+
 // Board layout settings
 data class BoardLayoutSettings(
     val showCoordinates: Boolean = true,
     val showLastMove: Boolean = true,
+    val playerBarMode: PlayerBarMode = PlayerBarMode.BOTH,
+    val showRedBorderForPlayerToMove: Boolean = false,
     val whiteSquareColor: Long = DEFAULT_WHITE_SQUARE_COLOR,
     val blackSquareColor: Long = DEFAULT_BLACK_SQUARE_COLOR,
     val whitePieceColor: Long = DEFAULT_WHITE_PIECE_COLOR,
@@ -246,6 +256,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         // Board layout settings
         private const val KEY_BOARD_SHOW_COORDINATES = "board_show_coordinates"
         private const val KEY_BOARD_SHOW_LAST_MOVE = "board_show_last_move"
+        private const val KEY_BOARD_PLAYER_BAR_MODE = "board_player_bar_mode"
+        private const val KEY_BOARD_RED_BORDER_PLAYER_TO_MOVE = "board_red_border_player_to_move"
         private const val KEY_BOARD_WHITE_SQUARE_COLOR = "board_white_square_color"
         private const val KEY_BOARD_BLACK_SQUARE_COLOR = "board_black_square_color"
         private const val KEY_BOARD_WHITE_PIECE_COLOR = "board_white_piece_color"
@@ -333,9 +345,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadBoardLayoutSettings(): BoardLayoutSettings {
+        val playerBarModeOrdinal = prefs.getInt(KEY_BOARD_PLAYER_BAR_MODE, PlayerBarMode.BOTH.ordinal)
+        val playerBarMode = PlayerBarMode.entries.getOrElse(playerBarModeOrdinal) { PlayerBarMode.BOTH }
         return BoardLayoutSettings(
             showCoordinates = prefs.getBoolean(KEY_BOARD_SHOW_COORDINATES, true),
             showLastMove = prefs.getBoolean(KEY_BOARD_SHOW_LAST_MOVE, true),
+            playerBarMode = playerBarMode,
+            showRedBorderForPlayerToMove = prefs.getBoolean(KEY_BOARD_RED_BORDER_PLAYER_TO_MOVE, false),
             whiteSquareColor = prefs.getLong(KEY_BOARD_WHITE_SQUARE_COLOR, DEFAULT_WHITE_SQUARE_COLOR),
             blackSquareColor = prefs.getLong(KEY_BOARD_BLACK_SQUARE_COLOR, DEFAULT_BLACK_SQUARE_COLOR),
             whitePieceColor = prefs.getLong(KEY_BOARD_WHITE_PIECE_COLOR, DEFAULT_WHITE_PIECE_COLOR),
@@ -347,6 +363,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit()
             .putBoolean(KEY_BOARD_SHOW_COORDINATES, settings.showCoordinates)
             .putBoolean(KEY_BOARD_SHOW_LAST_MOVE, settings.showLastMove)
+            .putInt(KEY_BOARD_PLAYER_BAR_MODE, settings.playerBarMode.ordinal)
+            .putBoolean(KEY_BOARD_RED_BORDER_PLAYER_TO_MOVE, settings.showRedBorderForPlayerToMove)
             .putLong(KEY_BOARD_WHITE_SQUARE_COLOR, settings.whiteSquareColor)
             .putLong(KEY_BOARD_BLACK_SQUARE_COLOR, settings.blackSquareColor)
             .putLong(KEY_BOARD_WHITE_PIECE_COLOR, settings.whitePieceColor)

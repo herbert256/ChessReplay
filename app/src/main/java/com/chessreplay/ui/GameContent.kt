@@ -273,11 +273,13 @@ fun GameContent(
         AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showResultBar
         AnalysisStage.MANUAL -> visibilitySettings.manualStage.showResultBar
     }
-    val showPlayersBars = when (uiState.currentStage) {
+    val showPlayersBarsFromVisibility = when (uiState.currentStage) {
         AnalysisStage.PREVIEW -> false  // Never show player bars in preview
         AnalysisStage.ANALYSE -> true  // Always show player bars when board is shown
         AnalysisStage.MANUAL -> visibilitySettings.manualStage.showPlayersBars
     }
+    val playerBarMode = uiState.boardLayoutSettings.playerBarMode
+    val showRedBorderForPlayerToMove = uiState.boardLayoutSettings.showRedBorderForPlayerToMove
 
     // Conditional graph content
     val ConditionalGraphContent: @Composable () -> Unit = {
@@ -371,16 +373,31 @@ fun GameContent(
             else -> null
         }
 
-        // Player bar above board (opponent when not flipped, or player when flipped)
+        // Player bar handling based on playerBarMode
         val topIsBlack = !uiState.flippedBoard
-        if (showPlayersBars) {
+
+        // Show combined bar at TOP if mode is TOP
+        if (showPlayersBarsFromVisibility && playerBarMode == PlayerBarMode.TOP) {
+            CombinedPlayerBar(
+                whiteName = whiteName,
+                blackName = blackName,
+                whiteResult = whiteResult,
+                blackResult = blackResult,
+                isWhiteTurn = isWhiteTurn,
+                showRedBorder = showRedBorderForPlayerToMove
+            )
+        }
+
+        // Show separate top bar if mode is BOTH
+        if (showPlayersBarsFromVisibility && playerBarMode == PlayerBarMode.BOTH) {
             PlayerBar(
                 isWhite = !topIsBlack,
                 playerName = if (topIsBlack) blackName else whiteName,
                 rating = if (topIsBlack) blackRating else whiteRating,
                 clockTime = if (topIsBlack) blackClockTime else whiteClockTime,
                 isToMove = if (topIsBlack) !isWhiteTurn else isWhiteTurn,
-                gameResult = if (topIsBlack) blackResult else whiteResult
+                gameResult = if (topIsBlack) blackResult else whiteResult,
+                showRedBorder = showRedBorderForPlayerToMove
             )
         }
 
@@ -483,15 +500,28 @@ fun GameContent(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Player bar below board (player when not flipped, or opponent when flipped)
-        if (showPlayersBars) {
+        // Show separate bottom bar if mode is BOTH
+        if (showPlayersBarsFromVisibility && playerBarMode == PlayerBarMode.BOTH) {
             PlayerBar(
                 isWhite = topIsBlack,
                 playerName = if (topIsBlack) whiteName else blackName,
                 rating = if (topIsBlack) whiteRating else blackRating,
                 clockTime = if (topIsBlack) whiteClockTime else blackClockTime,
                 isToMove = if (topIsBlack) isWhiteTurn else !isWhiteTurn,
-                gameResult = if (topIsBlack) whiteResult else blackResult
+                gameResult = if (topIsBlack) whiteResult else blackResult,
+                showRedBorder = showRedBorderForPlayerToMove
+            )
+        }
+
+        // Show combined bar at BOTTOM if mode is BOTTOM
+        if (showPlayersBarsFromVisibility && playerBarMode == PlayerBarMode.BOTTOM) {
+            CombinedPlayerBar(
+                whiteName = whiteName,
+                blackName = blackName,
+                whiteResult = whiteResult,
+                blackResult = blackResult,
+                isWhiteTurn = isWhiteTurn,
+                showRedBorder = showRedBorderForPlayerToMove
             )
         }
     }
@@ -807,6 +837,7 @@ fun ControlButton(
 /**
  * Player bar showing player name, rating, clock time, and game result.
  * @param gameResult "won", "lost", "draw", or null if game not finished
+ * @param showRedBorder if true and isToMove is true, show red border around the bar
  */
 @Composable
 fun PlayerBar(
@@ -815,11 +846,12 @@ fun PlayerBar(
     rating: Int?,
     clockTime: String?,
     isToMove: Boolean,
-    gameResult: String? = null
+    gameResult: String? = null,
+    showRedBorder: Boolean = false
 ) {
     val backgroundColor = if (isWhite) Color.White else Color.Black
     val textColor = if (isWhite) Color.Black else Color.White
-    val borderColor = if (isToMove) Color.Red else Color.Transparent
+    val shouldShowBorder = isToMove && showRedBorder
 
     // Build player text: "Name (1234)"
     val playerText = buildString {
@@ -834,8 +866,8 @@ fun PlayerBar(
             .fillMaxWidth()
             .background(backgroundColor)
             .then(
-                if (isToMove) {
-                    Modifier.border(2.dp, borderColor)
+                if (shouldShowBorder) {
+                    Modifier.border(2.dp, Color.Red)
                 } else {
                     Modifier
                 }
@@ -883,6 +915,115 @@ fun PlayerBar(
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp
             )
+        }
+    }
+}
+
+/**
+ * Combined player bar showing both players in a single row.
+ * Left: White player (white background, black text, score before name)
+ * Right: Black player (black background, white text, score after name)
+ * No ELO rating or clocks shown.
+ * @param isWhiteTurn true if it's white's turn to move
+ * @param showRedBorder if true, show red border around the half of the player to move
+ */
+@Composable
+fun CombinedPlayerBar(
+    whiteName: String,
+    blackName: String,
+    whiteResult: String?,
+    blackResult: String?,
+    isWhiteTurn: Boolean = true,
+    showRedBorder: Boolean = false
+) {
+    val showWhiteBorder = showRedBorder && isWhiteTurn
+    val showBlackBorder = showRedBorder && !isWhiteTurn
+
+    Row(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Left half: White player (white background)
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .background(Color.White)
+                .then(
+                    if (showWhiteBorder) {
+                        Modifier.border(2.dp, Color.Red)
+                    } else {
+                        Modifier
+                    }
+                )
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            // Score before name for white
+            if (whiteResult != null) {
+                val (resultText, resultColor) = when (whiteResult) {
+                    "won" -> "1" to Color(0xFF00C853)  // Green
+                    "lost" -> "0" to Color(0xFFFF1744)  // Red
+                    "draw" -> "½" to Color(0xFF64B5F6)  // Blue
+                    else -> "" to Color.Transparent
+                }
+                if (resultText.isNotEmpty()) {
+                    Text(
+                        text = resultText,
+                        color = resultColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+            }
+            Text(
+                text = whiteName,
+                color = Color.Black,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp
+            )
+        }
+
+        // Right half: Black player (black background)
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .background(Color.Black)
+                .then(
+                    if (showBlackBorder) {
+                        Modifier.border(2.dp, Color.Red)
+                    } else {
+                        Modifier
+                    }
+                )
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End
+        ) {
+            Text(
+                text = blackName,
+                color = Color.White,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp
+            )
+            // Score after name for black
+            if (blackResult != null) {
+                val (resultText, resultColor) = when (blackResult) {
+                    "won" -> "1" to Color(0xFF00C853)  // Green
+                    "lost" -> "0" to Color(0xFFFF1744)  // Red
+                    "draw" -> "½" to Color(0xFF64B5F6)  // Blue
+                    else -> "" to Color.Transparent
+                }
+                if (resultText.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = resultText,
+                        color = resultColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+            }
         }
     }
 }
