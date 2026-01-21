@@ -7,6 +7,7 @@ A powerful Android application for fetching and analyzing chess games from Liche
 ### Game Retrieval
 - **Lichess Integration**: Fetch recent games from any Lichess.org user by username
 - **Multiple Games**: Retrieve up to 100 games at once and select which to analyze
+- **Quick Reload**: "Retrieve last game" button for instant access to most recent game
 - **Auto-Load**: Automatically loads your most recent game on app startup (after initial setup)
 - **PGN Parsing**: Full support for PGN notation including clock times, openings, and game metadata
 
@@ -15,7 +16,7 @@ A powerful Android application for fetching and analyzing chess games from Liche
 The app uses an innovative three-stage analysis approach that progressively analyzes games:
 
 #### 1. Preview Stage
-- **Quick Scan**: Rapidly evaluates all positions (100ms per move by default)
+- **Quick Scan**: Rapidly evaluates all positions (50ms per move by default)
 - **Forward Direction**: Analyzes from move 1 to the end of the game
 - **Visual Progress**: Shows evaluation graph building in real-time
 - **Non-Interruptible**: Completes fully before proceeding to ensure complete coverage
@@ -23,12 +24,12 @@ The app uses an innovative three-stage analysis approach that progressively anal
 #### 2. Analyse Stage
 - **Deep Analysis**: Thorough evaluation of each position (1 second per move by default)
 - **Reverse Direction**: Analyzes from the end back to move 1 (more efficient for finding mistakes)
-- **Interruptible**: Tap the yellow "Tap here for manual stage" banner to jump to the most critical position
+- **Interruptible**: Tap "Analysis running - tap to end" banner to jump to the most critical position
 - **Dual Graphs**: Yellow line overlay shows deep analysis vs. quick preview scores
 
 #### 3. Manual Stage
 - **Interactive Exploration**: Navigate freely through the game
-- **Real-Time Analysis**: Depth-based analysis (24 ply default) at each position
+- **Real-Time Analysis**: Depth-based analysis (32 ply default) at each position
 - **Multiple Variations**: View up to 6 principal variations simultaneously
 - **Line Exploration**: Click any move in the analysis panel to explore that variation
 - **Back to Game**: Easy return to the actual game when exploring variations
@@ -37,18 +38,27 @@ The app uses an innovative three-stage analysis approach that progressively anal
 - **High-Quality Pieces**: Beautiful piece images with customizable colors
 - **Move Highlighting**: Yellow squares show the last move played
 - **Three Arrow Modes**:
-  - **None**: No arrows displayed (icon gray)
-  - **Main Line**: Multiple arrows from best line showing sequence of moves (icon white)
+  - **None**: Clean board without arrows
+  - **Main Line**: Multiple arrows showing sequence of best moves (numbered 1, 2, 3...)
     - Blue arrows for White's suggested moves
     - Green arrows for Black's suggested moves
-    - Numbered arrows (1, 2, 3, 4) indicate move order
-  - **Multi Lines**: One arrow per engine line with evaluation score displayed (icon blue)
+  - **Multi Lines**: One arrow per engine line with evaluation score displayed
 - **Board Flipping**: Automatically flips when you played as Black, with manual toggle
-- **Drag Navigation**: Swipe left/right on the board to navigate through moves
+- **Graph Navigation**: Tap or drag on evaluation graph to jump to any position
+
+### Player Bars
+- **Four Display Modes**:
+  - **None**: No player information shown
+  - **Top**: Single combined bar at top (white player left, black right)
+  - **Bottom**: Single combined bar at bottom
+  - **Both**: Separate bars above and below board (default)
+- **Turn Indicator**: Optional red border highlights which player is to move
+- **Game Result**: Shows 1 (win), 0 (loss), or ½ (draw) for each player
+- **Clock Times**: Displays remaining time when available
 
 ### Board Customization
-- **Square Colors**: Customize white and black square colors
-- **Piece Colors**: Tint pieces with custom colors (uses color blending)
+- **Square Colors**: Customize white and black square colors via HSV picker
+- **Piece Colors**: Tint pieces with custom colors
 - **Coordinates**: Toggle file/rank labels on/off
 - **Last Move Highlight**: Toggle last move highlighting on/off
 - **Reset to Defaults**: One-button reset in settings
@@ -57,9 +67,9 @@ The app uses an innovative three-stage analysis approach that progressively anal
 - **Graphical Evaluation**: Color-coded graph showing position evaluation over time
   - Red area: White has advantage (above center line)
   - Green area: Black has advantage (below center line)
-  - Click/drag on graph to jump to any position (Manual stage)
+  - Yellow line: Deep analysis scores overlay
 - **Numerical Scores**: Precise centipawn evaluation for each move
-  - Format: +1.5 (White better by 1.5 pawns) or -2.3 (Black better by 2.3 pawns)
+  - Format: +1.5 (White better) or -2.3 (Black better)
   - Mate scores shown as M1, M2, etc.
 - **Move-by-Move Scores**: Color-coded score indicators in the moves list
 
@@ -72,12 +82,20 @@ The app uses an innovative three-stage analysis approach that progressively anal
 
 ### Configurable Settings
 
-#### Board Layout Settings
-- Show/hide coordinates
-- Show/hide last move highlight
+#### Board Layout
+- Show/hide coordinates (toggle)
+- Show/hide last move highlight (toggle)
+- Player bar(s): None / Top / Bottom / Both
+- Red border for player to move (toggle)
 - Customize square colors (HSV color picker)
 - Customize piece colors (HSV color picker)
 - Reset to defaults button
+
+#### Interface Elements (per stage)
+Configure which UI elements are visible in each analysis stage:
+- **Preview Stage**: Move list, board, game info, PGN
+- **Analyse Stage**: Move list, score graphs (line & bars), result bar, game info, board, PGN
+- **Manual Stage**: Result bar, score graphs (line & bars), move list, game info, PGN
 
 #### Arrow Settings
 - **Draw Arrows**: None / Main line / Multi lines
@@ -154,30 +172,30 @@ adb shell am start -n com.chessreplay/.MainActivity
 4. Tap "Retrieve last X games" or "Retrieve last game"
 
 ### During Analysis
-1. **Preview Stage**: Watch the evaluation graph build - this takes about 10 seconds for a typical game
-2. **Analyse Stage**: Watch the yellow analysis line appear - tap "Tap here for manual stage" to skip ahead
+1. **Preview Stage**: Watch the evaluation graph build - this takes about 5-10 seconds for a typical game
+2. **Analyse Stage**: Watch the yellow analysis line appear - tap "Analysis running - tap to end" to skip ahead
 3. **Manual Stage**: Navigate freely, explore variations, and examine positions in detail
 
 ### Navigation Controls
-- **|<** : Go to start of game
-- **<** : Previous move
-- **>** : Next move
-- **>|** : Go to end of game
-- **Analysis toggle**: Enable/disable real-time analysis
-- **Flip board**: Rotate board 180 degrees
+- **⏮** : Go to start of game
+- **◀** : Previous move
+- **▶** : Next move
+- **⏭** : Go to end of game
+- **↻** : Flip board
 
-### Top Bar Controls (Manual Stage)
-- **↻** : Reload latest game
+### Top Bar Controls
+- **↻** : Reload latest game from Lichess
 - **≡** : Return to game list
 - **↗** : Cycle arrow mode (None → Main line → Multi lines)
 - **⚙** : Open settings
+- **?** : Open help screen
 
 ### Exploring Variations
 1. In Manual stage, view the analysis panel showing top engine moves
 2. Click any move in a variation line to explore that position
 3. The board updates to show the variation
-4. Use navigation buttons or "Back to game" to return
-5. Click the main moves list to return to the actual game
+4. Use "Back to game" button to return
+5. Click the main moves list to return to the actual game position
 
 ## Technical Architecture
 
@@ -192,28 +210,30 @@ adb shell am start -n com.chessreplay/.MainActivity
 ### Project Structure
 ```
 com.chessreplay/
-├── MainActivity.kt           # App entry point
+├── MainActivity.kt              # App entry point
 ├── chess/
-│   ├── ChessBoard.kt        # Board state and move validation
-│   └── PgnParser.kt         # PGN parsing with clock times
+│   ├── ChessBoard.kt           # Board state and move validation
+│   └── PgnParser.kt            # PGN parsing with clock times
 ├── data/
-│   ├── LichessApi.kt        # Retrofit API interface
-│   ├── LichessModels.kt     # Data models
-│   └── LichessRepository.kt # Repository pattern implementation
+│   ├── LichessApi.kt           # Retrofit API interface
+│   ├── LichessModels.kt        # Data models
+│   └── LichessRepository.kt    # Repository pattern implementation
 ├── stockfish/
-│   └── StockfishEngine.kt   # UCI protocol wrapper
+│   └── StockfishEngine.kt      # UCI protocol wrapper
 └── ui/
-    ├── GameViewModel.kt     # Central state management (~1,780 lines)
-    ├── GameScreen.kt        # Main screen UI
-    ├── GameContent.kt       # Game display components
-    ├── ChessBoardView.kt    # Canvas-based board with arrows
-    ├── AnalysisComponents.kt # Evaluation graph & panel
-    ├── MovesDisplay.kt      # Moves list
-    ├── SettingsScreen.kt    # Settings navigation
-    ├── BoardLayoutSettingsScreen.kt # Board appearance
-    ├── ArrowSettingsScreen.kt # Arrow configuration
-    ├── StockfishSettingsScreen.kt # Engine settings
-    └── ColorPickerDialog.kt # HSV color picker
+    ├── GameViewModel.kt        # Central state management (~2,040 lines)
+    ├── GameScreen.kt           # Main screen UI
+    ├── GameContent.kt          # Game display components (~1,030 lines)
+    ├── ChessBoardView.kt       # Canvas-based board with arrows
+    ├── AnalysisComponents.kt   # Evaluation graph & panel
+    ├── MovesDisplay.kt         # Moves list
+    ├── SettingsScreen.kt       # Settings navigation
+    ├── BoardLayoutSettingsScreen.kt  # Board appearance & player bars
+    ├── InterfaceSettingsScreen.kt    # UI visibility per stage
+    ├── ArrowSettingsScreen.kt        # Arrow configuration
+    ├── StockfishSettingsScreen.kt    # Engine settings
+    ├── HelpScreen.kt           # In-app help
+    └── ColorPickerDialog.kt    # HSV color picker
 ```
 
 ### Key Design Decisions
@@ -226,7 +246,9 @@ com.chessreplay/
 
 4. **Arrow System**: Three modes provide flexibility - no arrows for clean viewing, main line for sequential analysis, and multi-lines for comparing alternatives.
 
-5. **Piece Color Tinting**: Uses white piece images with color modulation for custom colors, allowing any color for both white and black pieces.
+5. **Player Bar Modes**: Four modes (None/Top/Bottom/Both) allow users to customize information display based on preference and screen size.
+
+6. **Piece Color Tinting**: Uses white piece images with color modulation for custom colors, allowing any color for both white and black pieces.
 
 ## License
 

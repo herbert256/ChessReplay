@@ -238,7 +238,7 @@ fun GameScreen(
                         .padding(vertical = 4.dp)
                 ) {
                     Text(
-                        text = "Analys running - tap to end",
+                        text = "Analysis running - tap to end",
                         fontWeight = FontWeight.Medium,
                         fontSize = 16.sp,
                         color = Color.Yellow

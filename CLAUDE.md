@@ -32,13 +32,13 @@ Chess Replay is an Android app for fetching and analyzing chess games from Liche
 
 ## Architecture
 
-### Package Structure (20 Kotlin files, ~7,260 lines)
+### Package Structure (22 Kotlin files, ~8,620 lines)
 
 ```
 com.chessreplay/
 ├── MainActivity.kt (33 lines) - Entry point, sets up Compose theme
 ├── chess/
-│   ├── ChessBoard.kt (533 lines) - Board state, move validation, FEN generation
+│   ├── ChessBoard.kt (550 lines) - Board state, move validation, FEN generation
 │   └── PgnParser.kt (70 lines) - PGN parsing with clock time extraction
 ├── data/
 │   ├── LichessApi.kt (48 lines) - Retrofit interface for Lichess NDJSON API
@@ -47,17 +47,19 @@ com.chessreplay/
 ├── stockfish/
 │   └── StockfishEngine.kt (504 lines) - UCI protocol wrapper, process management
 └── ui/
-    ├── GameViewModel.kt (1,781 lines) - Central state management, analysis orchestration
-    ├── GameScreen.kt (484 lines) - Main screen, Lichess username input, Stockfish check
-    ├── GameContent.kt (738 lines) - Game display: board, players, moves, result bar
-    ├── ChessBoardView.kt (518 lines) - Canvas-based interactive chess board with arrows
-    ├── AnalysisComponents.kt (455 lines) - Evaluation graph, analysis panel
+    ├── GameViewModel.kt (2,042 lines) - Central state management, analysis orchestration
+    ├── GameScreen.kt (515 lines) - Main screen, Lichess username input, Stockfish check
+    ├── GameContent.kt (1,030 lines) - Game display: board, players, moves, result bar
+    ├── ChessBoardView.kt (554 lines) - Canvas-based interactive chess board with arrows
+    ├── AnalysisComponents.kt (611 lines) - Evaluation graph, analysis panel
     ├── MovesDisplay.kt (195 lines) - Move list with scores and piece symbols
     ├── GameSelectionDialog.kt (190 lines) - Dialog for selecting from multiple games
-    ├── SettingsScreen.kt (214 lines) - Settings navigation hub
-    ├── StockfishSettingsScreen.kt (496 lines) - Engine settings for all 3 stages
-    ├── ArrowSettingsScreen.kt (336 lines) - Arrow display configuration (3 cards)
-    ├── BoardLayoutSettingsScreen.kt (284 lines) - Board colors, pieces, coordinates
+    ├── SettingsScreen.kt (230 lines) - Settings navigation hub
+    ├── StockfishSettingsScreen.kt (447 lines) - Engine settings for all 3 stages
+    ├── ArrowSettingsScreen.kt (336 lines) - Arrow display configuration
+    ├── BoardLayoutSettingsScreen.kt (333 lines) - Board colors, pieces, coordinates, player bars
+    ├── InterfaceSettingsScreen.kt (334 lines) - UI visibility settings per stage
+    ├── HelpScreen.kt (217 lines) - In-app help documentation
     ├── ColorPickerDialog.kt (254 lines) - HSV color picker for colors
     └── theme/Theme.kt (32 lines) - Material3 dark theme
 ```
@@ -71,20 +73,29 @@ enum class AnalysisStage { PREVIEW, ANALYSE, MANUAL }
 // Arrow modes
 enum class ArrowMode { NONE, MAIN_LINE, MULTI_LINES }
 
-// Settings for each stage
+// Player bar display modes
+enum class PlayerBarMode { NONE, TOP, BOTTOM, BOTH }
+
+// Settings for each analysis stage
 data class PreviewStageSettings(secondsForMove, threads, hashMb, useNnue)
 data class AnalyseStageSettings(secondsForMove, threads, hashMb, useNnue)
 data class ManualStageSettings(depth, threads, hashMb, multiPv, useNnue,
     arrowMode, numArrows, showArrowNumbers, whiteArrowColor, blackArrowColor, multiLinesArrowColor)
 
 // Board appearance
-data class BoardLayoutSettings(showCoordinates, showLastMove,
+data class BoardLayoutSettings(showCoordinates, showLastMove, playerBarMode, showRedBorderForPlayerToMove,
     whiteSquareColor, blackSquareColor, whitePieceColor, blackPieceColor)
+
+// Interface visibility per stage
+data class PreviewStageVisibility(showMoveList, showBoard, showGameInfo, showPgn)
+data class AnalyseStageVisibility(showMoveList, showScoreLineGraph, showScoreBarsGraph, showResultBar, showGameInfo, showBoard, showPgn)
+data class ManualStageVisibility(showResultBar, showScoreLineGraph, showScoreBarsGraph, showMoveList, showGameInfo, showPgn)
+data class InterfaceVisibilitySettings(previewStage, analyseStage, manualStage)
 
 // UI state (30+ fields)
 data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
     currentMoveIndex, analysisResult, currentStage, previewScores, analyseScores,
-    isExploringLine, stockfishSettings, boardLayoutSettings, ...)
+    isExploringLine, stockfishSettings, boardLayoutSettings, interfaceVisibility, ...)
 ```
 
 ### Key Design Patterns
@@ -98,18 +109,24 @@ data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
    - MAIN_LINE: Multiple arrows from PV line (1-8 arrows, colored by side, numbered)
    - MULTI_LINES: One arrow per Stockfish line with evaluation score displayed
 
-4. **Piece Color Tinting**: Uses white piece images with ColorFilter.Modulate for custom colors (black pieces use white images when custom-colored)
+4. **Player Bar Modes**:
+   - NONE: No player bars
+   - TOP: Single combined bar at top (white left, black right)
+   - BOTTOM: Single combined bar at bottom
+   - BOTH: Separate bars above and below board (default)
 
-5. **SharedPreferences Persistence**: All settings saved, with version tracking for defaults reset on app updates
+5. **Piece Color Tinting**: Uses white piece images with ColorFilter.Modulate for custom colors
+
+6. **SharedPreferences Persistence**: All settings saved, with version tracking for defaults reset on app updates
 
 ## Analysis Stages
 
 ### 1. Preview Stage
 - **Purpose**: Quick initial scan of all positions
-- **Timing**: 100ms per move (configurable: 10ms-500ms)
+- **Timing**: 50ms per move (configurable: 10ms-500ms)
 - **Direction**: Forward through game (move 0 → end)
-- **Settings**: 1 thread, 16MB hash, NNUE disabled
-- **UI**: Board hidden, only evaluation graph shown
+- **Settings**: 1 thread, 8MB hash, NNUE disabled
+- **UI**: Board hidden by default, evaluation graph shown
 - **Interruptible**: No
 
 ### 2. Analyse Stage
@@ -117,40 +134,44 @@ data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
 - **Timing**: 1 second per move (configurable: 500ms-10s)
 - **Direction**: Backward through game (end → move 0)
 - **Settings**: 2 threads, 32MB hash, NNUE enabled
-- **UI**: Full display, clickable "Tap here for manual stage" banner (yellow)
-- **Interruptible**: Yes (click to enter Manual at biggest evaluation change)
+- **UI**: "Analysis running - tap to end" banner (yellow text on blue)
+- **Interruptible**: Yes (tap to enter Manual at biggest evaluation change)
 
 ### 3. Manual Stage
 - **Purpose**: Interactive exploration with real-time analysis
-- **Analysis**: Depth-based (default 24), MultiPV support (1-6 lines)
+- **Analysis**: Depth-based (default 32), MultiPV support (1-6 lines)
 - **Settings**: 4 threads, 64MB hash, NNUE enabled
 - **Features**:
-  - Draggable board navigation
-  - Three arrow modes (cycle with top-bar icon)
+  - Navigation buttons: ⏮ ◀ ▶ ⏭ ↻ (flip)
+  - Three arrow modes (cycle with ↗ icon)
   - Line exploration (click PV moves to explore variations)
   - "Back to game" button when exploring
-  - Evaluation graph with current position indicator
+  - Evaluation graph with tap/drag navigation
 
 ## UI Components
 
 ### Title Bar Icons (left to right when game loaded)
 - **↻** : Reload last game from Lichess
 - **≡** : Return to game selection
-- **↗** : Arrow mode toggle (gray=none, white=main line, blue=multi lines)
-- **Chess Replay** : Title (centered)
+- **↗** : Arrow mode toggle (cycles: None → Main line → Multi lines)
 - **⚙** : Settings
+- **?** : Help screen
 
 ### Settings Structure
 ```
 Settings (main menu)
 ├── Board layout
-│   ├── Show coordinates (Yes/No)
-│   ├── Show last move (Yes/No)
-│   ├── White squares color (color picker)
-│   ├── Black squares color (color picker)
-│   ├── White pieces color (color picker)
-│   ├── Black pieces color (color picker)
+│   ├── Show coordinates (toggle)
+│   ├── Show last move (toggle)
+│   ├── Player bar(s) (None / Top / Bottom / Both)
+│   ├── Red border for player to move (toggle, only if bars enabled)
+│   ├── White/Black squares color (color pickers)
+│   ├── White/Black pieces color (color pickers)
 │   └── Reset to defaults (button)
+├── Show interface elements
+│   ├── Preview Stage: move list, board, game info, PGN
+│   ├── Analyse Stage: move list, score graphs, result bar, game info, board, PGN
+│   └── Manual Stage: result bar, score graphs, move list, game info, PGN
 ├── Arrow settings
 │   ├── Card 1: Draw arrows (None / Main line / Multi lines)
 │   ├── Card 2 "Main line": numArrows, showNumbers, white/black colors
@@ -162,10 +183,10 @@ Settings (main menu)
 ```
 
 ### Color Conventions
-- **Score Colors**: Red = white better (+), Green = black better (-)
+- **Score Colors**: Green = good for player (+), Red = bad for player (-)
 - **Main Line Arrows**: Blue (default) for white moves, Green (default) for black moves
-- **Multi Lines Arrows**: Single configurable color (default blue)
-- **Evaluation Graph**: Bright red (#FF5252) above axis, bright green (#00E676) below
+- **Multi Lines Arrows**: Color based on evaluation (green=good, red=bad, blue=equal)
+- **Evaluation Graph**: Red above axis (white better), Green below (black better)
 - **Background Color**: Changes based on game result (green=win, red=loss, blue=draw)
 
 ## Stockfish Integration
@@ -214,9 +235,20 @@ manual_arrow_mode, manual_numarrows, manual_shownumbers
 manual_white_arrow_color, manual_black_arrow_color, manual_multilines_arrow_color
 
 // Board layout
-board_show_coordinates, board_show_last_move
+board_show_coordinates, board_show_last_move, board_player_bar_mode, board_red_border_player_to_move
 board_white_square_color, board_black_square_color
 board_white_piece_color, board_black_piece_color
+
+// Interface visibility - Preview
+preview_vis_movelist, preview_vis_board, preview_vis_gameinfo, preview_vis_pgn
+
+// Interface visibility - Analyse
+analyse_vis_movelist, analyse_vis_scorelinegraph, analyse_vis_scorebarsgraph
+analyse_vis_resultbar, analyse_vis_gameinfo, analyse_vis_board, analyse_vis_pgn
+
+// Interface visibility - Manual
+manual_vis_resultbar, manual_vis_scorelinegraph, manual_vis_scorebarsgraph
+manual_vis_movelist, manual_vis_gameinfo, manual_vis_pgn
 
 // App versioning
 first_game_retrieved_version
@@ -227,7 +259,7 @@ first_game_retrieved_version
 ### Adding a New Setting
 1. Add field to appropriate settings data class in `GameViewModel.kt`
 2. Add SharedPreferences key constant in companion object
-3. Update `loadStockfishSettings()` or `loadBoardLayoutSettings()`
+3. Update corresponding load function (`loadStockfishSettings()`, `loadBoardLayoutSettings()`, or `loadInterfaceVisibilitySettings()`)
 4. Update corresponding save function
 5. Add UI control in appropriate settings screen
 6. Use setting value in relevant code
@@ -235,13 +267,19 @@ first_game_retrieved_version
 ### Modifying Arrow Behavior
 1. Check `ArrowMode` enum in `GameViewModel.kt`
 2. Update `MoveArrow` data class in `ChessBoardView.kt` if needed
-3. Modify arrow generation in `GameContent.kt` (around line 308)
-4. Update arrow drawing in `ChessBoardView.kt` (around line 288)
+3. Modify arrow generation in `GameContent.kt` (around line 410)
+4. Update arrow drawing in `ChessBoardView.kt` (around line 290)
 
 ### Changing Board Display
 1. `ChessBoardView.kt` - Canvas drawing, gestures, arrows, piece tinting
-2. `GameContent.kt` - Layout, player bars, result bar
+2. `GameContent.kt` - Layout, player bars (PlayerBar, CombinedPlayerBar), result bar
 3. `AnalysisComponents.kt` - Evaluation graph, analysis panel
+
+### Modifying Player Bars
+1. `PlayerBarMode` enum in `GameViewModel.kt` controls display mode
+2. `PlayerBar` composable in `GameContent.kt` for BOTH mode (separate bars)
+3. `CombinedPlayerBar` composable in `GameContent.kt` for TOP/BOTTOM mode (split bar)
+4. `showRedBorderForPlayerToMove` controls turn indicator
 
 ### Triggering Stockfish Analysis
 Use `restartAnalysisForExploringLine()` for proper restart sequence:

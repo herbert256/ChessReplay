@@ -63,7 +63,8 @@ fun HelpScreen(
             HelpSection(
                 title = "Getting Started",
                 icon = "🚀",
-                content = "Enter your Lichess username and tap 'Retrieve' to fetch your recent games. " +
+                content = "Enter your Lichess username and tap 'Retrieve last X games' to fetch multiple games, " +
+                    "or 'Retrieve last game' for just the most recent one. " +
                     "Select a game to start the analysis. The app remembers your last game for quick startup."
             )
 
@@ -82,11 +83,12 @@ fun HelpScreen(
                 title = "Board Navigation",
                 icon = "♟",
                 content = "Use the navigation buttons to move through the game:\n\n" +
-                    "|<  Go to start\n" +
-                    "<   Previous move\n" +
-                    ">   Next move\n" +
-                    ">|  Go to end\n\n" +
-                    "You can also swipe left/right on the board or tap the evaluation graph."
+                    "⏮  Go to start\n" +
+                    "◀  Previous move\n" +
+                    "▶  Next move\n" +
+                    "⏭  Go to end\n" +
+                    "↻  Flip board\n\n" +
+                    "You can also tap or drag on the evaluation graph to jump to any position."
             )
 
             // Evaluation Graph
@@ -105,11 +107,12 @@ fun HelpScreen(
             HelpSection(
                 title = "Analysis Arrows",
                 icon = "↗",
-                content = "In Manual stage, arrows show Stockfish's recommended moves:\n\n" +
-                    "• Gray arrow icon = arrows off\n" +
-                    "• White arrow icon = main line arrows\n" +
-                    "• Blue arrow icon = multi-line arrows with scores\n\n" +
-                    "Tap the arrow icon to cycle through modes."
+                content = "In Manual stage, arrows show Stockfish's recommended moves. " +
+                    "Tap the ↗ icon in the top bar to cycle through three modes:\n\n" +
+                    "• Off - No arrows shown\n" +
+                    "• Main line - Shows the best continuation (numbered moves)\n" +
+                    "• Multi-line - One arrow per analysis line with evaluation scores\n\n" +
+                    "Arrow colors can be customized in Settings."
             )
 
             // Top Bar Icons
@@ -129,27 +132,30 @@ fun HelpScreen(
                 icon = "🔍",
                 content = "In the analysis panel, tap any move in a Stockfish line to explore that variation. " +
                     "The board will show the position after those moves. " +
-                    "Use navigation to return to the main game."
+                    "Tap 'Back to game' to return to the main game position."
             )
 
             // Settings
             HelpSection(
                 title = "Settings",
                 icon = "⚙",
-                content = "Customize the analysis in Settings:\n\n" +
-                    "• Stockfish Settings - Analysis depth, time, threads\n" +
-                    "• Arrow Settings - Colors and display options\n" +
-                    "• Board Layout - Colors and coordinates"
+                content = "Customize the app in Settings:\n\n" +
+                    "• Stockfish Settings - Analysis depth, time, threads for each stage\n" +
+                    "• Arrow Settings - Colors, number of arrows, display options\n" +
+                    "• Board Layout - Square/piece colors, coordinates, player bars (None/Top/Bottom/Both)\n" +
+                    "• Interface Elements - Show/hide UI components for each analysis stage"
             )
 
             // Tips
             HelpSection(
                 title = "Tips",
                 icon = "💡",
-                content = "• The background color shows game result: green (win), red (loss), blue (draw)\n" +
+                content = "• Background color shows game result: green (win), red (loss), blue (draw)\n" +
                     "• Scores are always from your perspective - positive is good for you\n" +
                     "• Player bars show remaining clock time when available\n" +
-                    "• Tap the Analyse stage banner to jump to the biggest mistake"
+                    "• Tap the 'Analysis running' banner to jump to the biggest mistake\n" +
+                    "• In Board Layout, enable 'Red border for player to move' to see whose turn it is\n" +
+                    "• The move list shows colored scores - green moves are good, red are mistakes"
             )
 
             // About

@@ -61,7 +61,6 @@ fun InterfaceSettingsScreen(
 
     // Manual Stage visibility state
     var manualShowResultBar by remember { mutableStateOf(interfaceVisibility.manualStage.showResultBar) }
-    var manualShowPlayersBars by remember { mutableStateOf(interfaceVisibility.manualStage.showPlayersBars) }
     var manualShowScoreLineGraph by remember { mutableStateOf(interfaceVisibility.manualStage.showScoreLineGraph) }
     var manualShowScoreBarsGraph by remember { mutableStateOf(interfaceVisibility.manualStage.showScoreBarsGraph) }
     var manualShowMoveList by remember { mutableStateOf(interfaceVisibility.manualStage.showMoveList) }
@@ -87,7 +86,6 @@ fun InterfaceSettingsScreen(
             ),
             manualStage = ManualStageVisibility(
                 showResultBar = manualShowResultBar,
-                showPlayersBars = manualShowPlayersBars,
                 showScoreLineGraph = manualShowScoreLineGraph,
                 showScoreBarsGraph = manualShowScoreBarsGraph,
                 showMoveList = manualShowMoveList,

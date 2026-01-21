@@ -273,11 +273,8 @@ fun GameContent(
         AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showResultBar
         AnalysisStage.MANUAL -> visibilitySettings.manualStage.showResultBar
     }
-    val showPlayersBarsFromVisibility = when (uiState.currentStage) {
-        AnalysisStage.PREVIEW -> false  // Never show player bars in preview
-        AnalysisStage.ANALYSE -> true  // Always show player bars when board is shown
-        AnalysisStage.MANUAL -> visibilitySettings.manualStage.showPlayersBars
-    }
+    // Player bars visibility: never in preview, always in analyse/manual (actual display controlled by playerBarMode)
+    val showPlayersBarsFromVisibility = uiState.currentStage != AnalysisStage.PREVIEW
     val playerBarMode = uiState.boardLayoutSettings.playerBarMode
     val showRedBorderForPlayerToMove = uiState.boardLayoutSettings.showRedBorderForPlayerToMove
 

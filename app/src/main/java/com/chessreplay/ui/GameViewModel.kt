@@ -126,7 +126,6 @@ data class AnalyseStageVisibility(
 // Interface visibility settings for Manual Analyse stage
 data class ManualStageVisibility(
     val showResultBar: Boolean = true,
-    val showPlayersBars: Boolean = true,
     val showScoreLineGraph: Boolean = true,
     val showScoreBarsGraph: Boolean = true,
     val showMoveList: Boolean = true,
@@ -277,7 +276,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         private const val KEY_ANALYSE_VIS_PGN = "analyse_vis_pgn"
         // Interface visibility settings - Manual stage
         private const val KEY_MANUAL_VIS_RESULTBAR = "manual_vis_resultbar"
-        private const val KEY_MANUAL_VIS_PLAYERSBARS = "manual_vis_playersbars"
         private const val KEY_MANUAL_VIS_SCORELINEGRAPH = "manual_vis_scorelinegraph"
         private const val KEY_MANUAL_VIS_SCOREBARSGRAPH = "manual_vis_scorebarsgraph"
         private const val KEY_MANUAL_VIS_MOVELIST = "manual_vis_movelist"
@@ -391,7 +389,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             ),
             manualStage = ManualStageVisibility(
                 showResultBar = prefs.getBoolean(KEY_MANUAL_VIS_RESULTBAR, true),
-                showPlayersBars = prefs.getBoolean(KEY_MANUAL_VIS_PLAYERSBARS, true),
                 showScoreLineGraph = prefs.getBoolean(KEY_MANUAL_VIS_SCORELINEGRAPH, true),
                 showScoreBarsGraph = prefs.getBoolean(KEY_MANUAL_VIS_SCOREBARSGRAPH, true),
                 showMoveList = prefs.getBoolean(KEY_MANUAL_VIS_MOVELIST, true),
@@ -418,7 +415,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             .putBoolean(KEY_ANALYSE_VIS_PGN, settings.analyseStage.showPgn)
             // Manual stage
             .putBoolean(KEY_MANUAL_VIS_RESULTBAR, settings.manualStage.showResultBar)
-            .putBoolean(KEY_MANUAL_VIS_PLAYERSBARS, settings.manualStage.showPlayersBars)
             .putBoolean(KEY_MANUAL_VIS_SCORELINEGRAPH, settings.manualStage.showScoreLineGraph)
             .putBoolean(KEY_MANUAL_VIS_SCOREBARSGRAPH, settings.manualStage.showScoreBarsGraph)
             .putBoolean(KEY_MANUAL_VIS_MOVELIST, settings.manualStage.showMoveList)
