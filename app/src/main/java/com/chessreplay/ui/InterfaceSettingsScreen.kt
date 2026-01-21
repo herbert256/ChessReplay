@@ -283,15 +283,6 @@ fun InterfaceSettingsScreen(
                 )
 
                 VisibilityToggle(
-                    label = "Show players bars",
-                    checked = manualShowPlayersBars,
-                    onCheckedChange = {
-                        manualShowPlayersBars = it
-                        saveAllSettings()
-                    }
-                )
-
-                VisibilityToggle(
                     label = "Show score line graph",
                     checked = manualShowScoreLineGraph,
                     onCheckedChange = {

@@ -700,7 +700,7 @@ fun GameContent(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 // Table rows with aligned labels and values
-                val labelWidth = 90.dp
+                val labelWidth = 105.dp
 
                 // White player
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -980,7 +980,9 @@ fun CombinedPlayerBar(
                 text = whiteName,
                 color = Color.Black,
                 fontWeight = FontWeight.Medium,
-                fontSize = 14.sp
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
 
@@ -1004,7 +1006,9 @@ fun CombinedPlayerBar(
                 text = blackName,
                 color = Color.White,
                 fontWeight = FontWeight.Medium,
-                fontSize = 14.sp
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
             // Score after name for black
             if (blackResult != null) {
