@@ -471,7 +471,6 @@ fun GameContent(
 
     // Stockfish analysis panel - hide during auto-analysis
     if (uiState.currentStage == AnalysisStage.MANUAL) {
-        Spacer(modifier = Modifier.height(4.dp))
         AnalysisPanel(
             uiState = uiState,
             onExploreLine = { pv, moveIndex -> viewModel.exploreLine(pv, moveIndex) },
