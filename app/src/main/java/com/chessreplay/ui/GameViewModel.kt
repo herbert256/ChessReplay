@@ -41,9 +41,17 @@ data class AnalyseStageSettings(
     val useNnue: Boolean = true
 )
 
+// Arrow drawing modes
+enum class ArrowMode {
+    NONE,        // No arrows
+    MAIN_LINE,   // Draw arrows from PV line (current behavior)
+    MULTI_LINES  // Draw one arrow per Stockfish line with score
+}
+
 // Default arrow colors (with alpha for semi-transparency)
 const val DEFAULT_WHITE_ARROW_COLOR = 0xCC3399FFL  // Semi-transparent blue
 const val DEFAULT_BLACK_ARROW_COLOR = 0xCC44BB44L  // Semi-transparent green
+const val DEFAULT_MULTI_LINES_ARROW_COLOR = 0xCC3399FFL  // Semi-transparent blue
 
 // Settings for Manual Analyse Stage (interactive deep analysis)
 data class ManualStageSettings(
@@ -52,11 +60,14 @@ data class ManualStageSettings(
     val hashMb: Int = 64,               // 32, 64, 128, 256
     val multiPv: Int = 3,               // 1-6
     val useNnue: Boolean = true,
-    val drawArrows: Boolean = true,     // Whether to draw arrows at all
-    val numArrows: Int = 4,             // 1-8 (only visible when drawArrows is true)
+    // Main line arrow settings
+    val arrowMode: ArrowMode = ArrowMode.MAIN_LINE,
+    val numArrows: Int = 4,             // 1-8 arrows from PV
     val showArrowNumbers: Boolean = true,
     val whiteArrowColor: Long = DEFAULT_WHITE_ARROW_COLOR,
-    val blackArrowColor: Long = DEFAULT_BLACK_ARROW_COLOR
+    val blackArrowColor: Long = DEFAULT_BLACK_ARROW_COLOR,
+    // Multi lines arrow settings
+    val multiLinesArrowColor: Long = DEFAULT_MULTI_LINES_ARROW_COLOR
 )
 
 // Combined Stockfish settings for all stages
@@ -183,11 +194,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         private const val KEY_MANUAL_HASH = "manual_hash"
         private const val KEY_MANUAL_MULTIPV = "manual_multipv"
         private const val KEY_MANUAL_NNUE = "manual_nnue"
-        private const val KEY_MANUAL_DRAWARROWS = "manual_drawarrows"
+        private const val KEY_MANUAL_ARROW_MODE = "manual_arrow_mode"
         private const val KEY_MANUAL_NUMARROWS = "manual_numarrows"
         private const val KEY_MANUAL_SHOWNUMBERS = "manual_shownumbers"
         private const val KEY_MANUAL_WHITE_ARROW_COLOR = "manual_white_arrow_color"
         private const val KEY_MANUAL_BLACK_ARROW_COLOR = "manual_black_arrow_color"
+        private const val KEY_MANUAL_MULTILINES_ARROW_COLOR = "manual_multilines_arrow_color"
         // Board layout settings
         private const val KEY_BOARD_SHOW_COORDINATES = "board_show_coordinates"
         private const val KEY_BOARD_SHOW_LAST_MOVE = "board_show_last_move"
@@ -219,11 +231,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 hashMb = prefs.getInt(KEY_MANUAL_HASH, 64),
                 multiPv = prefs.getInt(KEY_MANUAL_MULTIPV, 3),
                 useNnue = prefs.getBoolean(KEY_MANUAL_NNUE, true),
-                drawArrows = prefs.getBoolean(KEY_MANUAL_DRAWARROWS, true),
+                arrowMode = ArrowMode.valueOf(prefs.getString(KEY_MANUAL_ARROW_MODE, ArrowMode.MAIN_LINE.name) ?: ArrowMode.MAIN_LINE.name),
                 numArrows = prefs.getInt(KEY_MANUAL_NUMARROWS, 4),
                 showArrowNumbers = prefs.getBoolean(KEY_MANUAL_SHOWNUMBERS, true),
                 whiteArrowColor = prefs.getLong(KEY_MANUAL_WHITE_ARROW_COLOR, DEFAULT_WHITE_ARROW_COLOR),
-                blackArrowColor = prefs.getLong(KEY_MANUAL_BLACK_ARROW_COLOR, DEFAULT_BLACK_ARROW_COLOR)
+                blackArrowColor = prefs.getLong(KEY_MANUAL_BLACK_ARROW_COLOR, DEFAULT_BLACK_ARROW_COLOR),
+                multiLinesArrowColor = prefs.getLong(KEY_MANUAL_MULTILINES_ARROW_COLOR, DEFAULT_MULTI_LINES_ARROW_COLOR)
             )
         )
     }
@@ -246,11 +259,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             .putInt(KEY_MANUAL_HASH, settings.manualStage.hashMb)
             .putInt(KEY_MANUAL_MULTIPV, settings.manualStage.multiPv)
             .putBoolean(KEY_MANUAL_NNUE, settings.manualStage.useNnue)
-            .putBoolean(KEY_MANUAL_DRAWARROWS, settings.manualStage.drawArrows)
+            .putString(KEY_MANUAL_ARROW_MODE, settings.manualStage.arrowMode.name)
             .putInt(KEY_MANUAL_NUMARROWS, settings.manualStage.numArrows)
             .putBoolean(KEY_MANUAL_SHOWNUMBERS, settings.manualStage.showArrowNumbers)
             .putLong(KEY_MANUAL_WHITE_ARROW_COLOR, settings.manualStage.whiteArrowColor)
             .putLong(KEY_MANUAL_BLACK_ARROW_COLOR, settings.manualStage.blackArrowColor)
+            .putLong(KEY_MANUAL_MULTILINES_ARROW_COLOR, settings.manualStage.multiLinesArrowColor)
             .apply()
     }
 
@@ -1042,11 +1056,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(flippedBoard = !_uiState.value.flippedBoard)
     }
 
-    fun toggleDrawArrows() {
+    fun cycleArrowMode() {
         val currentSettings = _uiState.value.stockfishSettings
-        val newDrawArrows = !currentSettings.manualStage.drawArrows
+        val currentMode = currentSettings.manualStage.arrowMode
+        val newMode = when (currentMode) {
+            ArrowMode.NONE -> ArrowMode.MAIN_LINE
+            ArrowMode.MAIN_LINE -> ArrowMode.MULTI_LINES
+            ArrowMode.MULTI_LINES -> ArrowMode.NONE
+        }
         val newSettings = currentSettings.copy(
-            manualStage = currentSettings.manualStage.copy(drawArrows = newDrawArrows)
+            manualStage = currentSettings.manualStage.copy(arrowMode = newMode)
         )
         saveStockfishSettings(newSettings)
         _uiState.value = _uiState.value.copy(stockfishSettings = newSettings)

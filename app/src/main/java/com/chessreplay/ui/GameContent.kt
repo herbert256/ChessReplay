@@ -299,30 +299,69 @@ fun GameContent(
         )
 
         // Chess board - drag to make moves during manual replay (no interaction during other stages)
-        // Get move arrows from Stockfish PV line (only in Manual stage, and only if result is for current position)
-        val drawArrowsSetting = uiState.stockfishSettings.manualStage.drawArrows
+        // Get move arrows based on arrow mode (only in Manual stage, and only if result is for current position)
+        val arrowMode = uiState.stockfishSettings.manualStage.arrowMode
         val numArrows = uiState.stockfishSettings.manualStage.numArrows
         val arrowResultMatchesPosition = uiState.analysisResultFen == uiState.currentBoard.getFen()
-        val moveArrows: List<MoveArrow> = if (uiState.currentStage == AnalysisStage.MANUAL && drawArrowsSetting && numArrows > 0 && arrowResultMatchesPosition) {
-            val pvLine = uiState.analysisResult?.pv ?: ""
-            val pvMoves = pvLine.split(" ").filter { it.length >= 4 }.take(numArrows)
-            val isWhiteTurnNow = uiState.currentBoard.getTurn() == PieceColor.WHITE
+        val isWhiteTurnNow = uiState.currentBoard.getTurn() == PieceColor.WHITE
 
-            pvMoves.mapIndexedNotNull { index, uciMove ->
-                val fromFile = uciMove[0] - 'a'
-                val fromRank = uciMove[1] - '1'
-                val toFile = uciMove[2] - 'a'
-                val toRank = uciMove[3] - '1'
-                if (fromFile in 0..7 && fromRank in 0..7 && toFile in 0..7 && toRank in 0..7) {
-                    // First move is by current turn, then alternates
-                    val isWhiteMove = if (index % 2 == 0) isWhiteTurnNow else !isWhiteTurnNow
-                    MoveArrow(
-                        from = Square(fromFile, fromRank),
-                        to = Square(toFile, toRank),
-                        isWhiteMove = isWhiteMove,
-                        index = index
-                    )
-                } else null
+        val moveArrows: List<MoveArrow> = if (uiState.currentStage == AnalysisStage.MANUAL && arrowMode != ArrowMode.NONE && arrowResultMatchesPosition) {
+            when (arrowMode) {
+                ArrowMode.NONE -> emptyList()
+                ArrowMode.MAIN_LINE -> {
+                    // Draw arrows from PV line (existing behavior)
+                    val pvLine = uiState.analysisResult?.pv ?: ""
+                    val pvMoves = pvLine.split(" ").filter { it.length >= 4 }.take(numArrows)
+
+                    pvMoves.mapIndexedNotNull { index, uciMove ->
+                        val fromFile = uciMove[0] - 'a'
+                        val fromRank = uciMove[1] - '1'
+                        val toFile = uciMove[2] - 'a'
+                        val toRank = uciMove[3] - '1'
+                        if (fromFile in 0..7 && fromRank in 0..7 && toFile in 0..7 && toRank in 0..7) {
+                            // First move is by current turn, then alternates
+                            val isWhiteMove = if (index % 2 == 0) isWhiteTurnNow else !isWhiteTurnNow
+                            MoveArrow(
+                                from = Square(fromFile, fromRank),
+                                to = Square(toFile, toRank),
+                                isWhiteMove = isWhiteMove,
+                                index = index
+                            )
+                        } else null
+                    }
+                }
+                ArrowMode.MULTI_LINES -> {
+                    // Draw one arrow per Stockfish line with score displayed
+                    val analysisLines = uiState.analysisResult?.lines ?: emptyList()
+                    val multiLinesColor = Color(uiState.stockfishSettings.manualStage.multiLinesArrowColor.toInt())
+
+                    analysisLines.mapIndexedNotNull { index, line ->
+                        val firstMove = line.pv.split(" ").firstOrNull { it.length >= 4 }
+                        if (firstMove != null) {
+                            val fromFile = firstMove[0] - 'a'
+                            val fromRank = firstMove[1] - '1'
+                            val toFile = firstMove[2] - 'a'
+                            val toRank = firstMove[3] - '1'
+                            if (fromFile in 0..7 && fromRank in 0..7 && toFile in 0..7 && toRank in 0..7) {
+                                // Format score for display
+                                val scoreText = if (line.isMate) {
+                                    if (line.mateIn > 0) "M${line.mateIn}" else "-M${kotlin.math.abs(line.mateIn)}"
+                                } else {
+                                    val score = if (isWhiteTurnNow) line.score else -line.score
+                                    if (score >= 0) "+%.1f".format(score) else "%.1f".format(score)
+                                }
+                                MoveArrow(
+                                    from = Square(fromFile, fromRank),
+                                    to = Square(toFile, toRank),
+                                    isWhiteMove = isWhiteTurnNow,
+                                    index = index,
+                                    scoreText = scoreText,
+                                    overrideColor = multiLinesColor
+                                )
+                            } else null
+                        } else null
+                    }
+                }
             }
         } else emptyList()
 

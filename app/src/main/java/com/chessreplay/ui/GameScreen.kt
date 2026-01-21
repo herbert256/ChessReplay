@@ -136,15 +136,20 @@ fun GameScreen(
                     IconButton(onClick = { viewModel.clearGame() }) {
                         Text("≡", fontSize = 34.sp, lineHeight = 34.sp)
                     }
-                    // Arrow toggle - only show in Manual stage
+                    // Arrow mode toggle - only show in Manual stage
                     if (uiState.currentStage == AnalysisStage.MANUAL) {
-                        val drawArrowsEnabled = uiState.stockfishSettings.manualStage.drawArrows
-                        IconButton(onClick = { viewModel.toggleDrawArrows() }) {
+                        val arrowMode = uiState.stockfishSettings.manualStage.arrowMode
+                        val arrowColor = when (arrowMode) {
+                            ArrowMode.NONE -> Color.Gray
+                            ArrowMode.MAIN_LINE -> Color.White
+                            ArrowMode.MULTI_LINES -> Color(0xFF64B5F6)  // Light blue
+                        }
+                        IconButton(onClick = { viewModel.cycleArrowMode() }) {
                             Text(
                                 text = "↗",
                                 fontSize = 38.sp,
                                 lineHeight = 38.sp,
-                                color = if (drawArrowsEnabled) Color.White else Color.Gray,
+                                color = arrowColor,
                                 modifier = Modifier.offset(y = (-6).dp)
                             )
                         }

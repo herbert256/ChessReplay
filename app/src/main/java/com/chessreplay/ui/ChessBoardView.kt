@@ -33,8 +33,10 @@ val SelectedSquareColor = Color(0x8844AA44)
 data class MoveArrow(
     val from: Square,
     val to: Square,
-    val isWhiteMove: Boolean,  // true = white arrow with black border, false = black arrow with white border
-    val index: Int  // 0 = thickest, 3 = thinnest
+    val isWhiteMove: Boolean,  // true = white arrow color, false = black arrow color (main line mode)
+    val index: Int,  // 0 = thickest, 3 = thinnest (main line mode)
+    val scoreText: String? = null,  // Score to display in middle of arrow (multi lines mode)
+    val overrideColor: Color? = null  // Override color for multi lines mode
 )
 
 @Composable
@@ -283,10 +285,11 @@ fun ChessBoardView(
             }
         }
 
-        // Draw move arrows (up to 8 from PV line)
+        // Draw move arrows (up to 8 from PV line or multi-lines)
         // Draw in reverse order so first arrow (thickest) is on top
         // Track number positions to avoid overlaps (key is grid position as string)
         val drawnNumberPositions = mutableSetOf<String>()
+        val isMultiLinesMode = moveArrows.any { it.scoreText != null }
 
         for (arrow in moveArrows.sortedByDescending { it.index }) {
             val (arrowFrom, arrowTo) = arrow.from to arrow.to
@@ -302,9 +305,9 @@ fun ChessBoardView(
             val endX = toFile * squareSize + squareSize / 2
             val endY = toRank * squareSize + squareSize / 2
 
-            // Arrow width: same for all when showing numbers, otherwise decreases with index
-            val widthMultiplier = if (showArrowNumbers) {
-                0.12f  // Uniform width when showing numbers
+            // Arrow width: uniform for multi-lines mode or when showing numbers, otherwise decreases with index
+            val widthMultiplier = if (isMultiLinesMode || showArrowNumbers) {
+                0.12f  // Uniform width
             } else {
                 when (arrow.index) {
                     0 -> 0.20f
@@ -318,13 +321,13 @@ fun ChessBoardView(
                 }
             }
             val arrowWidth = squareSize * widthMultiplier
-            // Head size: same for all when showing numbers, otherwise varies with index
-            val headSizeMultiplier = if (showArrowNumbers) 0.30f else (0.30f + (0.10f * (1 - arrow.index / 7f)))
+            // Head size: uniform for multi-lines mode or when showing numbers, otherwise varies with index
+            val headSizeMultiplier = if (isMultiLinesMode || showArrowNumbers) 0.30f else (0.30f + (0.10f * (1 - arrow.index / 7f)))
             val headLength = squareSize * headSizeMultiplier
             val headWidth = squareSize * headSizeMultiplier
 
-            // Use custom colors for white/black moves
-            val arrowColor = if (arrow.isWhiteMove) whiteArrowColor else blackArrowColor
+            // Use override color if set (multi-lines mode), otherwise use white/black move colors
+            val arrowColor = arrow.overrideColor ?: if (arrow.isWhiteMove) whiteArrowColor else blackArrowColor
 
             // Calculate angle
             val dx = endX - startX
@@ -368,10 +371,10 @@ fun ChessBoardView(
             drawPath(fillPath, arrowColor)
         }
 
-        // Draw move numbers on arrows (in forward order so they layer properly)
-        if (showArrowNumbers && moveArrows.isNotEmpty()) {
+        // Draw text on arrows (move numbers for main line mode, scores for multi-lines mode)
+        if ((showArrowNumbers || isMultiLinesMode) && moveArrows.isNotEmpty()) {
             drawContext.canvas.nativeCanvas.apply {
-                val numberPaint = android.graphics.Paint().apply {
+                val textPaint = android.graphics.Paint().apply {
                     textSize = squareSize * 0.35f
                     isAntiAlias = true
                     isFakeBoldText = true
@@ -401,21 +404,33 @@ fun ChessBoardView(
                     val centerX = (fromFile + toFile) * squareSize / 2 + squareSize / 2
                     val centerY = (fromRank + toRank) * squareSize / 2 + squareSize / 2
 
-                    // Create position key to check for overlaps (rounded to nearest quarter square)
-                    val gridX = ((centerX / squareSize) * 4).toInt()
-                    val gridY = ((centerY / squareSize) * 4).toInt()
-                    val positionKey = "$gridX,$gridY"
+                    // Determine what text to draw
+                    val textToDraw = if (arrow.scoreText != null) {
+                        // Multi-lines mode: show score
+                        arrow.scoreText
+                    } else if (showArrowNumbers) {
+                        // Main line mode: show move number
+                        (arrow.index + 1).toString()
+                    } else {
+                        null
+                    }
 
-                    // Only draw if this position hasn't been used
-                    if (!drawnNumberPositions.contains(positionKey)) {
-                        drawnNumberPositions.add(positionKey)
+                    if (textToDraw != null) {
+                        // Create position key to check for overlaps (rounded to nearest quarter square)
+                        val gridX = ((centerX / squareSize) * 4).toInt()
+                        val gridY = ((centerY / squareSize) * 4).toInt()
+                        val positionKey = "$gridX,$gridY"
 
-                        val moveNumber = (arrow.index + 1).toString()
-                        val textY = centerY + squareSize * 0.12f // Adjust for text baseline
+                        // Only draw if this position hasn't been used
+                        if (!drawnNumberPositions.contains(positionKey)) {
+                            drawnNumberPositions.add(positionKey)
 
-                        // Draw outline then fill for visibility
-                        drawText(moveNumber, centerX, textY, outlinePaint)
-                        drawText(moveNumber, centerX, textY, numberPaint)
+                            val textY = centerY + squareSize * 0.12f // Adjust for text baseline
+
+                            // Draw outline then fill for visibility
+                            drawText(textToDraw, centerX, textY, outlinePaint)
+                            drawText(textToDraw, centerX, textY, textPaint)
+                        }
                     }
                 }
             }
