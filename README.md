@@ -23,7 +23,7 @@ The app uses an innovative three-stage analysis approach that progressively anal
 #### 2. Analyse Stage
 - **Deep Analysis**: Thorough evaluation of each position (1 second per move by default)
 - **Reverse Direction**: Analyzes from the end back to move 1 (more efficient for finding mistakes)
-- **Interruptible**: Click the stage banner to jump directly to the most critical position
+- **Interruptible**: Tap the yellow "Tap here for manual stage" banner to jump to the most critical position
 - **Dual Graphs**: Yellow line overlay shows deep analysis vs. quick preview scores
 
 #### 3. Manual Stage
@@ -31,16 +31,27 @@ The app uses an innovative three-stage analysis approach that progressively anal
 - **Real-Time Analysis**: Depth-based analysis (24 ply default) at each position
 - **Multiple Variations**: View up to 6 principal variations simultaneously
 - **Line Exploration**: Click any move in the analysis panel to explore that variation
+- **Back to Game**: Easy return to the actual game when exploring variations
 
 ### Interactive Chess Board
-- **High-Quality Pieces**: Beautiful piece images for clear visualization
+- **High-Quality Pieces**: Beautiful piece images with customizable colors
 - **Move Highlighting**: Yellow squares show the last move played
-- **Analysis Arrows**: Colored arrows show engine's top recommended moves
-  - Blue arrows for White's suggested moves
-  - Green arrows for Black's suggested moves
-  - Numbered arrows (1, 2, 3, 4) indicate priority ranking
+- **Three Arrow Modes**:
+  - **None**: No arrows displayed (icon gray)
+  - **Main Line**: Multiple arrows from best line showing sequence of moves (icon white)
+    - Blue arrows for White's suggested moves
+    - Green arrows for Black's suggested moves
+    - Numbered arrows (1, 2, 3, 4) indicate move order
+  - **Multi Lines**: One arrow per engine line with evaluation score displayed (icon blue)
 - **Board Flipping**: Automatically flips when you played as Black, with manual toggle
 - **Drag Navigation**: Swipe left/right on the board to navigate through moves
+
+### Board Customization
+- **Square Colors**: Customize white and black square colors
+- **Piece Colors**: Tint pieces with custom colors (uses color blending)
+- **Coordinates**: Toggle file/rank labels on/off
+- **Last Move Highlight**: Toggle last move highlighting on/off
+- **Reset to Defaults**: One-button reset in settings
 
 ### Evaluation Display
 - **Graphical Evaluation**: Color-coded graph showing position evaluation over time
@@ -48,7 +59,7 @@ The app uses an innovative three-stage analysis approach that progressively anal
   - Green area: Black has advantage (below center line)
   - Click/drag on graph to jump to any position (Manual stage)
 - **Numerical Scores**: Precise centipawn evaluation for each move
-  - Format: +1.5 (Black better by 1.5 pawns) or -2.3 (White better by 2.3 pawns)
+  - Format: +1.5 (White better by 1.5 pawns) or -2.3 (Black better by 2.3 pawns)
   - Mate scores shown as M1, M2, etc.
 - **Move-by-Move Scores**: Color-coded score indicators in the moves list
 
@@ -57,33 +68,47 @@ The app uses an innovative three-stage analysis approach that progressively anal
 - **Opening Recognition**: Displays the opening name extracted from PGN
 - **Game Source**: Shows "lichess.org" badge
 - **Result Display**: Current move notation with piece symbol, coordinates, and evaluation
+- **Background Color**: Screen background indicates game result (green=win, red=loss, blue=draw)
 
 ### Configurable Settings
 
-#### Preview Stage Settings
+#### Board Layout Settings
+- Show/hide coordinates
+- Show/hide last move highlight
+- Customize square colors (HSV color picker)
+- Customize piece colors (HSV color picker)
+- Reset to defaults button
+
+#### Arrow Settings
+- **Draw Arrows**: None / Main line / Multi lines
+- **Main Line Settings**:
+  - Number of arrows: 1-8
+  - Show move numbers on arrows
+  - White move arrow color (HSV picker)
+  - Black move arrow color (HSV picker)
+- **Multi Lines Settings**:
+  - Arrow color (HSV picker)
+
+#### Stockfish Settings (per stage)
+
+**Preview Stage:**
 - Analysis time per move: 10ms - 500ms
 - Threads: 1-2
 - Hash table size: 8-64 MB
 - NNUE neural network: On/Off
 
-#### Analyse Stage Settings
+**Analyse Stage:**
 - Analysis time per move: 500ms - 10 seconds
 - Threads: 1-4
 - Hash table size: 16-128 MB
 - NNUE neural network: On/Off
 
-#### Manual Stage Settings
+**Manual Stage:**
 - Search depth: 16-32 ply
 - Threads: 1-12
 - Hash table size: 32-256 MB
 - MultiPV (variations): 1-6 lines
 - NNUE neural network: On/Off
-
-#### Arrow Display Settings
-- Enable/disable arrows
-- Number of arrows: 1-8
-- Show move numbers on arrows
-- Custom colors for White and Black arrows (HSV color picker)
 
 ## Requirements
 
@@ -92,7 +117,7 @@ The app uses an innovative three-stage analysis approach that progressively anal
 - Approximately 50 MB storage space
 
 ### Required External App
-**Important**: This app requires the external "Stockfish 17.1 Chess Engine" app to be installed from the Google Play Store. The app will display a blocking screen if Stockfish is not detected.
+**Important**: This app requires the external "Stockfish 17.1 Chess Engine" app to be installed from the Google Play Store. The app will display a blocking screen with installation instructions if Stockfish is not detected.
 
 The Stockfish app package: `com.stockfish141`
 
@@ -130,7 +155,7 @@ adb shell am start -n com.chessreplay/.MainActivity
 
 ### During Analysis
 1. **Preview Stage**: Watch the evaluation graph build - this takes about 10 seconds for a typical game
-2. **Analyse Stage**: Watch the yellow analysis line appear - click "Analyse stage" banner to skip to manual mode
+2. **Analyse Stage**: Watch the yellow analysis line appear - tap "Tap here for manual stage" to skip ahead
 3. **Manual Stage**: Navigate freely, explore variations, and examine positions in detail
 
 ### Navigation Controls
@@ -140,13 +165,18 @@ adb shell am start -n com.chessreplay/.MainActivity
 - **>|** : Go to end of game
 - **Analysis toggle**: Enable/disable real-time analysis
 - **Flip board**: Rotate board 180 degrees
-- **Arrow toggle**: Show/hide analysis arrows
+
+### Top Bar Controls (Manual Stage)
+- **↻** : Reload latest game
+- **≡** : Return to game list
+- **↗** : Cycle arrow mode (None → Main line → Multi lines)
+- **⚙** : Open settings
 
 ### Exploring Variations
 1. In Manual stage, view the analysis panel showing top engine moves
 2. Click any move in a variation line to explore that position
 3. The board updates to show the variation
-4. Use navigation buttons to step through the variation
+4. Use navigation buttons or "Back to game" to return
 5. Click the main moves list to return to the actual game
 
 ## Technical Architecture
@@ -173,13 +203,17 @@ com.chessreplay/
 ├── stockfish/
 │   └── StockfishEngine.kt   # UCI protocol wrapper
 └── ui/
-    ├── GameViewModel.kt     # Central state management
+    ├── GameViewModel.kt     # Central state management (~1,780 lines)
     ├── GameScreen.kt        # Main screen UI
     ├── GameContent.kt       # Game display components
-    ├── ChessBoardView.kt    # Canvas-based board
+    ├── ChessBoardView.kt    # Canvas-based board with arrows
     ├── AnalysisComponents.kt # Evaluation graph & panel
     ├── MovesDisplay.kt      # Moves list
-    └── Settings screens...  # Configuration UI
+    ├── SettingsScreen.kt    # Settings navigation
+    ├── BoardLayoutSettingsScreen.kt # Board appearance
+    ├── ArrowSettingsScreen.kt # Arrow configuration
+    ├── StockfishSettingsScreen.kt # Engine settings
+    └── ColorPickerDialog.kt # HSV color picker
 ```
 
 ### Key Design Decisions
@@ -190,9 +224,9 @@ com.chessreplay/
 
 3. **Score Perspective**: All scores are displayed from White's perspective for consistency - positive scores favor White (shown in red), negative scores favor Black (shown in green).
 
-4. **Mutex-Protected Engine**: Only one analysis can run at a time, preventing race conditions and ensuring clean engine state.
+4. **Arrow System**: Three modes provide flexibility - no arrows for clean viewing, main line for sequential analysis, and multi-lines for comparing alternatives.
 
-5. **Settings Reset on Update**: App version tracking ensures new features get proper defaults after updates.
+5. **Piece Color Tinting**: Uses white piece images with color modulation for custom colors, allowing any color for both white and black pieces.
 
 ## License
 
