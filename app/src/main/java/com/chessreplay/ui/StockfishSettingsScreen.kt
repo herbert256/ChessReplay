@@ -63,10 +63,10 @@ fun StockfishSettingsScreen(
     val analyseThreadsOptions = (1..4).toList()
     val analyseHashOptions = listOf(16, 32, 64, 128)
 
-    val manualDepthOptions = (16..32).toList()
+    val manualDepthOptions = (20..50 step 2).toList()
     val manualThreadsOptions = (1..12).toList()
     val manualHashOptions = listOf(32, 64, 128, 256)
-    val manualMultiPvOptions = (1..6).toList()
+    val manualMultiPvOptions = (1..16).toList()
 
     fun saveAllSettings() {
         onSave(stockfishSettings.copy(

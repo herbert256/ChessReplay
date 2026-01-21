@@ -129,51 +129,72 @@ fun GameScreen(
         // Title row with buttons (when game loaded) and settings button
         Row(
             modifier = Modifier
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .offset(x = (-8).dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (uiState.game != null) {
-                // Buttons on the left
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.offset(y = (-4).dp)) {
+            // Buttons on the left
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy((-8).dp)
+            ) {
+                if (uiState.game != null) {
                     // Reload last game from active server
-                    IconButton(onClick = { viewModel.reloadLastGame() }) {
-                        Text("↻", fontSize = 34.sp, lineHeight = 34.sp, modifier = Modifier.offset(y = (-3).dp))
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable { viewModel.reloadLastGame() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("↻", fontSize = 36.sp, color = Color.White, modifier = Modifier.offset(y = (-7).dp))
                     }
                     // Show retrieve games view
-                    IconButton(onClick = { viewModel.clearGame() }) {
-                        Text("≡", fontSize = 34.sp, lineHeight = 34.sp)
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable { viewModel.clearGame() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("≡", fontSize = 36.sp, color = Color.White, modifier = Modifier.offset(y = (-4).dp))
                     }
                     // Arrow mode toggle - only show in Manual stage
                     if (uiState.currentStage == AnalysisStage.MANUAL) {
-                        IconButton(onClick = { viewModel.cycleArrowMode() }) {
-                            Text(
-                                text = "↗",
-                                fontSize = 38.sp,
-                                lineHeight = 38.sp,
-                                modifier = Modifier.offset(y = (-6).dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clickable { viewModel.cycleArrowMode() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("↗", fontSize = 36.sp, color = Color.White, modifier = Modifier.offset(y = (-6).dp))
                         }
                     }
                 }
-            } else {
-                Spacer(modifier = Modifier.width(96.dp))
-            }
-            Row {
-                IconButton(onClick = { viewModel.showSettingsDialog() }) {
-                    Text("⚙", fontSize = 30.sp, lineHeight = 30.sp)
+                // Settings and help icons
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clickable { viewModel.showSettingsDialog() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("⚙", fontSize = 26.sp, color = Color.White, modifier = Modifier.offset(y = (-2).dp))
                 }
-                IconButton(onClick = { viewModel.showHelpScreen() }) {
-                    Text("?", fontSize = 32.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clickable { viewModel.showHelpScreen() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("?", fontSize = 26.sp, color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
             Text(
                 text = "Chess Replay",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.End,
-                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                maxLines = 1
             )
         }
 
