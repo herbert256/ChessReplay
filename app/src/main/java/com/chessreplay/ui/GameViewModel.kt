@@ -98,7 +98,7 @@ data class BoardLayoutSettings(
 data class PreviewStageVisibility(
     val showMoveList: Boolean = false,
     val showBoard: Boolean = false,
-    val showGameInfo: Boolean = false,
+    val showGameInfo: Boolean = true,
     val showPgn: Boolean = false
 )
 
@@ -359,7 +359,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             previewStage = PreviewStageVisibility(
                 showMoveList = prefs.getBoolean(KEY_PREVIEW_VIS_MOVELIST, false),
                 showBoard = prefs.getBoolean(KEY_PREVIEW_VIS_BOARD, false),
-                showGameInfo = prefs.getBoolean(KEY_PREVIEW_VIS_GAMEINFO, false),
+                showGameInfo = prefs.getBoolean(KEY_PREVIEW_VIS_GAMEINFO, true),
                 showPgn = prefs.getBoolean(KEY_PREVIEW_VIS_PGN, false)
             ),
             analyseStage = AnalyseStageVisibility(
