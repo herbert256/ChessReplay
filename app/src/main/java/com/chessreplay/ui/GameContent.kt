@@ -609,11 +609,6 @@ fun GameContent(
             // Table rows with aligned labels and values
             val labelWidth = 90.dp
 
-            // Server
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Server:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
-                Text("lichess.org", fontSize = 13.sp, color = Color.White)
-            }
             // White player
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text("White:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))

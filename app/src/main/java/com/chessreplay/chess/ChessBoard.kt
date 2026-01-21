@@ -196,13 +196,20 @@ class ChessBoard {
         }
 
         // Determine piece type
-        val pieceType = when (s.firstOrNull()?.uppercaseChar()) {
-            'K' -> PieceType.KING
-            'Q' -> PieceType.QUEEN
-            'R' -> PieceType.ROOK
-            'B' -> PieceType.BISHOP
-            'N' -> PieceType.KNIGHT
-            else -> PieceType.PAWN
+        // Piece letters (K, Q, R, B, N) are UPPERCASE in SAN, file letters (a-h) are lowercase
+        // So only check for piece type if first char is uppercase
+        val firstChar = s.firstOrNull()
+        val pieceType = if (firstChar != null && firstChar.isUpperCase()) {
+            when (firstChar) {
+                'K' -> PieceType.KING
+                'Q' -> PieceType.QUEEN
+                'R' -> PieceType.ROOK
+                'B' -> PieceType.BISHOP
+                'N' -> PieceType.KNIGHT
+                else -> PieceType.PAWN
+            }
+        } else {
+            PieceType.PAWN
         }
 
         // For non-pawn pieces, remove the piece letter
@@ -386,12 +393,22 @@ class ChessBoard {
                 castlingRights.remove('q')
             }
         }
+        // Remove castling rights if rook moves from its starting square
         if (piece.type == PieceType.ROOK) {
-            when {
-                move.from == Square(0, 0) -> castlingRights.remove('Q')
-                move.from == Square(7, 0) -> castlingRights.remove('K')
-                move.from == Square(0, 7) -> castlingRights.remove('q')
-                move.from == Square(7, 7) -> castlingRights.remove('k')
+            when (move.from) {
+                Square(0, 0) -> castlingRights.remove('Q')
+                Square(7, 0) -> castlingRights.remove('K')
+                Square(0, 7) -> castlingRights.remove('q')
+                Square(7, 7) -> castlingRights.remove('k')
+            }
+        }
+        // Also remove castling rights if a piece captures on a rook's starting square
+        if (isCapture) {
+            when (move.to) {
+                Square(0, 0) -> castlingRights.remove('Q')
+                Square(7, 0) -> castlingRights.remove('K')
+                Square(0, 7) -> castlingRights.remove('q')
+                Square(7, 7) -> castlingRights.remove('k')
             }
         }
 

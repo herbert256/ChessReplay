@@ -766,13 +766,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val moveDetailsList = mutableListOf<MoveDetails>()
         val validMoves = mutableListOf<String>()
 
-        for (parsedMove in parsedMoves) {
+        for ((index, parsedMove) in parsedMoves.withIndex()) {
             val move = parsedMove.san
+            val moveNum = (index / 2) + 1
+            val isWhite = index % 2 == 0
             // Check if this move is a capture (target square has a piece before the move)
             val boardBeforeMove = tempBoard.copy()
             val moveSuccess = tempBoard.makeMove(move)
             if (!moveSuccess) {
                 // Skip invalid moves (e.g., malformed PGN artifacts)
+                val prefix = if (isWhite) "$moveNum." else "$moveNum..."
+                android.util.Log.e("GameViewModel", "FAILED to apply move $prefix $move - FEN: ${boardBeforeMove.getFen()}")
                 continue
             }
             validMoves.add(move)
