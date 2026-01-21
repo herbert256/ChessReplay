@@ -1,8 +1,10 @@
 package com.chessreplay.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,12 +12,75 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/**
+ * Reusable stepper component for settings.
+ */
+@Composable
+private fun SettingStepper(
+    label: String,
+    value: String,
+    onDecrement: () -> Unit,
+    onIncrement: () -> Unit,
+    canDecrement: Boolean,
+    canIncrement: Boolean
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFAAAAAA),
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0xFF555555), RoundedCornerShape(8.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = onDecrement,
+                enabled = canDecrement,
+                modifier = Modifier.size(48.dp),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = Color(0xFF444444)
+                )
+            ) {
+                Text("−", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+            Button(
+                onClick = onIncrement,
+                enabled = canIncrement,
+                modifier = Modifier.size(48.dp),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = Color(0xFF444444)
+                )
+            ) {
+                Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
 
 /**
  * Stockfish settings screen for configuring engine parameters for all analysis stages.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StockfishSettingsScreen(
     stockfishSettings: StockfishSettings,
@@ -42,19 +107,7 @@ fun StockfishSettingsScreen(
     var manualMultiPv by remember { mutableStateOf(stockfishSettings.manualStage.multiPv) }
     var manualNnue by remember { mutableStateOf(stockfishSettings.manualStage.useNnue) }
 
-    // Dropdown expanded state
-    var previewSecondsExpanded by remember { mutableStateOf(false) }
-    var previewThreadsExpanded by remember { mutableStateOf(false) }
-    var previewHashExpanded by remember { mutableStateOf(false) }
-    var analyseSecondsExpanded by remember { mutableStateOf(false) }
-    var analyseThreadsExpanded by remember { mutableStateOf(false) }
-    var analyseHashExpanded by remember { mutableStateOf(false) }
-    var manualDepthExpanded by remember { mutableStateOf(false) }
-    var manualThreadsExpanded by remember { mutableStateOf(false) }
-    var manualHashExpanded by remember { mutableStateOf(false) }
-    var manualMultiPvExpanded by remember { mutableStateOf(false) }
-
-    // Options for dropdowns
+    // Options for steppers
     val previewSecondsOptions = listOf(0.01f, 0.05f, 0.10f, 0.25f, 0.50f)
     val previewThreadsOptions = (1..2).toList()
     val previewHashOptions = listOf(8, 16, 32, 64)
@@ -90,6 +143,14 @@ fun StockfishSettingsScreen(
                 useNnue = manualNnue
             )
         ))
+    }
+
+    // Helper functions for stepping through list options
+    fun <T> stepInList(current: T, options: List<T>, delta: Int): T {
+        val currentIndex = options.indexOf(current)
+        if (currentIndex == -1) return options.first()
+        val newIndex = (currentIndex + delta).coerceIn(0, options.lastIndex)
+        return options[newIndex]
     }
 
     Column(
@@ -130,85 +191,52 @@ fun StockfishSettingsScreen(
                 )
 
                 // Seconds for move
-                ExposedDropdownMenuBox(
-                    expanded = previewSecondsExpanded,
-                    onExpandedChange = { previewSecondsExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = String.format("%.2f s", previewSeconds),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Seconds for move") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = previewSecondsExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = previewSecondsExpanded, onDismissRequest = { previewSecondsExpanded = false }) {
-                        previewSecondsOptions.forEach { seconds ->
-                            DropdownMenuItem(
-                                text = { Text(String.format("%.2f s", seconds)) },
-                                onClick = {
-                                    previewSeconds = seconds
-                                    previewSecondsExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Seconds for move",
+                    value = String.format("%.2f s", previewSeconds),
+                    onDecrement = {
+                        previewSeconds = stepInList(previewSeconds, previewSecondsOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        previewSeconds = stepInList(previewSeconds, previewSecondsOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = previewSecondsOptions.indexOf(previewSeconds) > 0,
+                    canIncrement = previewSecondsOptions.indexOf(previewSeconds) < previewSecondsOptions.lastIndex
+                )
 
                 // Number of threads
-                ExposedDropdownMenuBox(
-                    expanded = previewThreadsExpanded,
-                    onExpandedChange = { previewThreadsExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = previewThreads.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Number of threads") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = previewThreadsExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = previewThreadsExpanded, onDismissRequest = { previewThreadsExpanded = false }) {
-                        previewThreadsOptions.forEach { threads ->
-                            DropdownMenuItem(
-                                text = { Text(threads.toString()) },
-                                onClick = {
-                                    previewThreads = threads
-                                    previewThreadsExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Number of threads",
+                    value = previewThreads.toString(),
+                    onDecrement = {
+                        previewThreads = stepInList(previewThreads, previewThreadsOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        previewThreads = stepInList(previewThreads, previewThreadsOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = previewThreadsOptions.indexOf(previewThreads) > 0,
+                    canIncrement = previewThreadsOptions.indexOf(previewThreads) < previewThreadsOptions.lastIndex
+                )
 
                 // Hash memory
-                ExposedDropdownMenuBox(
-                    expanded = previewHashExpanded,
-                    onExpandedChange = { previewHashExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = "$previewHash MB",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Hash memory (MB)") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = previewHashExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = previewHashExpanded, onDismissRequest = { previewHashExpanded = false }) {
-                        previewHashOptions.forEach { hash ->
-                            DropdownMenuItem(
-                                text = { Text("$hash MB") },
-                                onClick = {
-                                    previewHash = hash
-                                    previewHashExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Hash memory (MB)",
+                    value = "$previewHash MB",
+                    onDecrement = {
+                        previewHash = stepInList(previewHash, previewHashOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        previewHash = stepInList(previewHash, previewHashOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = previewHashOptions.indexOf(previewHash) > 0,
+                    canIncrement = previewHashOptions.indexOf(previewHash) < previewHashOptions.lastIndex
+                )
 
                 // Use NNUE toggle
                 Row(
@@ -247,85 +275,52 @@ fun StockfishSettingsScreen(
                 )
 
                 // Seconds for move
-                ExposedDropdownMenuBox(
-                    expanded = analyseSecondsExpanded,
-                    onExpandedChange = { analyseSecondsExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = String.format("%.2f s", analyseSeconds),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Seconds for move") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = analyseSecondsExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = analyseSecondsExpanded, onDismissRequest = { analyseSecondsExpanded = false }) {
-                        analyseSecondsOptions.forEach { seconds ->
-                            DropdownMenuItem(
-                                text = { Text(String.format("%.2f s", seconds)) },
-                                onClick = {
-                                    analyseSeconds = seconds
-                                    analyseSecondsExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Seconds for move",
+                    value = String.format("%.2f s", analyseSeconds),
+                    onDecrement = {
+                        analyseSeconds = stepInList(analyseSeconds, analyseSecondsOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        analyseSeconds = stepInList(analyseSeconds, analyseSecondsOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = analyseSecondsOptions.indexOf(analyseSeconds) > 0,
+                    canIncrement = analyseSecondsOptions.indexOf(analyseSeconds) < analyseSecondsOptions.lastIndex
+                )
 
                 // Number of threads
-                ExposedDropdownMenuBox(
-                    expanded = analyseThreadsExpanded,
-                    onExpandedChange = { analyseThreadsExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = analyseThreads.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Number of threads") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = analyseThreadsExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = analyseThreadsExpanded, onDismissRequest = { analyseThreadsExpanded = false }) {
-                        analyseThreadsOptions.forEach { threads ->
-                            DropdownMenuItem(
-                                text = { Text(threads.toString()) },
-                                onClick = {
-                                    analyseThreads = threads
-                                    analyseThreadsExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Number of threads",
+                    value = analyseThreads.toString(),
+                    onDecrement = {
+                        analyseThreads = stepInList(analyseThreads, analyseThreadsOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        analyseThreads = stepInList(analyseThreads, analyseThreadsOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = analyseThreadsOptions.indexOf(analyseThreads) > 0,
+                    canIncrement = analyseThreadsOptions.indexOf(analyseThreads) < analyseThreadsOptions.lastIndex
+                )
 
                 // Hash memory
-                ExposedDropdownMenuBox(
-                    expanded = analyseHashExpanded,
-                    onExpandedChange = { analyseHashExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = "$analyseHash MB",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Hash memory (MB)") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = analyseHashExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = analyseHashExpanded, onDismissRequest = { analyseHashExpanded = false }) {
-                        analyseHashOptions.forEach { hash ->
-                            DropdownMenuItem(
-                                text = { Text("$hash MB") },
-                                onClick = {
-                                    analyseHash = hash
-                                    analyseHashExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Hash memory (MB)",
+                    value = "$analyseHash MB",
+                    onDecrement = {
+                        analyseHash = stepInList(analyseHash, analyseHashOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        analyseHash = stepInList(analyseHash, analyseHashOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = analyseHashOptions.indexOf(analyseHash) > 0,
+                    canIncrement = analyseHashOptions.indexOf(analyseHash) < analyseHashOptions.lastIndex
+                )
 
                 // Use NNUE toggle
                 Row(
@@ -364,112 +359,68 @@ fun StockfishSettingsScreen(
                 )
 
                 // Depth
-                ExposedDropdownMenuBox(
-                    expanded = manualDepthExpanded,
-                    onExpandedChange = { manualDepthExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = manualDepth.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Depth") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = manualDepthExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = manualDepthExpanded, onDismissRequest = { manualDepthExpanded = false }) {
-                        manualDepthOptions.forEach { depth ->
-                            DropdownMenuItem(
-                                text = { Text(depth.toString()) },
-                                onClick = {
-                                    manualDepth = depth
-                                    manualDepthExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Depth",
+                    value = manualDepth.toString(),
+                    onDecrement = {
+                        manualDepth = stepInList(manualDepth, manualDepthOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        manualDepth = stepInList(manualDepth, manualDepthOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = manualDepthOptions.indexOf(manualDepth) > 0,
+                    canIncrement = manualDepthOptions.indexOf(manualDepth) < manualDepthOptions.lastIndex
+                )
 
                 // Number of threads
-                ExposedDropdownMenuBox(
-                    expanded = manualThreadsExpanded,
-                    onExpandedChange = { manualThreadsExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = manualThreads.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Number of threads") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = manualThreadsExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = manualThreadsExpanded, onDismissRequest = { manualThreadsExpanded = false }) {
-                        manualThreadsOptions.forEach { threads ->
-                            DropdownMenuItem(
-                                text = { Text(threads.toString()) },
-                                onClick = {
-                                    manualThreads = threads
-                                    manualThreadsExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Number of threads",
+                    value = manualThreads.toString(),
+                    onDecrement = {
+                        manualThreads = stepInList(manualThreads, manualThreadsOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        manualThreads = stepInList(manualThreads, manualThreadsOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = manualThreadsOptions.indexOf(manualThreads) > 0,
+                    canIncrement = manualThreadsOptions.indexOf(manualThreads) < manualThreadsOptions.lastIndex
+                )
 
                 // Hash memory
-                ExposedDropdownMenuBox(
-                    expanded = manualHashExpanded,
-                    onExpandedChange = { manualHashExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = "$manualHash MB",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Hash memory (MB)") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = manualHashExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = manualHashExpanded, onDismissRequest = { manualHashExpanded = false }) {
-                        manualHashOptions.forEach { hash ->
-                            DropdownMenuItem(
-                                text = { Text("$hash MB") },
-                                onClick = {
-                                    manualHash = hash
-                                    manualHashExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "Hash memory (MB)",
+                    value = "$manualHash MB",
+                    onDecrement = {
+                        manualHash = stepInList(manualHash, manualHashOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        manualHash = stepInList(manualHash, manualHashOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = manualHashOptions.indexOf(manualHash) > 0,
+                    canIncrement = manualHashOptions.indexOf(manualHash) < manualHashOptions.lastIndex
+                )
 
                 // MultiPV lines
-                ExposedDropdownMenuBox(
-                    expanded = manualMultiPvExpanded,
-                    onExpandedChange = { manualMultiPvExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = manualMultiPv.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("MultiPV lines") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = manualMultiPvExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = manualMultiPvExpanded, onDismissRequest = { manualMultiPvExpanded = false }) {
-                        manualMultiPvOptions.forEach { multiPv ->
-                            DropdownMenuItem(
-                                text = { Text(multiPv.toString()) },
-                                onClick = {
-                                    manualMultiPv = multiPv
-                                    manualMultiPvExpanded = false
-                                    saveAllSettings()
-                                }
-                            )
-                        }
-                    }
-                }
+                SettingStepper(
+                    label = "MultiPV lines",
+                    value = manualMultiPv.toString(),
+                    onDecrement = {
+                        manualMultiPv = stepInList(manualMultiPv, manualMultiPvOptions, -1)
+                        saveAllSettings()
+                    },
+                    onIncrement = {
+                        manualMultiPv = stepInList(manualMultiPv, manualMultiPvOptions, 1)
+                        saveAllSettings()
+                    },
+                    canDecrement = manualMultiPvOptions.indexOf(manualMultiPv) > 0,
+                    canIncrement = manualMultiPvOptions.indexOf(manualMultiPv) < manualMultiPvOptions.lastIndex
+                )
 
                 // Use NNUE toggle
                 Row(
