@@ -8,7 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -50,6 +52,8 @@ fun ChessBoardView(
     showLastMove: Boolean = true,
     whiteSquareColor: Color = BoardLightDefault,
     blackSquareColor: Color = BoardDarkDefault,
+    whitePieceColor: Color = Color.White,
+    blackPieceColor: Color = Color.Black,
     modifier: Modifier = Modifier
 ) {
     val lastMove = board.getLastMove()
@@ -245,6 +249,17 @@ fun ChessBoardView(
                             val padding = squareSize * 0.05f
                             val pieceSize = (squareSize - padding * 2).toInt()
 
+                            // Determine piece tint color
+                            val tintColor = if (piece.color == PieceColor.WHITE) whitePieceColor else blackPieceColor
+                            val defaultColor = if (piece.color == PieceColor.WHITE) Color.White else Color.Black
+
+                            // Only apply color filter if color differs from default
+                            val colorFilter = if (tintColor != defaultColor) {
+                                ColorFilter.tint(tintColor, BlendMode.Modulate)
+                            } else {
+                                null
+                            }
+
                             drawImage(
                                 image = pieceImage,
                                 srcOffset = IntOffset.Zero,
@@ -253,7 +268,8 @@ fun ChessBoardView(
                                     (file * squareSize + padding).toInt(),
                                     (rank * squareSize + padding).toInt()
                                 ),
-                                dstSize = IntSize(pieceSize, pieceSize)
+                                dstSize = IntSize(pieceSize, pieceSize),
+                                colorFilter = colorFilter
                             )
                         }
                     }
@@ -410,6 +426,15 @@ fun ChessBoardView(
                     val pieceDrawSize = (squareSize * 1.2f).toInt() // Slightly larger when dragging
                     val halfSize = pieceDrawSize / 2
 
+                    // Apply same color tinting as board pieces
+                    val tintColor = if (piece.color == PieceColor.WHITE) whitePieceColor else blackPieceColor
+                    val defaultColor = if (piece.color == PieceColor.WHITE) Color.White else Color.Black
+                    val colorFilter = if (tintColor != defaultColor) {
+                        ColorFilter.tint(tintColor, BlendMode.Modulate)
+                    } else {
+                        null
+                    }
+
                     drawImage(
                         image = pieceImage,
                         srcOffset = IntOffset.Zero,
@@ -418,7 +443,8 @@ fun ChessBoardView(
                             (pos.x - halfSize).toInt(),
                             (pos.y - halfSize).toInt()
                         ),
-                        dstSize = IntSize(pieceDrawSize, pieceDrawSize)
+                        dstSize = IntSize(pieceDrawSize, pieceDrawSize),
+                        colorFilter = colorFilter
                     )
                 }
             }

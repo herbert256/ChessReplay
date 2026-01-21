@@ -340,6 +340,8 @@ fun GameContent(
                 showLastMove = uiState.boardLayoutSettings.showLastMove,
                 whiteSquareColor = Color(uiState.boardLayoutSettings.whiteSquareColor.toInt()),
                 blackSquareColor = Color(uiState.boardLayoutSettings.blackSquareColor.toInt()),
+                whitePieceColor = Color(uiState.boardLayoutSettings.whitePieceColor.toInt()),
+                blackPieceColor = Color(uiState.boardLayoutSettings.blackPieceColor.toInt()),
                 modifier = Modifier.fillMaxWidth()
             )
 

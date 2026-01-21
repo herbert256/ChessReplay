@@ -177,6 +177,29 @@ fun BoardLayoutSettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Reset to defaults button
+        Button(
+            onClick = {
+                // Reset all values to defaults
+                showCoordinates = true
+                showLastMove = true
+                whiteSquareColor = DEFAULT_WHITE_SQUARE_COLOR
+                blackSquareColor = DEFAULT_BLACK_SQUARE_COLOR
+                whitePieceColor = DEFAULT_WHITE_PIECE_COLOR
+                blackPieceColor = DEFAULT_BLACK_PIECE_COLOR
+                // Save the default settings
+                onSave(BoardLayoutSettings())
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Reset to defaults")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         SettingsBackButton(onClick = onBack)
     }
 
