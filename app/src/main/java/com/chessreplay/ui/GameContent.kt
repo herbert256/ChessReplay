@@ -236,36 +236,80 @@ fun GameContent(
         }
     }
 
-    // Graph content as a composable lambda
-    val GraphContent: @Composable () -> Unit = {
+    // Get visibility settings for current stage
+    val visibilitySettings = uiState.interfaceVisibility
+    val showScoreLineGraph = when (uiState.currentStage) {
+        AnalysisStage.PREVIEW -> true  // Always show line graph in preview (it's the main feedback)
+        AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showScoreLineGraph
+        AnalysisStage.MANUAL -> visibilitySettings.manualStage.showScoreLineGraph
+    }
+    val showScoreBarsGraph = when (uiState.currentStage) {
+        AnalysisStage.PREVIEW -> false  // Never show bars graph in preview
+        AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showScoreBarsGraph
+        AnalysisStage.MANUAL -> visibilitySettings.manualStage.showScoreBarsGraph
+    }
+    val showBoard = when (uiState.currentStage) {
+        AnalysisStage.PREVIEW -> visibilitySettings.previewStage.showBoard
+        AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showBoard
+        AnalysisStage.MANUAL -> true  // Always show board in manual
+    }
+    val showMoveList = when (uiState.currentStage) {
+        AnalysisStage.PREVIEW -> visibilitySettings.previewStage.showMoveList
+        AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showMoveList
+        AnalysisStage.MANUAL -> visibilitySettings.manualStage.showMoveList
+    }
+    val showGameInfo = when (uiState.currentStage) {
+        AnalysisStage.PREVIEW -> visibilitySettings.previewStage.showGameInfo
+        AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showGameInfo
+        AnalysisStage.MANUAL -> visibilitySettings.manualStage.showGameInfo
+    }
+    val showPgn = when (uiState.currentStage) {
+        AnalysisStage.PREVIEW -> visibilitySettings.previewStage.showPgn
+        AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showPgn
+        AnalysisStage.MANUAL -> visibilitySettings.manualStage.showPgn
+    }
+    val showResultBar = when (uiState.currentStage) {
+        AnalysisStage.PREVIEW -> false  // Never show result bar in preview
+        AnalysisStage.ANALYSE -> visibilitySettings.analyseStage.showResultBar
+        AnalysisStage.MANUAL -> visibilitySettings.manualStage.showResultBar
+    }
+    val showPlayersBars = when (uiState.currentStage) {
+        AnalysisStage.PREVIEW -> false  // Never show player bars in preview
+        AnalysisStage.ANALYSE -> true  // Always show player bars when board is shown
+        AnalysisStage.MANUAL -> visibilitySettings.manualStage.showPlayersBars
+    }
+
+    // Conditional graph content
+    val ConditionalGraphContent: @Composable () -> Unit = {
         Column(modifier = Modifier.offset(y = (-8).dp)) {
             if (uiState.moveDetails.isNotEmpty()) {
-                // Use key to force recomposition when scores change
-                key(uiState.previewScores.size, uiState.analyseScores.size) {
-                    EvaluationGraph(
-                        previewScores = uiState.previewScores,
-                        analyseScores = uiState.analyseScores,
-                        totalMoves = uiState.moveDetails.size,
-                        currentMoveIndex = uiState.currentMoveIndex,
-                        currentStage = uiState.currentStage,
-                        userPlayedBlack = uiState.userPlayedBlack,
-                        onMoveSelected = { moveIndex ->
-                            when (uiState.currentStage) {
-                                AnalysisStage.PREVIEW -> { /* Not interruptible - ignore clicks */ }
-                                AnalysisStage.ANALYSE -> viewModel.enterManualStageAtMove(moveIndex)
-                                AnalysisStage.MANUAL -> viewModel.restartAnalysisAtMove(moveIndex)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                    )
+                // Line graph
+                if (showScoreLineGraph) {
+                    key(uiState.previewScores.size, uiState.analyseScores.size) {
+                        EvaluationGraph(
+                            previewScores = uiState.previewScores,
+                            analyseScores = uiState.analyseScores,
+                            totalMoves = uiState.moveDetails.size,
+                            currentMoveIndex = uiState.currentMoveIndex,
+                            currentStage = uiState.currentStage,
+                            userPlayedBlack = uiState.userPlayedBlack,
+                            onMoveSelected = { moveIndex ->
+                                when (uiState.currentStage) {
+                                    AnalysisStage.PREVIEW -> { /* Not interruptible - ignore clicks */ }
+                                    AnalysisStage.ANALYSE -> viewModel.enterManualStageAtMove(moveIndex)
+                                    AnalysisStage.MANUAL -> viewModel.restartAnalysisAtMove(moveIndex)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                        )
+                    }
                 }
 
-                // Score difference graph - shows change between consecutive moves
-                // Only show during Analyse and Manual stages when we have scores
-                if (uiState.currentStage != AnalysisStage.PREVIEW) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                // Score difference graph (bars) - only show during Analyse and Manual stages when we have scores
+                if (showScoreBarsGraph && uiState.currentStage != AnalysisStage.PREVIEW) {
+                    if (showScoreLineGraph) Spacer(modifier = Modifier.height(8.dp))
                     key(uiState.previewScores.size, uiState.analyseScores.size) {
                         ScoreDifferenceGraph(
                             previewScores = uiState.previewScores,
@@ -291,28 +335,28 @@ fun GameContent(
         }
     }
 
-    // Game info card - shows graph and result bar in analyse mode, just graph in manual/preview mode
+    // Game info card - shows graph and result bar in analyse mode
     val GameInfoCard: @Composable () -> Unit = {
-        GraphContent()
-        if (uiState.currentStage == AnalysisStage.ANALYSE) {
+        ConditionalGraphContent()
+        if (uiState.currentStage == AnalysisStage.ANALYSE && showResultBar) {
             ResultBar()
         }
     }
 
-    // Show game info card at top during analyse stage
-    if (uiState.currentStage != AnalysisStage.MANUAL) {
+    // Show game info card at top during preview and analyse stages
+    if (uiState.currentStage != AnalysisStage.MANUAL && (showScoreLineGraph || showScoreBarsGraph)) {
         GameInfoCard()
         Spacer(modifier = Modifier.height(8.dp))
     }
 
     // Result bar above board in manual stage
-    if (uiState.currentStage == AnalysisStage.MANUAL) {
+    if (uiState.currentStage == AnalysisStage.MANUAL && showResultBar) {
         ResultBar()
         Spacer(modifier = Modifier.height(8.dp))
     }
 
-    // Show the board (hide during Preview stage)
-    if (uiState.currentStage != AnalysisStage.PREVIEW) {
+    // Show the board based on visibility settings
+    if (showBoard) {
         // Calculate game results for each player
         val whiteResult = when (game.winner) {
             "white" -> "won"
@@ -329,14 +373,16 @@ fun GameContent(
 
         // Player bar above board (opponent when not flipped, or player when flipped)
         val topIsBlack = !uiState.flippedBoard
-        PlayerBar(
-            isWhite = !topIsBlack,
-            playerName = if (topIsBlack) blackName else whiteName,
-            rating = if (topIsBlack) blackRating else whiteRating,
-            clockTime = if (topIsBlack) blackClockTime else whiteClockTime,
-            isToMove = if (topIsBlack) !isWhiteTurn else isWhiteTurn,
-            gameResult = if (topIsBlack) blackResult else whiteResult
-        )
+        if (showPlayersBars) {
+            PlayerBar(
+                isWhite = !topIsBlack,
+                playerName = if (topIsBlack) blackName else whiteName,
+                rating = if (topIsBlack) blackRating else whiteRating,
+                clockTime = if (topIsBlack) blackClockTime else whiteClockTime,
+                isToMove = if (topIsBlack) !isWhiteTurn else isWhiteTurn,
+                gameResult = if (topIsBlack) blackResult else whiteResult
+            )
+        }
 
         // Chess board - drag to make moves during manual replay (no interaction during other stages)
         // Get move arrows based on arrow mode (only in Manual stage, and only if result is for current position)
@@ -438,14 +484,16 @@ fun GameContent(
         )
 
         // Player bar below board (player when not flipped, or opponent when flipped)
-        PlayerBar(
-            isWhite = topIsBlack,
-            playerName = if (topIsBlack) whiteName else blackName,
-            rating = if (topIsBlack) whiteRating else blackRating,
-            clockTime = if (topIsBlack) whiteClockTime else blackClockTime,
-            isToMove = if (topIsBlack) isWhiteTurn else !isWhiteTurn,
-            gameResult = if (topIsBlack) whiteResult else blackResult
-        )
+        if (showPlayersBars) {
+            PlayerBar(
+                isWhite = topIsBlack,
+                playerName = if (topIsBlack) whiteName else blackName,
+                rating = if (topIsBlack) whiteRating else blackRating,
+                clockTime = if (topIsBlack) whiteClockTime else blackClockTime,
+                isToMove = if (topIsBlack) isWhiteTurn else !isWhiteTurn,
+                gameResult = if (topIsBlack) whiteResult else blackResult
+            )
+        }
     }
 
     // Controls - hide during auto-analysis
@@ -554,14 +602,14 @@ fun GameContent(
         )
     }
 
-    // Show game info card between Stockfish panel and moves list during manual stage
-    if (uiState.currentStage == AnalysisStage.MANUAL) {
+    // Show graph cards between Stockfish panel and moves list during manual stage
+    if (uiState.currentStage == AnalysisStage.MANUAL && (showScoreLineGraph || showScoreBarsGraph)) {
         Spacer(modifier = Modifier.height(8.dp))
-        GameInfoCard()
+        ConditionalGraphContent()
     }
 
-    // Moves list - only show during manual replay (not during auto-analysis)
-    if (uiState.currentStage == AnalysisStage.MANUAL) {
+    // Moves list - based on visibility settings
+    if (showMoveList) {
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
@@ -597,134 +645,138 @@ fun GameContent(
         }
     }
 
-    // Game Information Card - table layout
-    Spacer(modifier = Modifier.height(12.dp))
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2A4A6A)  // Lighter blue background
-        ),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+    // Game Information Card - based on visibility settings
+    if (showGameInfo) {
+        Spacer(modifier = Modifier.height(12.dp))
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF2A4A6A)  // Lighter blue background
+            ),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Centered title
-            Text(
-                text = "Game Information",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Centered title
+                Text(
+                    text = "Game Information",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
 
-            // Table rows with aligned labels and values
-            val labelWidth = 90.dp
+                // Table rows with aligned labels and values
+                val labelWidth = 90.dp
 
-            // White player
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text("White:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
-                Text("$whiteName${whiteRating?.let { " ($it)" } ?: ""}", fontSize = 13.sp, color = Color.White)
-            }
-            // Black player
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Black:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
-                Text("$blackName${blackRating?.let { " ($it)" } ?: ""}", fontSize = 13.sp, color = Color.White)
-            }
-            // Format
-            val formatText = buildString {
-                append(game.speed.replaceFirstChar { it.uppercase() })
-                game.clock?.let { clock ->
-                    val minutes = clock.initial / 60
-                    val increment = clock.increment
-                    append(" $minutes+$increment")
-                }
-                if (game.rated) append(" • Rated") else append(" • Casual")
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Format:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
-                Text(formatText, fontSize = 13.sp, color = Color.White)
-            }
-            // Opening
-            uiState.openingName?.let { opening ->
+                // White player
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    Text("Opening:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
-                    Text(opening, fontSize = 13.sp, color = Color.White)
+                    Text("White:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
+                    Text("$whiteName${whiteRating?.let { " ($it)" } ?: ""}", fontSize = 13.sp, color = Color.White)
                 }
-            }
-            // Date
-            game.createdAt?.let { timestamp ->
-                val date = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
-                    .format(java.util.Date(timestamp))
+                // Black player
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    Text("Date:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
-                    Text(date, fontSize = 13.sp, color = Color.White)
+                    Text("Black:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
+                    Text("$blackName${blackRating?.let { " ($it)" } ?: ""}", fontSize = 13.sp, color = Color.White)
                 }
-            }
-            // Result
-            val resultText = when (game.winner) {
-                "white" -> "1-0"
-                "black" -> "0-1"
-                else -> if (game.status == "draw" || game.status == "stalemate") "½-½" else game.status
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Result:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
-                Text(resultText, fontSize = 13.sp, color = Color.White)
-            }
-            // Termination - extract from PGN headers
-            game.pgn?.let { pgn ->
-                val terminationMatch = Regex("\\[Termination \"([^\"]+)\"\\]").find(pgn)
-                terminationMatch?.groupValues?.get(1)?.let { termination ->
+                // Format
+                val formatText = buildString {
+                    append(game.speed.replaceFirstChar { it.uppercase() })
+                    game.clock?.let { clock ->
+                        val minutes = clock.initial / 60
+                        val increment = clock.increment
+                        append(" $minutes+$increment")
+                    }
+                    if (game.rated) append(" • Rated") else append(" • Casual")
+                }
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text("Format:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
+                    Text(formatText, fontSize = 13.sp, color = Color.White)
+                }
+                // Opening
+                uiState.openingName?.let { opening ->
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        Text("Termination:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
-                        Text(termination, fontSize = 13.sp, color = Color.White)
+                        Text("Opening:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
+                        Text(opening, fontSize = 13.sp, color = Color.White)
+                    }
+                }
+                // Date
+                game.createdAt?.let { timestamp ->
+                    val date = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+                        .format(java.util.Date(timestamp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text("Date:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
+                        Text(date, fontSize = 13.sp, color = Color.White)
+                    }
+                }
+                // Result
+                val resultText = when (game.winner) {
+                    "white" -> "1-0"
+                    "black" -> "0-1"
+                    else -> if (game.status == "draw" || game.status == "stalemate") "½-½" else game.status
+                }
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text("Result:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
+                    Text(resultText, fontSize = 13.sp, color = Color.White)
+                }
+                // Termination - extract from PGN headers
+                game.pgn?.let { pgn ->
+                    val terminationMatch = Regex("\\[Termination \"([^\"]+)\"\\]").find(pgn)
+                    terminationMatch?.groupValues?.get(1)?.let { termination ->
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text("Termination:", fontSize = 13.sp, color = Color(0xFFAAAAAA), modifier = Modifier.width(labelWidth))
+                            Text(termination, fontSize = 13.sp, color = Color.White)
+                        }
                     }
                 }
             }
         }
     }
 
-    // PGN Card - always shown at bottom
-    Spacer(modifier = Modifier.height(12.dp))
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF3A3A3A)  // Dark gray background
-        ),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+    // PGN Card - based on visibility settings
+    if (showPgn) {
+        Spacer(modifier = Modifier.height(12.dp))
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF3A3A3A)  // Dark gray background
+            ),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "PGN",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            game.pgn?.let { pgn ->
-                // Format PGN with each move on a new line
-                val formattedPgn = pgn.replace(Regex("(\\d+\\.)")) { match ->
-                    "\n${match.value}"
-                }.trimStart()
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
-                    text = formattedPgn,
-                    fontSize = 11.sp,
-                    color = Color(0xFFCCCCCC),
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                    lineHeight = 14.sp
+                    text = "PGN",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
                 )
-            } ?: Text(
-                text = "No PGN data available",
-                fontSize = 12.sp,
-                color = Color(0xFF888888),
-                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-            )
+                Spacer(modifier = Modifier.height(4.dp))
+                game.pgn?.let { pgn ->
+                    // Format PGN with each move on a new line
+                    val formattedPgn = pgn.replace(Regex("(\\d+\\.)")) { match ->
+                        "\n${match.value}"
+                    }.trimStart()
+                    Text(
+                        text = formattedPgn,
+                        fontSize = 11.sp,
+                        color = Color(0xFFCCCCCC),
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        lineHeight = 14.sp
+                    )
+                } ?: Text(
+                    text = "No PGN data available",
+                    fontSize = 12.sp,
+                    color = Color(0xFF888888),
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            }
         }
     }
 }

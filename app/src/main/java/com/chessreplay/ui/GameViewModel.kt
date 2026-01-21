@@ -94,6 +94,43 @@ data class BoardLayoutSettings(
     val blackPieceColor: Long = DEFAULT_BLACK_PIECE_COLOR
 )
 
+// Interface visibility settings for Preview stage
+data class PreviewStageVisibility(
+    val showMoveList: Boolean = false,
+    val showBoard: Boolean = false,
+    val showGameInfo: Boolean = false,
+    val showPgn: Boolean = false
+)
+
+// Interface visibility settings for Analyse stage
+data class AnalyseStageVisibility(
+    val showMoveList: Boolean = false,
+    val showScoreLineGraph: Boolean = true,
+    val showScoreBarsGraph: Boolean = true,
+    val showResultBar: Boolean = false,
+    val showGameInfo: Boolean = true,
+    val showBoard: Boolean = false,
+    val showPgn: Boolean = false
+)
+
+// Interface visibility settings for Manual Analyse stage
+data class ManualStageVisibility(
+    val showResultBar: Boolean = true,
+    val showPlayersBars: Boolean = true,
+    val showScoreLineGraph: Boolean = true,
+    val showScoreBarsGraph: Boolean = true,
+    val showMoveList: Boolean = true,
+    val showGameInfo: Boolean = false,
+    val showPgn: Boolean = false
+)
+
+// Combined interface visibility settings
+data class InterfaceVisibilitySettings(
+    val previewStage: PreviewStageVisibility = PreviewStageVisibility(),
+    val analyseStage: AnalyseStageVisibility = AnalyseStageVisibility(),
+    val manualStage: ManualStageVisibility = ManualStageVisibility()
+)
+
 data class MoveScore(
     val score: Float,
     val isMate: Boolean,
@@ -133,6 +170,7 @@ data class GameUiState(
     val userPlayedBlack: Boolean = false,  // True if searched user played black (for score perspective)
     val stockfishSettings: StockfishSettings = StockfishSettings(),
     val boardLayoutSettings: BoardLayoutSettings = BoardLayoutSettings(),
+    val interfaceVisibility: InterfaceVisibilitySettings = InterfaceVisibilitySettings(),
     val showSettingsDialog: Boolean = false,
     val showHelpScreen: Boolean = false,
     // Exploring line state
@@ -212,6 +250,27 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         private const val KEY_BOARD_BLACK_SQUARE_COLOR = "board_black_square_color"
         private const val KEY_BOARD_WHITE_PIECE_COLOR = "board_white_piece_color"
         private const val KEY_BOARD_BLACK_PIECE_COLOR = "board_black_piece_color"
+        // Interface visibility settings - Preview stage
+        private const val KEY_PREVIEW_VIS_MOVELIST = "preview_vis_movelist"
+        private const val KEY_PREVIEW_VIS_BOARD = "preview_vis_board"
+        private const val KEY_PREVIEW_VIS_GAMEINFO = "preview_vis_gameinfo"
+        private const val KEY_PREVIEW_VIS_PGN = "preview_vis_pgn"
+        // Interface visibility settings - Analyse stage
+        private const val KEY_ANALYSE_VIS_MOVELIST = "analyse_vis_movelist"
+        private const val KEY_ANALYSE_VIS_SCORELINEGRAPH = "analyse_vis_scorelinegraph"
+        private const val KEY_ANALYSE_VIS_SCOREBARSGRAPH = "analyse_vis_scorebarsgraph"
+        private const val KEY_ANALYSE_VIS_RESULTBAR = "analyse_vis_resultbar"
+        private const val KEY_ANALYSE_VIS_GAMEINFO = "analyse_vis_gameinfo"
+        private const val KEY_ANALYSE_VIS_BOARD = "analyse_vis_board"
+        private const val KEY_ANALYSE_VIS_PGN = "analyse_vis_pgn"
+        // Interface visibility settings - Manual stage
+        private const val KEY_MANUAL_VIS_RESULTBAR = "manual_vis_resultbar"
+        private const val KEY_MANUAL_VIS_PLAYERSBARS = "manual_vis_playersbars"
+        private const val KEY_MANUAL_VIS_SCORELINEGRAPH = "manual_vis_scorelinegraph"
+        private const val KEY_MANUAL_VIS_SCOREBARSGRAPH = "manual_vis_scorebarsgraph"
+        private const val KEY_MANUAL_VIS_MOVELIST = "manual_vis_movelist"
+        private const val KEY_MANUAL_VIS_GAMEINFO = "manual_vis_gameinfo"
+        private const val KEY_MANUAL_VIS_PGN = "manual_vis_pgn"
         // First run tracking - stores the app version code when user first made a choice
         private const val KEY_FIRST_GAME_RETRIEVED_VERSION = "first_game_retrieved_version"
     }
@@ -292,6 +351,61 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             .putLong(KEY_BOARD_BLACK_SQUARE_COLOR, settings.blackSquareColor)
             .putLong(KEY_BOARD_WHITE_PIECE_COLOR, settings.whitePieceColor)
             .putLong(KEY_BOARD_BLACK_PIECE_COLOR, settings.blackPieceColor)
+            .apply()
+    }
+
+    private fun loadInterfaceVisibilitySettings(): InterfaceVisibilitySettings {
+        return InterfaceVisibilitySettings(
+            previewStage = PreviewStageVisibility(
+                showMoveList = prefs.getBoolean(KEY_PREVIEW_VIS_MOVELIST, false),
+                showBoard = prefs.getBoolean(KEY_PREVIEW_VIS_BOARD, false),
+                showGameInfo = prefs.getBoolean(KEY_PREVIEW_VIS_GAMEINFO, false),
+                showPgn = prefs.getBoolean(KEY_PREVIEW_VIS_PGN, false)
+            ),
+            analyseStage = AnalyseStageVisibility(
+                showMoveList = prefs.getBoolean(KEY_ANALYSE_VIS_MOVELIST, false),
+                showScoreLineGraph = prefs.getBoolean(KEY_ANALYSE_VIS_SCORELINEGRAPH, true),
+                showScoreBarsGraph = prefs.getBoolean(KEY_ANALYSE_VIS_SCOREBARSGRAPH, true),
+                showResultBar = prefs.getBoolean(KEY_ANALYSE_VIS_RESULTBAR, false),
+                showGameInfo = prefs.getBoolean(KEY_ANALYSE_VIS_GAMEINFO, true),
+                showBoard = prefs.getBoolean(KEY_ANALYSE_VIS_BOARD, false),
+                showPgn = prefs.getBoolean(KEY_ANALYSE_VIS_PGN, false)
+            ),
+            manualStage = ManualStageVisibility(
+                showResultBar = prefs.getBoolean(KEY_MANUAL_VIS_RESULTBAR, true),
+                showPlayersBars = prefs.getBoolean(KEY_MANUAL_VIS_PLAYERSBARS, true),
+                showScoreLineGraph = prefs.getBoolean(KEY_MANUAL_VIS_SCORELINEGRAPH, true),
+                showScoreBarsGraph = prefs.getBoolean(KEY_MANUAL_VIS_SCOREBARSGRAPH, true),
+                showMoveList = prefs.getBoolean(KEY_MANUAL_VIS_MOVELIST, true),
+                showGameInfo = prefs.getBoolean(KEY_MANUAL_VIS_GAMEINFO, false),
+                showPgn = prefs.getBoolean(KEY_MANUAL_VIS_PGN, false)
+            )
+        )
+    }
+
+    private fun saveInterfaceVisibilitySettings(settings: InterfaceVisibilitySettings) {
+        prefs.edit()
+            // Preview stage
+            .putBoolean(KEY_PREVIEW_VIS_MOVELIST, settings.previewStage.showMoveList)
+            .putBoolean(KEY_PREVIEW_VIS_BOARD, settings.previewStage.showBoard)
+            .putBoolean(KEY_PREVIEW_VIS_GAMEINFO, settings.previewStage.showGameInfo)
+            .putBoolean(KEY_PREVIEW_VIS_PGN, settings.previewStage.showPgn)
+            // Analyse stage
+            .putBoolean(KEY_ANALYSE_VIS_MOVELIST, settings.analyseStage.showMoveList)
+            .putBoolean(KEY_ANALYSE_VIS_SCORELINEGRAPH, settings.analyseStage.showScoreLineGraph)
+            .putBoolean(KEY_ANALYSE_VIS_SCOREBARSGRAPH, settings.analyseStage.showScoreBarsGraph)
+            .putBoolean(KEY_ANALYSE_VIS_RESULTBAR, settings.analyseStage.showResultBar)
+            .putBoolean(KEY_ANALYSE_VIS_GAMEINFO, settings.analyseStage.showGameInfo)
+            .putBoolean(KEY_ANALYSE_VIS_BOARD, settings.analyseStage.showBoard)
+            .putBoolean(KEY_ANALYSE_VIS_PGN, settings.analyseStage.showPgn)
+            // Manual stage
+            .putBoolean(KEY_MANUAL_VIS_RESULTBAR, settings.manualStage.showResultBar)
+            .putBoolean(KEY_MANUAL_VIS_PLAYERSBARS, settings.manualStage.showPlayersBars)
+            .putBoolean(KEY_MANUAL_VIS_SCORELINEGRAPH, settings.manualStage.showScoreLineGraph)
+            .putBoolean(KEY_MANUAL_VIS_SCOREBARSGRAPH, settings.manualStage.showScoreBarsGraph)
+            .putBoolean(KEY_MANUAL_VIS_MOVELIST, settings.manualStage.showMoveList)
+            .putBoolean(KEY_MANUAL_VIS_GAMEINFO, settings.manualStage.showGameInfo)
+            .putBoolean(KEY_MANUAL_VIS_PGN, settings.manualStage.showPgn)
             .apply()
     }
 
@@ -408,10 +522,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             // Load saved settings (will use defaults if reset or not previously set)
             val settings = loadStockfishSettings()
             val boardSettings = loadBoardLayoutSettings()
+            val interfaceVisibility = loadInterfaceVisibilitySettings()
             val lichessMaxGames = prefs.getInt(KEY_LICHESS_MAX_GAMES, 10)
             _uiState.value = _uiState.value.copy(
                 stockfishSettings = settings,
                 boardLayoutSettings = boardSettings,
+                interfaceVisibility = interfaceVisibility,
                 lichessMaxGames = lichessMaxGames
             )
 
@@ -488,10 +604,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         // Load saved settings (will use defaults if reset or not previously set)
         val settings = loadStockfishSettings()
         val boardSettings = loadBoardLayoutSettings()
+        val interfaceVisibility = loadInterfaceVisibilitySettings()
         val lichessMaxGames = prefs.getInt(KEY_LICHESS_MAX_GAMES, 10)
         _uiState.value = _uiState.value.copy(
             stockfishSettings = settings,
             boardLayoutSettings = boardSettings,
+            interfaceVisibility = interfaceVisibility,
             lichessMaxGames = lichessMaxGames
         )
 
@@ -1265,6 +1383,45 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(
             boardLayoutSettings = settings
         )
+    }
+
+    fun updateInterfaceVisibilitySettings(settings: InterfaceVisibilitySettings) {
+        val currentSettings = _uiState.value.interfaceVisibility
+
+        // Check if Preview or Analyse stage visibility changed
+        val previewChanged = currentSettings.previewStage != settings.previewStage
+        val analyseChanged = currentSettings.analyseStage != settings.analyseStage
+
+        saveInterfaceVisibilitySettings(settings)
+        _uiState.value = _uiState.value.copy(
+            interfaceVisibility = settings
+        )
+
+        // If Preview or Analyse stage visibility changed, restart from Preview stage
+        if ((previewChanged || analyseChanged) && _uiState.value.game != null) {
+            // Cancel any ongoing analysis
+            autoAnalysisJob?.cancel()
+            manualAnalysisJob?.cancel()
+            stockfish.stop()
+
+            // Reset to Preview stage and restart analysis
+            _uiState.value = _uiState.value.copy(
+                currentStage = AnalysisStage.PREVIEW,
+                previewScores = emptyMap(),
+                analyseScores = emptyMap(),
+                autoAnalysisIndex = -1
+            )
+
+            // Restart analysis from Preview stage
+            viewModelScope.launch {
+                val ready = stockfish.restart()
+                _uiState.value = _uiState.value.copy(stockfishReady = ready)
+                if (ready) {
+                    stockfish.newGame()
+                    startAnalysis()
+                }
+            }
+        }
     }
 
     private var manualAnalysisJob: Job? = null

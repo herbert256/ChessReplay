@@ -21,7 +21,8 @@ enum class SettingsSubScreen {
     MAIN,
     ARROW_SETTINGS,
     STOCKFISH,
-    BOARD_LAYOUT
+    BOARD_LAYOUT,
+    INTERFACE_VISIBILITY
 }
 
 /**
@@ -32,9 +33,11 @@ enum class SettingsSubScreen {
 fun SettingsScreen(
     stockfishSettings: StockfishSettings,
     boardLayoutSettings: BoardLayoutSettings,
+    interfaceVisibility: InterfaceVisibilitySettings,
     onBack: () -> Unit,
     onSaveStockfish: (StockfishSettings) -> Unit,
-    onSaveBoardLayout: (BoardLayoutSettings) -> Unit
+    onSaveBoardLayout: (BoardLayoutSettings) -> Unit,
+    onSaveInterfaceVisibility: (InterfaceVisibilitySettings) -> Unit
 ) {
     var currentSubScreen by remember { mutableStateOf(SettingsSubScreen.MAIN) }
 
@@ -69,6 +72,12 @@ fun SettingsScreen(
             onBackToSettings = { currentSubScreen = SettingsSubScreen.MAIN },
             onBackToGame = onBack,
             onSave = onSaveBoardLayout
+        )
+        SettingsSubScreen.INTERFACE_VISIBILITY -> InterfaceSettingsScreen(
+            interfaceVisibility = interfaceVisibility,
+            onBackToSettings = { currentSubScreen = SettingsSubScreen.MAIN },
+            onBackToGame = onBack,
+            onSave = onSaveInterfaceVisibility
         )
     }
 }
@@ -127,6 +136,13 @@ private fun SettingsMainScreen(
             title = "Stockfish",
             description = "Engine settings for all stages",
             onClick = { onNavigate(SettingsSubScreen.STOCKFISH) }
+        )
+
+        // Interface visibility settings card
+        SettingsNavigationCard(
+            title = "Show interface elements",
+            description = "Configure visible UI elements per stage",
+            onClick = { onNavigate(SettingsSubScreen.INTERFACE_VISIBILITY) }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
