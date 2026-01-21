@@ -109,17 +109,17 @@ fun StockfishSettingsScreen(
 
     // Options for steppers
     val previewSecondsOptions = listOf(0.01f, 0.05f, 0.10f, 0.25f, 0.50f)
-    val previewThreadsOptions = (1..2).toList()
-    val previewHashOptions = listOf(8, 16, 32, 64)
+    val previewThreadsOptions = (1..4).toList()
+    val previewHashOptions = listOf(8, 16, 64)
 
     val analyseSecondsOptions = listOf(0.50f, 0.75f, 1.00f, 1.50f, 2.50f, 5.00f, 10.00f)
-    val analyseThreadsOptions = (1..4).toList()
-    val analyseHashOptions = listOf(16, 32, 64, 128)
+    val analyseThreadsOptions = (1..8).toList()
+    val analyseHashOptions = listOf(16, 64, 96, 128, 192, 256)
 
-    val manualDepthOptions = (20..50 step 2).toList()
-    val manualThreadsOptions = (1..12).toList()
-    val manualHashOptions = listOf(32, 64, 128, 256)
-    val manualMultiPvOptions = (1..16).toList()
+    val manualDepthOptions = (16..64 step 2).toList()
+    val manualThreadsOptions = (1..16).toList()
+    val manualHashOptions = listOf(32, 64, 96, 128, 192, 256, 384, 512)
+    val manualMultiPvOptions = (1..32).toList()
 
     fun saveAllSettings() {
         onSave(stockfishSettings.copy(

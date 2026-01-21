@@ -29,16 +29,16 @@ enum class AnalysisStage {
 // Settings for Preview Stage (quick analysis during navigation)
 data class PreviewStageSettings(
     val secondsForMove: Float = 0.05f,  // 0.01, 0.05, 0.10, 0.25, 0.50
-    val threads: Int = 1,               // 1-2
-    val hashMb: Int = 8,                // 8, 16, 32, 64
+    val threads: Int = 1,               // 1-4
+    val hashMb: Int = 8,                // 8, 16, 64
     val useNnue: Boolean = false
 )
 
 // Settings for Analyse Stage (auto-analysis)
 data class AnalyseStageSettings(
     val secondsForMove: Float = 1.00f,  // 0.50, 0.75, 1.00, 1.50, 2.50, 5.00, 10.00
-    val threads: Int = 2,               // 1-4
-    val hashMb: Int = 32,               // 16, 32, 64, 128
+    val threads: Int = 2,               // 1-8
+    val hashMb: Int = 64,               // 16, 64, 96, 128, 192, 256
     val useNnue: Boolean = true
 )
 
@@ -52,14 +52,14 @@ enum class ArrowMode {
 // Default arrow colors (with alpha for semi-transparency)
 const val DEFAULT_WHITE_ARROW_COLOR = 0xCC3399FFL  // Semi-transparent blue
 const val DEFAULT_BLACK_ARROW_COLOR = 0xCC44BB44L  // Semi-transparent green
-const val DEFAULT_MULTI_LINES_ARROW_COLOR = 0xCC3399FFL  // Semi-transparent blue
+const val DEFAULT_MULTI_LINES_ARROW_COLOR = 0xCCFFFF00L  // Semi-transparent yellow
 
 // Settings for Manual Analyse Stage (interactive deep analysis)
 data class ManualStageSettings(
-    val depth: Int = 32,                // 16-32
-    val threads: Int = 4,               // 1-12
-    val hashMb: Int = 64,               // 32, 64, 128, 256
-    val multiPv: Int = 3,               // 1-6
+    val depth: Int = 32,                // 16-64
+    val threads: Int = 4,               // 1-16
+    val hashMb: Int = 128,              // 32, 64, 96, 128, 192, 256, 384, 512
+    val multiPv: Int = 3,               // 1-32
     val useNnue: Boolean = true,
     // Main line arrow settings
     val arrowMode: ArrowMode = ArrowMode.MAIN_LINE,

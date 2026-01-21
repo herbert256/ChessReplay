@@ -372,8 +372,8 @@ fun GameContent(
                 }
                 ArrowMode.MULTI_LINES -> {
                     // Draw one arrow per Stockfish line with score displayed
+                    // Use same color logic as Stockfish card (green/red/blue based on score)
                     val analysisLines = uiState.analysisResult?.lines ?: emptyList()
-                    val multiLinesColor = Color(uiState.stockfishSettings.manualStage.multiLinesArrowColor.toInt())
 
                     analysisLines.mapIndexedNotNull { index, line ->
                         val firstMove = line.pv.split(" ").firstOrNull { it.length >= 4 }
@@ -383,20 +383,34 @@ fun GameContent(
                             val toFile = firstMove[2] - 'a'
                             val toRank = firstMove[3] - '1'
                             if (fromFile in 0..7 && fromRank in 0..7 && toFile in 0..7 && toRank in 0..7) {
-                                // Format score for display
+                                // Convert score to WHITE's perspective, then to player's perspective
+                                val whiteScore = if (isWhiteTurnNow) line.score else -line.score
+                                val whiteMateIn = if (isWhiteTurnNow) line.mateIn else -line.mateIn
+                                val adjustedScore = if (uiState.userPlayedBlack) -whiteScore else whiteScore
+                                val adjustedMateIn = if (uiState.userPlayedBlack) -whiteMateIn else whiteMateIn
+
+                                // Format score for display (same as Stockfish card)
                                 val scoreText = if (line.isMate) {
-                                    if (line.mateIn > 0) "M${line.mateIn}" else "-M${kotlin.math.abs(line.mateIn)}"
+                                    if (adjustedMateIn > 0) "+M${adjustedMateIn}" else "-M${kotlin.math.abs(adjustedMateIn)}"
                                 } else {
-                                    val score = if (isWhiteTurnNow) line.score else -line.score
-                                    if (score >= 0) "+%.1f".format(score) else "%.1f".format(score)
+                                    if (adjustedScore >= 0) "+%.1f".format(adjustedScore) else "%.1f".format(adjustedScore)
                                 }
+
+                                // Use same color as Stockfish card
+                                val scoreColor = when {
+                                    line.isMate -> if (adjustedMateIn > 0) Color(0xFF00E676) else Color(0xFFFF5252)
+                                    adjustedScore > 0.3f -> Color(0xFF00E676)  // Green - good for player
+                                    adjustedScore < -0.3f -> Color(0xFFFF5252)  // Red - bad for player
+                                    else -> Color(0xFF6B9BFF)  // Blue - equal
+                                }
+
                                 MoveArrow(
                                     from = Square(fromFile, fromRank),
                                     to = Square(toFile, toRank),
                                     isWhiteMove = isWhiteTurnNow,
                                     index = index,
                                     scoreText = scoreText,
-                                    overrideColor = multiLinesColor
+                                    overrideColor = scoreColor
                                 )
                             } else null
                         } else null
