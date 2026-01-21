@@ -99,6 +99,7 @@ data class GameUiState(
     val currentMoveIndex: Int = -1,
     val analysisEnabled: Boolean = true,
     val analysisResult: AnalysisResult? = null,
+    val analysisResultFen: String? = null,  // FEN for which analysisResult is valid
     val stockfishReady: Boolean = false,
     val flippedBoard: Boolean = false,
     val stockfishSettings: StockfishSettings = StockfishSettings(),
@@ -340,10 +341,27 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            // Observe analysis results
+            // Observe analysis results (only for Preview/Analyse stages - Manual stage handles its own updates)
             viewModelScope.launch {
                 stockfish.analysisResult.collect { result ->
-                    _uiState.value = _uiState.value.copy(analysisResult = result)
+                    // In Manual stage, results are handled directly by ensureStockfishAnalysis
+                    // to avoid race conditions. Only update UI here for other stages.
+                    if (_uiState.value.currentStage != AnalysisStage.MANUAL) {
+                        if (result != null) {
+                            val expectedFen = currentAnalysisFen
+                            if (expectedFen != null && expectedFen == _uiState.value.currentBoard.getFen()) {
+                                _uiState.value = _uiState.value.copy(
+                                    analysisResult = result,
+                                    analysisResultFen = expectedFen
+                                )
+                            }
+                        } else {
+                            _uiState.value = _uiState.value.copy(
+                                analysisResult = null,
+                                analysisResultFen = null
+                            )
+                        }
+                    }
                 }
             }
 
@@ -634,78 +652,136 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun goToStart() {
         if (!handleNavigationInterrupt()) return
 
+        val newBoard: ChessBoard
         if (_uiState.value.isExploringLine) {
+            newBoard = exploringLineHistory.firstOrNull()?.copy() ?: ChessBoard()
             _uiState.value = _uiState.value.copy(
-                currentBoard = exploringLineHistory.firstOrNull()?.copy() ?: ChessBoard(),
+                currentBoard = newBoard,
                 exploringLineMoveIndex = -1
             )
         } else {
+            newBoard = boardHistory.firstOrNull()?.copy() ?: ChessBoard()
             _uiState.value = _uiState.value.copy(
-                currentBoard = boardHistory.firstOrNull()?.copy() ?: ChessBoard(),
+                currentBoard = newBoard,
                 currentMoveIndex = -1
             )
         }
-        analyzeCurrentPosition()
+        analyzePosition(newBoard)
     }
 
     fun goToEnd() {
         if (!handleNavigationInterrupt()) return
 
+        val newBoard: ChessBoard
         if (_uiState.value.isExploringLine) {
             val moves = _uiState.value.exploringLineMoves
             if (moves.isEmpty()) {
-                analyzeCurrentPosition()
+                analyzePosition(_uiState.value.currentBoard)
                 return
             }
+            newBoard = exploringLineHistory.lastOrNull()?.copy() ?: ChessBoard()
             _uiState.value = _uiState.value.copy(
-                currentBoard = exploringLineHistory.lastOrNull()?.copy() ?: ChessBoard(),
+                currentBoard = newBoard,
                 exploringLineMoveIndex = moves.size - 1
             )
         } else {
             val moves = _uiState.value.moves
             if (moves.isEmpty()) {
-                analyzeCurrentPosition()
+                analyzePosition(_uiState.value.currentBoard)
                 return
             }
+            newBoard = boardHistory.lastOrNull()?.copy() ?: ChessBoard()
             _uiState.value = _uiState.value.copy(
-                currentBoard = boardHistory.lastOrNull()?.copy() ?: ChessBoard(),
+                currentBoard = newBoard,
                 currentMoveIndex = moves.size - 1
             )
         }
-        analyzeCurrentPosition()
+        analyzePosition(newBoard)
     }
 
     fun goToMove(index: Int) {
         if (!handleNavigationInterrupt()) return
 
+        val newBoard: ChessBoard
         if (_uiState.value.isExploringLine) {
             val moves = _uiState.value.exploringLineMoves
             if (index < -1 || index >= moves.size) return
+            newBoard = exploringLineHistory.getOrNull(index + 1)?.copy() ?: ChessBoard()
             _uiState.value = _uiState.value.copy(
-                currentBoard = exploringLineHistory.getOrNull(index + 1)?.copy() ?: ChessBoard(),
+                currentBoard = newBoard,
                 exploringLineMoveIndex = index
             )
         } else {
             val moves = _uiState.value.moves
             if (index < -1 || index >= moves.size) return
+            newBoard = boardHistory.getOrNull(index + 1)?.copy() ?: ChessBoard()
             _uiState.value = _uiState.value.copy(
-                currentBoard = boardHistory.getOrNull(index + 1)?.copy() ?: ChessBoard(),
+                currentBoard = newBoard,
                 currentMoveIndex = index
             )
         }
-        analyzeCurrentPosition()
+        // Pass the exact board we just set to avoid any race conditions
+        analyzePosition(newBoard)
+    }
+
+    /**
+     * Restart analysis at a specific move - stops Stockfish and starts fresh.
+     * Used for graph clicks in manual stage to ensure clean state.
+     */
+    fun restartAnalysisAtMove(moveIndex: Int) {
+        // Cancel any running analysis
+        manualAnalysisJob?.cancel()
+
+        // Get the board for the clicked position
+        val validIndex = moveIndex.coerceIn(-1, boardHistory.size - 2)
+        val board = boardHistory.getOrNull(validIndex + 1) ?: ChessBoard()
+
+        viewModelScope.launch {
+            // Stop Stockfish completely
+            stockfish.stop()
+
+            // Increment request ID to invalidate any pending results
+            analysisRequestId++
+            val thisRequestId = analysisRequestId
+
+            // Set up the new position
+            val fenToAnalyze = board.getFen()
+            currentAnalysisFen = fenToAnalyze
+
+            // Update UI state
+            _uiState.value = _uiState.value.copy(
+                currentMoveIndex = validIndex,
+                currentBoard = board.copy(),
+                analysisResult = null,
+                analysisResultFen = null
+            )
+
+            // Small delay to ensure Stockfish has stopped
+            delay(50)
+
+            // Send new game command to clear Stockfish's internal state
+            stockfish.newGame()
+            delay(50)
+
+            // Start fresh analysis
+            if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
+                ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
+            }
+        }
     }
 
     fun nextMove() {
         if (!handleNavigationInterrupt()) return
 
+        val newBoard: ChessBoard
         if (_uiState.value.isExploringLine) {
             val currentIndex = _uiState.value.exploringLineMoveIndex
             val moves = _uiState.value.exploringLineMoves
             if (currentIndex >= moves.size - 1) return
             val newIndex = currentIndex + 1
+            newBoard = exploringLineHistory.getOrNull(newIndex + 1)?.copy() ?: _uiState.value.currentBoard
             _uiState.value = _uiState.value.copy(
-                currentBoard = exploringLineHistory.getOrNull(newIndex + 1)?.copy() ?: _uiState.value.currentBoard,
+                currentBoard = newBoard,
                 exploringLineMoveIndex = newIndex
             )
         } else {
@@ -713,35 +789,39 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val moves = _uiState.value.moves
             if (currentIndex >= moves.size - 1) return
             val newIndex = currentIndex + 1
+            newBoard = boardHistory.getOrNull(newIndex + 1)?.copy() ?: _uiState.value.currentBoard
             _uiState.value = _uiState.value.copy(
-                currentBoard = boardHistory.getOrNull(newIndex + 1)?.copy() ?: _uiState.value.currentBoard,
+                currentBoard = newBoard,
                 currentMoveIndex = newIndex
             )
         }
-        analyzeCurrentPosition()
+        analyzePosition(newBoard)
     }
 
     fun prevMove() {
         if (!handleNavigationInterrupt()) return
 
+        val newBoard: ChessBoard
         if (_uiState.value.isExploringLine) {
             val currentIndex = _uiState.value.exploringLineMoveIndex
             if (currentIndex < 0) return
             val newIndex = currentIndex - 1
+            newBoard = exploringLineHistory.getOrNull(newIndex + 1)?.copy() ?: ChessBoard()
             _uiState.value = _uiState.value.copy(
-                currentBoard = exploringLineHistory.getOrNull(newIndex + 1)?.copy() ?: ChessBoard(),
+                currentBoard = newBoard,
                 exploringLineMoveIndex = newIndex
             )
         } else {
             val currentIndex = _uiState.value.currentMoveIndex
             if (currentIndex < 0) return
             val newIndex = currentIndex - 1
+            newBoard = boardHistory.getOrNull(newIndex + 1)?.copy() ?: ChessBoard()
             _uiState.value = _uiState.value.copy(
-                currentBoard = boardHistory.getOrNull(newIndex + 1)?.copy() ?: ChessBoard(),
+                currentBoard = newBoard,
                 currentMoveIndex = newIndex
             )
         }
-        analyzeCurrentPosition()
+        analyzePosition(newBoard)
     }
 
     fun exploreLine(pv: String, moveIndex: Int = 0) {
@@ -918,32 +998,54 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private var manualAnalysisJob: Job? = null
+    private var currentAnalysisFen: String? = null  // Track which FEN is being analyzed
+    private var analysisRequestId: Long = 0  // Incremented for each new analysis request
 
+    /**
+     * Analyze the current position from UI state.
+     * Use analyzePosition(board) when you have the board directly to avoid race conditions.
+     */
     private fun analyzeCurrentPosition() {
+        analyzePosition(_uiState.value.currentBoard)
+    }
+
+    /**
+     * Analyze a specific board position.
+     * This is the preferred method when you have the board directly (e.g., after navigation).
+     */
+    private fun analyzePosition(board: ChessBoard) {
         if (!_uiState.value.analysisEnabled) return
 
         // Cancel any previous manual analysis job
         manualAnalysisJob?.cancel()
 
-        // Clear old analysis result
-        _uiState.value = _uiState.value.copy(analysisResult = null)
+        // Increment request ID to invalidate any pending results from old analyses
+        analysisRequestId++
+        val thisRequestId = analysisRequestId
+
+        // Track which position we're analyzing and clear old result
+        val fenToAnalyze = board.getFen()
+        currentAnalysisFen = fenToAnalyze
+        _uiState.value = _uiState.value.copy(analysisResult = null, analysisResultFen = null)
 
         // Only run manual analysis in Manual stage
         if (_uiState.value.currentStage != AnalysisStage.MANUAL) {
             return
         }
 
-        // In manual stage: ensure Stockfish card is shown
+        // In manual stage: ensure Stockfish card is shown - pass the FEN and request ID
         manualAnalysisJob = viewModelScope.launch {
-            ensureStockfishAnalysis()
+            ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
         }
     }
 
     /**
      * Ensure Stockfish analysis is running and producing results in manual stage.
      * If no results come back, restart Stockfish and try again.
+     * @param fen The FEN position to analyze (captured at call time to avoid race conditions)
+     * @param requestId The request ID to validate results against
      */
-    private suspend fun ensureStockfishAnalysis() {
+    private suspend fun ensureStockfishAnalysis(fen: String, requestId: Long) {
         val maxRetries = 2
         var attempt = 0
 
@@ -959,28 +1061,50 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 configureForManualStage()
             }
 
-            // Start analysis
-            val fen = _uiState.value.currentBoard.getFen()
+            // Start analysis with the FEN that was captured when this analysis was requested
             val depth = _uiState.value.stockfishSettings.manualStage.depth
             stockfish.analyze(fen, depth)
 
             // Wait for results (up to 2 seconds)
             var waitTime = 0
             val maxWaitTime = 2000
-            val checkInterval = 100L
+            val checkInterval = 50L
 
-            while (waitTime < maxWaitTime) {
+            var gotFirstResult = false
+            while (true) {
                 delay(checkInterval)
-                waitTime += checkInterval.toInt()
 
-                // Check if we got results
-                if (_uiState.value.analysisResult != null) {
-                    return // Success - analysis is running
+                // Check if a new analysis request was started - abort this one
+                if (analysisRequestId != requestId) {
+                    return // User navigated away, a new analysis will be started
                 }
 
                 // If we're no longer in manual stage, abort
                 if (_uiState.value.currentStage != AnalysisStage.MANUAL) {
                     return
+                }
+
+                // Check if we got results directly from Stockfish
+                val result = stockfish.analysisResult.value
+                if (result != null) {
+                    // Double-check request ID before updating UI
+                    if (analysisRequestId == requestId) {
+                        _uiState.value = _uiState.value.copy(
+                            analysisResult = result,
+                            analysisResultFen = fen
+                        )
+                        gotFirstResult = true
+                    } else {
+                        return // Request changed while checking
+                    }
+                }
+
+                // If we haven't got any result after timeout, break to retry
+                if (!gotFirstResult) {
+                    waitTime += checkInterval.toInt()
+                    if (waitTime >= maxWaitTime) {
+                        break
+                    }
                 }
             }
 
@@ -1298,6 +1422,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val validIndex = moveIndex.coerceIn(-1, boardHistory.size - 2)
             val board = boardHistory.getOrNull(validIndex + 1) ?: ChessBoard()
 
+            val fenToAnalyze = board.getFen()
+            currentAnalysisFen = fenToAnalyze
+            analysisRequestId++
+            val thisRequestId = analysisRequestId
+
             _uiState.value = _uiState.value.copy(
                 currentStage = AnalysisStage.MANUAL,
                 autoAnalysisIndex = -1,
@@ -1306,7 +1435,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 autoAnalysisCurrentScore = null,
                 remainingAnalysisMoves = emptyList(),
                 stockfishReady = false,
-                analysisResult = null
+                analysisResult = null,
+                analysisResultFen = null
             )
 
             // Start new Stockfish process for Manual stage
@@ -1319,7 +1449,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 delay(100)
                 configureForManualStage()
                 delay(100)
-                ensureStockfishAnalysis()
+                ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
             }
         }
     }

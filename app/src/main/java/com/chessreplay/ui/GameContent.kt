@@ -178,10 +178,13 @@ fun GameContent(
 
                 // RIGHT: Score
                 val isCurrentlyAnalyzing = uiState.currentStage != AnalysisStage.MANUAL && uiState.autoAnalysisIndex == moveIndex
-                val displayScore: MoveScore? = if ((isManualMode || isCurrentlyAnalyzing) && liveResult != null) {
+                // Only use live result if it's for the current position (FEN matches)
+                val currentFen = uiState.currentBoard.getFen()
+                val isResultForCurrentPosition = uiState.analysisResultFen == currentFen
+                val displayScore: MoveScore? = if ((isManualMode || isCurrentlyAnalyzing) && liveResult != null && isResultForCurrentPosition) {
                     val bestLine = liveResult.bestLine
                     if (bestLine != null) {
-                        // Invert score to always show from WHITE's perspective
+                        // Convert score to WHITE's perspective (Stockfish gives score from side-to-move's view)
                         val adjustedScore = if (isWhiteTurn) -bestLine.score else bestLine.score
                         val adjustedMateIn = if (isWhiteTurn) -bestLine.mateIn else bestLine.mateIn
                         MoveScore(adjustedScore, bestLine.isMate, adjustedMateIn)
@@ -243,7 +246,7 @@ fun GameContent(
                             when (uiState.currentStage) {
                                 AnalysisStage.PREVIEW -> { /* Not interruptible - ignore clicks */ }
                                 AnalysisStage.ANALYSE -> viewModel.enterManualStageAtMove(moveIndex)
-                                AnalysisStage.MANUAL -> viewModel.goToMove(moveIndex)
+                                AnalysisStage.MANUAL -> viewModel.restartAnalysisAtMove(moveIndex)
                             }
                         },
                         modifier = Modifier
@@ -289,10 +292,11 @@ fun GameContent(
         )
 
         // Chess board - drag to make moves during manual replay (no interaction during other stages)
-        // Get move arrows from Stockfish PV line (only in Manual stage)
+        // Get move arrows from Stockfish PV line (only in Manual stage, and only if result is for current position)
         val drawArrowsSetting = uiState.stockfishSettings.manualStage.drawArrows
         val numArrows = uiState.stockfishSettings.manualStage.numArrows
-        val moveArrows: List<MoveArrow> = if (uiState.currentStage == AnalysisStage.MANUAL && drawArrowsSetting && numArrows > 0) {
+        val arrowResultMatchesPosition = uiState.analysisResultFen == uiState.currentBoard.getFen()
+        val moveArrows: List<MoveArrow> = if (uiState.currentStage == AnalysisStage.MANUAL && drawArrowsSetting && numArrows > 0 && arrowResultMatchesPosition) {
             val pvLine = uiState.analysisResult?.pv ?: ""
             val pvMoves = pvLine.split(" ").filter { it.length >= 4 }.take(numArrows)
             val isWhiteTurnNow = uiState.currentBoard.getTurn() == PieceColor.WHITE

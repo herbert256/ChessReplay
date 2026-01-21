@@ -126,7 +126,7 @@ fun EvaluationGraph(
             if (score != null) {
                 val x = if (totalMoves > 1) moveIndex * pointSpacing else width / 2
                 val clampedScore = score.score.coerceIn(-maxScore, maxScore)
-                val y = centerY - (clampedScore / maxScore) * (height / 2 - 4)
+                val y = centerY + (clampedScore / maxScore) * (height / 2 - 4)
                 points.add(GraphPoint(x, y, score.score))
             }
         }
@@ -193,7 +193,7 @@ fun EvaluationGraph(
             if (score != null) {
                 val x = if (totalMoves > 1) moveIndex * pointSpacing else width / 2
                 val clampedScore = score.score.coerceIn(-maxScore, maxScore)
-                val y = centerY - (clampedScore / maxScore) * (height / 2 - 4)
+                val y = centerY + (clampedScore / maxScore) * (height / 2 - 4)
                 pointsAnalyse.add(GraphPoint(x, y, score.score))
             }
         }
@@ -237,8 +237,10 @@ fun AnalysisPanel(
     val turn = uiState.currentBoard.getTurn()
     val isWhiteTurn = turn == PieceColor.WHITE
 
-    // Only show if analysis is enabled and ready with results
-    if (!uiState.analysisEnabled || !uiState.stockfishReady || result == null) {
+    // Only show if analysis is enabled, ready with results, and result is for current position
+    val currentFen = uiState.currentBoard.getFen()
+    val isResultForCurrentPosition = uiState.analysisResultFen == currentFen
+    if (!uiState.analysisEnabled || !uiState.stockfishReady || result == null || !isResultForCurrentPosition) {
         return
     }
 
@@ -284,7 +286,7 @@ private fun PvLineRow(
     onMoveClick: (Int) -> Unit
 ) {
     // Score display: always from white's perspective (positive = white better, negative = black better)
-    // Invert score to show from WHITE's perspective
+    // Convert score to WHITE's perspective (Stockfish gives score from side-to-move's view)
     val adjustedScore = if (isWhiteTurn) -line.score else line.score
     val adjustedMateIn = if (isWhiteTurn) -line.mateIn else line.mateIn
 
