@@ -64,7 +64,7 @@ data class ManualStageSettings(
     val multiPv: Int = 3,               // 1-32
     val useNnue: Boolean = true,
     // Main line arrow settings
-    val arrowMode: ArrowMode = ArrowMode.MAIN_LINE,
+    val arrowMode: ArrowMode = ArrowMode.NONE,
     val numArrows: Int = 4,             // 1-8 arrows from PV
     val showArrowNumbers: Boolean = true,
     val whiteArrowColor: Long = DEFAULT_WHITE_ARROW_COLOR,
@@ -185,7 +185,8 @@ data class MoveScore(
     val isMate: Boolean,
     val mateIn: Int,
     val depth: Int = 0,
-    val nodes: Long = 0
+    val nodes: Long = 0,
+    val nps: Long = 0
 )
 
 data class MoveDetails(
@@ -1072,15 +1073,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         )
                         loadGame(games.first(), server, username)
                     } else {
-                        // Store server/username for when user selects a game
-                        pendingGameSelectionServer = server
-                        pendingGameSelectionUsername = username
+                        // Show the SelectedRetrieveGamesScreen directly
+                        val entry = RetrievedGamesEntry(accountName = username, server = server)
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            gameList = games,
-                            showGameSelection = true,
-                            gameSelectionUsername = username,
-                            gameSelectionServer = server
+                            showRetrieveScreen = false,
+                            showSelectedRetrieveGames = true,
+                            selectedRetrieveEntry = entry,
+                            selectedRetrieveGames = games
                         )
                     }
                 }
@@ -1186,8 +1186,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun showPreviousRetrieves() {
         val retrievesList = loadRetrievesList()
-        if (retrievesList.isNotEmpty()) {
+        if (retrievesList.isEmpty()) return
+
+        // If only one retrieve, skip selection and go directly to games
+        if (retrievesList.size == 1) {
+            val entry = retrievesList.first()
+            val games = loadGamesForRetrieve(entry)
+            if (games.isNotEmpty()) {
+                _uiState.value = _uiState.value.copy(
+                    showRetrieveScreen = false,
+                    showSelectedRetrieveGames = true,
+                    selectedRetrieveEntry = entry,
+                    selectedRetrieveGames = games
+                )
+            }
+        } else {
             _uiState.value = _uiState.value.copy(
+                showRetrieveScreen = false,
                 previousRetrievesList = retrievesList,
                 showPreviousRetrievesSelection = true
             )
@@ -1320,7 +1335,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (games.isNotEmpty()) {
             _uiState.value = _uiState.value.copy(
                 analysedGamesList = games,
-                showAnalysedGamesSelection = true
+                showAnalysedGamesSelection = true,
+                showRetrieveScreen = false
             )
         }
     }
@@ -2532,7 +2548,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         isMate = bestLine.isMate,
                         mateIn = adjustedMateIn,
                         depth = result.depth,
-                        nodes = result.nodes
+                        nodes = result.nodes,
+                        nps = result.nps
                     )
                     storeScore(moveIndex, score)
                 }

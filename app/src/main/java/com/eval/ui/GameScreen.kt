@@ -272,17 +272,6 @@ fun GameScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Reload last game from Active player/server (only when game loaded and Active stored)
-                    if (uiState.game != null && uiState.hasActive) {
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clickable { viewModel.reloadLastGame() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("↻", fontSize = 44.sp, color = Color.White, modifier = Modifier.offset(y = (-12).dp))
-                        }
-                    }
                     // Show retrieve games view - always visible
                     Box(
                         modifier = Modifier
@@ -297,6 +286,17 @@ fun GameScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text("≡", fontSize = 44.sp, color = Color.White, modifier = Modifier.offset(y = (-12).dp))
+                    }
+                    // Reload last game from Active player/server (only when game loaded and Active stored)
+                    if (uiState.game != null && uiState.hasActive) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clickable { viewModel.reloadLastGame() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("↻", fontSize = 44.sp, color = Color.White, modifier = Modifier.offset(y = (-12).dp))
+                        }
                     }
                     // Arrow mode toggle - only show in Manual stage when game loaded
                     if (uiState.game != null && uiState.currentStage == AnalysisStage.MANUAL) {
@@ -329,7 +329,7 @@ fun GameScreen(
                 }
                 Text(
                     text = "Eval",
-                    style = MaterialTheme.typography.titleLarge,
+                    fontSize = 36.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.End,
@@ -424,16 +424,25 @@ fun GameScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "First",
+                            text = "First run",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Please select a game to analyse, use the \u2261 icon at the top left for this",
+                            text = buildAnnotatedString {
+                                append("Please select a chess game to analyse, use the ")
+                                withStyle(style = SpanStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold)) {
+                                    append("\u2261")
+                                }
+                                append(" icon at the top left for this")
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFFCCCCCC),
+                            modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
                     }

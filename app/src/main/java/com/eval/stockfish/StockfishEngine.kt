@@ -18,6 +18,7 @@ data class PvLine(
 data class AnalysisResult(
     val depth: Int,
     val nodes: Long,
+    val nps: Long,
     val lines: List<PvLine>
 ) {
     // Convenience properties for backward compatibility
@@ -58,6 +59,7 @@ class StockfishEngine(private val context: Context) {
     private var currentMultiPv = 1
     private val pvLines = mutableMapOf<Int, PvLine>()
     private var currentNodes: Long = 0
+    private var currentNps: Long = 0
 
     /**
      * Check if Stockfish is installed on the system (com.stockfish141 package).
@@ -377,6 +379,11 @@ class StockfishEngine(private val context: Context) {
             val nodes = nodesMatch?.groupValues?.get(1)?.toLongOrNull() ?: currentNodes
             currentNodes = nodes
 
+            // Extract nps (nodes per second)
+            val npsMatch = Regex("nps (\\d+)").find(line)
+            val nps = npsMatch?.groupValues?.get(1)?.toLongOrNull() ?: currentNps
+            currentNps = nps
+
             // Extract multipv (defaults to 1)
             val multipvMatch = Regex("multipv (\\d+)").find(line)
             val multipv = multipvMatch?.groupValues?.get(1)?.toIntOrNull() ?: 1
@@ -415,6 +422,7 @@ class StockfishEngine(private val context: Context) {
             _analysisResult.value = AnalysisResult(
                 depth = depth,
                 nodes = currentNodes,
+                nps = currentNps,
                 lines = pvLines.values.sortedBy { it.multipv }
             )
         } catch (e: Exception) {

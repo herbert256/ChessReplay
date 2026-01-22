@@ -354,12 +354,6 @@ fun GameContent(
         Spacer(modifier = Modifier.height(8.dp))
     }
 
-    // Stockfish Analyse card - only shown during Analyse stage based on visibility setting
-    if (uiState.currentStage == AnalysisStage.ANALYSE && showStockfishAnalyse) {
-        StockfishAnalyseCard(uiState = uiState)
-        Spacer(modifier = Modifier.height(8.dp))
-    }
-
     // Result bar above board in manual stage
     if (uiState.currentStage == AnalysisStage.MANUAL && showResultBar) {
         ResultBar()
@@ -593,6 +587,12 @@ fun GameContent(
                 showRedBorder = showRedBorderForPlayerToMove
             )
         }
+    }
+
+    // Stockfish Analyse card - only shown during Analyse stage based on visibility setting
+    if (uiState.currentStage == AnalysisStage.ANALYSE && showStockfishAnalyse) {
+        Spacer(modifier = Modifier.height(8.dp))
+        StockfishAnalyseCard(uiState = uiState)
     }
 
     // Controls - hide during auto-analysis
@@ -1204,14 +1204,14 @@ private fun StockfishAnalyseCard(uiState: GameUiState) {
                 )
             }
 
-            // Current analysis info
+            // Runtime info section
             if (currentScore != null) {
+                // Score display row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Score display
                     val scoreText = if (currentScore.isMate) {
                         if (currentScore.mateIn > 0) "M${currentScore.mateIn}" else "-M${kotlin.math.abs(currentScore.mateIn)}"
                     } else {
@@ -1230,28 +1230,50 @@ private fun StockfishAnalyseCard(uiState: GameUiState) {
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
 
-                    // Depth and nodes
+                // Runtime stats row (depth, nodes, nps)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = "d${currentScore.depth}  ${formatNodes(currentScore.nodes)}",
-                        color = Color(0xFF78909C),
+                        text = "Depth: ${currentScore.depth}",
+                        color = Color(0xFF81D4FA),
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = formatNodes(currentScore.nodes),
+                        color = Color(0xFF81D4FA),
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = formatNps(currentScore.nps),
+                        color = Color(0xFF81D4FA),
                         fontSize = 12.sp
                     )
                 }
             }
 
-            // Settings info row
+            // Divider between runtime and config
+            HorizontalDivider(
+                color = Color(0xFF37474F),
+                thickness = 1.dp,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
+
+            // Configuration info row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Time: ${analyseSettings.secondsForMove}s/move",
+                    text = "Config: ${analyseSettings.secondsForMove}s/move",
                     color = Color(0xFF607D8B),
                     fontSize = 11.sp
                 )
                 Text(
-                    text = "Threads: ${analyseSettings.threads}  Hash: ${analyseSettings.hashMb}MB",
+                    text = "${analyseSettings.threads} threads  ${analyseSettings.hashMb}MB hash",
                     color = Color(0xFF607D8B),
                     fontSize = 11.sp
                 )
@@ -1269,5 +1291,17 @@ private fun formatNodes(nodes: Long): String {
         nodes >= 1_000_000 -> "%.1fM nodes".format(nodes / 1_000_000.0)
         nodes >= 1_000 -> "%.1fK nodes".format(nodes / 1_000.0)
         else -> "$nodes nodes"
+    }
+}
+
+/**
+ * Format nodes per second for display (e.g., 1234567 -> "1.2M nps")
+ */
+private fun formatNps(nps: Long): String {
+    return when {
+        nps >= 1_000_000_000 -> "%.1fB nps".format(nps / 1_000_000_000.0)
+        nps >= 1_000_000 -> "%.1fM nps".format(nps / 1_000_000.0)
+        nps >= 1_000 -> "%.1fK nps".format(nps / 1_000.0)
+        else -> "$nps nps"
     }
 }

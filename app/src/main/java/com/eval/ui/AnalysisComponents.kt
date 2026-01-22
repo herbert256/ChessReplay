@@ -314,40 +314,42 @@ fun ScoreDifferenceGraph(
         val isAnalyseStage = currentStage == AnalysisStage.ANALYSE
 
         // Draw bars for each move
-        // During Analyse stage (going backwards), use analyse scores only when BOTH consecutive
-        // analyse scores are available, otherwise fall back to preview scores.
-        // This ensures each bar updates exactly once (when the previous move's analyse completes).
+        // Compare with the previous move of the SAME COLOR (2 plies back, not 1)
+        // This shows how much the position changed after opponent's move and your response
         for (moveIndex in 0 until totalMoves) {
             val currentScore: MoveScore?
-            val prevScore: MoveScore?
+            val prevSameColorScore: MoveScore?
+
+            // Previous move of same color is 2 plies back
+            val prevSameColorIndex = moveIndex - 2
 
             if (isAnalyseStage) {
                 // During Analyse stage: use analyse scores if BOTH are available,
                 // otherwise fall back to preview scores
                 val hasAnalyseCurrent = analyseScores.containsKey(moveIndex)
-                val hasAnalysePrev = moveIndex == 0 || analyseScores.containsKey(moveIndex - 1)
+                val hasAnalysePrev = prevSameColorIndex < 0 || analyseScores.containsKey(prevSameColorIndex)
 
                 if (hasAnalyseCurrent && hasAnalysePrev) {
                     // Both analyse scores available - use them
                     currentScore = analyseScores[moveIndex]
-                    prevScore = if (moveIndex > 0) analyseScores[moveIndex - 1] else null
+                    prevSameColorScore = if (prevSameColorIndex >= 0) analyseScores[prevSameColorIndex] else null
                 } else {
                     // Fall back to preview scores
                     currentScore = previewScores[moveIndex]
-                    prevScore = if (moveIndex > 0) previewScores[moveIndex - 1] else null
+                    prevSameColorScore = if (prevSameColorIndex >= 0) previewScores[prevSameColorIndex] else null
                 }
             } else {
                 // Preview/Manual stage: prefer analyse scores, fall back to preview
                 currentScore = analyseScores[moveIndex] ?: previewScores[moveIndex]
-                prevScore = if (moveIndex > 0) {
-                    analyseScores[moveIndex - 1] ?: previewScores[moveIndex - 1]
+                prevSameColorScore = if (prevSameColorIndex >= 0) {
+                    analyseScores[prevSameColorIndex] ?: previewScores[prevSameColorIndex]
                 } else null
             }
 
-            if (currentScore != null && prevScore != null) {
-                // Calculate difference: current - previous
+            if (currentScore != null && prevSameColorScore != null) {
+                // Calculate difference: current - previous same color move
                 val currentAdj = currentScore.score * scorePerspective
-                val prevAdj = prevScore.score * scorePerspective
+                val prevAdj = prevSameColorScore.score * scorePerspective
                 val diff = currentAdj - prevAdj
 
                 val clampedDiff = diff.coerceIn(-maxDiff, maxDiff)
