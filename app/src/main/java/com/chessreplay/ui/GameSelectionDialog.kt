@@ -172,3 +172,148 @@ private fun GameListItem(
         }
     }
 }
+
+/**
+ * Full screen view for selecting from previously analysed games.
+ */
+@Composable
+fun AnalysedGamesScreen(
+    games: List<AnalysedGame>,
+    onSelectGame: (AnalysedGame) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF3A5A7C))  // Lighter blue background
+            .padding(16.dp)
+    ) {
+        // Header
+        Text(
+            text = "Previous analysed games",
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            LazyColumn(
+                modifier = Modifier.widthIn(max = 500.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(games) { game ->
+                    AnalysedGameListItem(
+                        game = game,
+                        onClick = { onSelectGame(game) }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Cancel")
+        }
+    }
+}
+
+/**
+ * Individual analysed game row - shows both players with consistent styling.
+ */
+@Composable
+private fun AnalysedGameListItem(
+    game: AnalysedGame,
+    onClick: () -> Unit
+) {
+    // Determine result color
+    val resultColor = when (game.result) {
+        "1-0" -> Color(0xFF4CAF50)    // Green - white won
+        "0-1" -> Color(0xFF4CAF50)    // Green - black won
+        else -> Color(0xFF2196F3)      // Blue - draw
+    }
+
+    // Consistent row styling (gray background)
+    val rowBackgroundColor = Color(0xFF2A2A2A)  // Dark gray
+    val rowTextColor = Color.White
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // Column 1: White player
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .background(rowBackgroundColor)
+                .padding(horizontal = 8.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = game.whiteName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = rowTextColor,
+                maxLines = 1
+            )
+        }
+
+        // Column 2: Black player
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .background(rowBackgroundColor)
+                .padding(horizontal = 8.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = game.blackName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = rowTextColor,
+                maxLines = 1
+            )
+        }
+
+        // Column 3: Format/speed
+        Box(
+            modifier = Modifier
+                .weight(0.5f)
+                .background(rowBackgroundColor)
+                .padding(horizontal = 8.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = game.speed ?: "",
+                fontSize = 14.sp,
+                color = rowTextColor,
+                maxLines = 1
+            )
+        }
+
+        // Column 4: Result
+        Box(
+            modifier = Modifier
+                .width(50.dp)
+                .background(rowBackgroundColor)
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            Text(
+                text = game.result,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = resultColor
+            )
+        }
+    }
+}

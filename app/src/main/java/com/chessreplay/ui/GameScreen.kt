@@ -183,6 +183,16 @@ fun GameScreen(
         return
     }
 
+    // Show analysed games selection screen
+    if (uiState.showAnalysedGamesSelection && uiState.analysedGamesList.isNotEmpty()) {
+        AnalysedGamesScreen(
+            games = uiState.analysedGamesList,
+            onSelectGame = { viewModel.selectAnalysedGame(it) },
+            onDismiss = { viewModel.dismissAnalysedGamesSelection() }
+        )
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -263,7 +273,7 @@ fun GameScreen(
                 }
                 Text(
                     text = "Chess Replay",
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.End,
@@ -341,6 +351,18 @@ fun GameScreen(
                         .padding(bottom = 12.dp)
                 ) {
                     Text("Select from last retrieved list of games")
+                }
+            }
+
+            // Button to select from previous analysed games
+            if (uiState.hasAnalysedGames) {
+                Button(
+                    onClick = { viewModel.showAnalysedGames() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                ) {
+                    Text("Select from previous analysed games")
                 }
             }
 

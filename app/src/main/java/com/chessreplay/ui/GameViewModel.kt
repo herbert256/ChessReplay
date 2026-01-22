@@ -193,6 +193,22 @@ data class MoveDetails(
     val clockTime: String? = null  // Format: "H:MM:SS" or "M:SS" or null if not available
 )
 
+// Stored analysed game with all analysis data
+data class AnalysedGame(
+    val timestamp: Long,                      // When the analysis was completed
+    val whiteName: String,                    // White player name
+    val blackName: String,                    // Black player name
+    val result: String,                       // "1-0", "0-1", "1/2-1/2"
+    val pgn: String,                          // Original PGN
+    val moves: List<String>,                  // Move list in UCI format
+    val moveDetails: List<MoveDetails>,       // Detailed move info
+    val previewScores: Map<Int, MoveScore>,   // Preview stage scores (graph 1)
+    val analyseScores: Map<Int, MoveScore>,   // Analyse stage scores (graph 2)
+    val openingName: String? = null,          // Opening name if available
+    val speed: String? = null,                // Game speed (bullet, blitz, etc.)
+    val activePlayer: String? = null          // Username who was viewing (for score perspective)
+)
+
 data class GameUiState(
     val stockfishInstalled: Boolean = true,  // Assume true until checked
     val isLoading: Boolean = false,
@@ -245,7 +261,11 @@ data class GameUiState(
     // Stored retrieved games
     val hasStoredGames: Boolean = false,
     val storedGamesUsername: String = "",
-    val storedGamesServer: ChessServer = ChessServer.LICHESS
+    val storedGamesServer: ChessServer = ChessServer.LICHESS,
+    // Analysed games
+    val hasAnalysedGames: Boolean = false,
+    val showAnalysedGamesSelection: Boolean = false,
+    val analysedGamesList: List<AnalysedGame> = emptyList()
 )
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
@@ -306,6 +326,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         private const val KEY_RETRIEVED_GAMES = "retrieved_games"
         private const val KEY_RETRIEVED_GAMES_USERNAME = "retrieved_games_username"
         private const val KEY_RETRIEVED_GAMES_SERVER = "retrieved_games_server"
+        // Analysed games storage
+        private const val KEY_ANALYSED_GAMES = "analysed_games"
+        private const val MAX_ANALYSED_GAMES = 50
         // Preview stage settings
         private const val KEY_PREVIEW_SECONDS = "preview_seconds"
         private const val KEY_PREVIEW_THREADS = "preview_threads"
@@ -560,21 +583,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Save the current game to SharedPreferences as JSON.
+     * Save the current analysed game to SharedPreferences as JSON.
+     * Called when entering Manual Analyse stage.
      */
-    private fun saveCurrentGame(game: LichessGame) {
-        val json = gson.toJson(game)
+    private fun saveCurrentAnalysedGame(analysedGame: AnalysedGame) {
+        val json = gson.toJson(analysedGame)
         prefs.edit().putString(KEY_CURRENT_GAME_JSON, json).apply()
     }
 
     /**
-     * Load the current game from SharedPreferences.
+     * Load the current analysed game from SharedPreferences.
      * Returns null if no game is stored.
      */
-    private fun loadCurrentGame(): LichessGame? {
+    private fun loadCurrentAnalysedGame(): AnalysedGame? {
         val json = prefs.getString(KEY_CURRENT_GAME_JSON, null) ?: return null
         return try {
-            gson.fromJson(json, LichessGame::class.java)
+            gson.fromJson(json, AnalysedGame::class.java)
         } catch (e: Exception) {
             null
         }
@@ -684,6 +708,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val hasStoredGames = storedGamesUsername != null && storedGamesServerStr != null &&
                 prefs.getString(KEY_RETRIEVED_GAMES, null) != null
             val storedGamesServer = if (storedGamesServerStr == "CHESS_COM") ChessServer.CHESS_COM else ChessServer.LICHESS
+            // Check for stored analysed games
+            val hasAnalysedGames = prefs.getString(KEY_ANALYSED_GAMES, null) != null
             _uiState.value = _uiState.value.copy(
                 stockfishSettings = settings,
                 boardLayoutSettings = boardSettings,
@@ -695,7 +721,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 hasLastServerUser = hasLastServerUser,
                 hasStoredGames = hasStoredGames,
                 storedGamesUsername = storedGamesUsername ?: "",
-                storedGamesServer = storedGamesServer
+                storedGamesServer = storedGamesServer,
+                hasAnalysedGames = hasAnalysedGames
             )
 
             // Initialize Stockfish with manual stage settings (default)
@@ -837,14 +864,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Automatically load a game and start analysis on app startup.
-     * First tries to load the stored current game, then falls back to fetching
-     * the most recent game from Lichess for DrNykterstein.
+     * First tries to load the stored current analysed game (goes directly to Manual stage),
+     * then falls back to fetching the most recent game from Lichess for DrNykterstein.
      */
     private suspend fun autoLoadLastGame() {
-        // First, try to load the stored current game
-        val storedGame = loadCurrentGame()
+        // First, try to load the stored current analysed game
+        val storedGame = loadCurrentAnalysedGame()
         if (storedGame != null) {
-            loadGame(storedGame, null, null) // No server/user update needed for stored game
+            loadAnalysedGameDirectly(storedGame) // Load directly into Manual stage
             return
         }
 
@@ -1064,6 +1091,222 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ===== ANALYSED GAMES STORAGE =====
+
+    private fun storeAnalysedGame() {
+        val game = _uiState.value.game ?: return
+        val moves = _uiState.value.moves
+        val moveDetails = _uiState.value.moveDetails
+        val previewScores = _uiState.value.previewScores
+        val analyseScores = _uiState.value.analyseScores
+
+        if (moves.isEmpty()) return
+
+        // Get player names
+        val whiteName = game.players.white.user?.name
+            ?: game.players.white.aiLevel?.let { "Stockfish $it" }
+            ?: "Anonymous"
+        val blackName = game.players.black.user?.name
+            ?: game.players.black.aiLevel?.let { "Stockfish $it" }
+            ?: "Anonymous"
+
+        // Determine result
+        val result = when (game.winner) {
+            "white" -> "1-0"
+            "black" -> "0-1"
+            else -> "1/2-1/2"
+        }
+
+        val analysedGame = AnalysedGame(
+            timestamp = System.currentTimeMillis(),
+            whiteName = whiteName,
+            blackName = blackName,
+            result = result,
+            pgn = game.pgn ?: "",
+            moves = moves,
+            moveDetails = moveDetails,
+            previewScores = previewScores,
+            analyseScores = analyseScores,
+            openingName = _uiState.value.openingName,
+            speed = game.speed,
+            activePlayer = savedLastUsername
+        )
+
+        // Save as current game for next app startup
+        saveCurrentAnalysedGame(analysedGame)
+
+        // Load existing games
+        val existingGames = loadAnalysedGames().toMutableList()
+
+        // Add new game at the beginning
+        existingGames.add(0, analysedGame)
+
+        // Keep only the last MAX_ANALYSED_GAMES
+        while (existingGames.size > MAX_ANALYSED_GAMES) {
+            existingGames.removeAt(existingGames.size - 1)
+        }
+
+        // Save back to storage
+        val gamesJson = gson.toJson(existingGames)
+        prefs.edit().putString(KEY_ANALYSED_GAMES, gamesJson).apply()
+
+        _uiState.value = _uiState.value.copy(hasAnalysedGames = true)
+    }
+
+    private fun loadAnalysedGames(): List<AnalysedGame> {
+        val gamesJson = prefs.getString(KEY_ANALYSED_GAMES, null) ?: return emptyList()
+        return try {
+            gson.fromJson(gamesJson, object : TypeToken<List<AnalysedGame>>() {}.type)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun showAnalysedGames() {
+        val games = loadAnalysedGames()
+        if (games.isNotEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                analysedGamesList = games,
+                showAnalysedGamesSelection = true
+            )
+        }
+    }
+
+    fun dismissAnalysedGamesSelection() {
+        _uiState.value = _uiState.value.copy(showAnalysedGamesSelection = false)
+    }
+
+    fun selectAnalysedGame(game: AnalysedGame) {
+        _uiState.value = _uiState.value.copy(showAnalysedGamesSelection = false)
+        loadAnalysedGameDirectly(game)
+    }
+
+    private fun loadAnalysedGameDirectly(analysedGame: AnalysedGame) {
+        // Cancel any ongoing analysis
+        autoAnalysisJob?.cancel()
+
+        // Parse the PGN to get board states
+        val parsedMoves = PgnParser.parseMoves(analysedGame.pgn)
+
+        // Build board history
+        boardHistory.clear()
+        val tempBoard = ChessBoard()
+        boardHistory.add(tempBoard.copy())
+
+        for (move in parsedMoves) {
+            val moveSuccess = tempBoard.makeMove(move)
+            if (moveSuccess) {
+                boardHistory.add(tempBoard.copy())
+            }
+        }
+
+        // Create a minimal LichessGame object for display purposes
+        val lichessGame = LichessGame(
+            id = "analysed_${analysedGame.timestamp}",
+            rated = false,
+            variant = "standard",
+            speed = analysedGame.speed ?: "unknown",
+            perf = null,
+            status = if (analysedGame.result == "1/2-1/2") "draw" else "mate",
+            winner = when (analysedGame.result) {
+                "1-0" -> "white"
+                "0-1" -> "black"
+                else -> null
+            },
+            players = com.chessreplay.data.Players(
+                white = com.chessreplay.data.Player(
+                    user = com.chessreplay.data.User(name = analysedGame.whiteName, id = analysedGame.whiteName.lowercase()),
+                    rating = null,
+                    aiLevel = null
+                ),
+                black = com.chessreplay.data.Player(
+                    user = com.chessreplay.data.User(name = analysedGame.blackName, id = analysedGame.blackName.lowercase()),
+                    rating = null,
+                    aiLevel = null
+                )
+            ),
+            pgn = analysedGame.pgn,
+            moves = null,
+            clock = null,
+            createdAt = analysedGame.timestamp,
+            lastMoveAt = analysedGame.timestamp
+        )
+
+        // Start directly in Manual stage at the biggest score change
+        val biggestChangeMoveIndex = findBiggestScoreChangeInScores(analysedGame.analyseScores, analysedGame.previewScores, analysedGame.moves.size)
+        val validIndex = biggestChangeMoveIndex.coerceIn(-1, boardHistory.size - 2)
+        val board = if (validIndex >= 0 && validIndex < boardHistory.size - 1) {
+            boardHistory[validIndex + 1]
+        } else {
+            boardHistory.firstOrNull() ?: ChessBoard()
+        }
+
+        // Determine if active player played black (for score perspective)
+        val activePlayer = analysedGame.activePlayer?.lowercase() ?: ""
+        val userPlayedBlack = activePlayer.isNotEmpty() && activePlayer == analysedGame.blackName.lowercase()
+
+        _uiState.value = _uiState.value.copy(
+            game = lichessGame,
+            moves = analysedGame.moves,
+            moveDetails = analysedGame.moveDetails,
+            currentMoveIndex = validIndex,
+            currentBoard = board.copy(),
+            flippedBoard = userPlayedBlack,
+            userPlayedBlack = userPlayedBlack,
+            openingName = analysedGame.openingName,
+            previewScores = analysedGame.previewScores,
+            analyseScores = analysedGame.analyseScores,
+            currentStage = AnalysisStage.MANUAL,
+            autoAnalysisIndex = -1,
+            isExploringLine = false,
+            exploringLineMoves = emptyList(),
+            exploringLineMoveIndex = -1,
+            savedGameMoveIndex = -1
+        )
+
+        // Start Stockfish analysis for current position
+        val fenToAnalyze = board.getFen()
+        currentAnalysisFen = fenToAnalyze
+        analysisRequestId++
+        val thisRequestId = analysisRequestId
+
+        viewModelScope.launch {
+            stockfish.stop()
+            val ready = stockfish.restart()
+            _uiState.value = _uiState.value.copy(stockfishReady = ready)
+            if (ready) {
+                stockfish.newGame()
+                configureForManualStage()
+                delay(100)
+                ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
+            }
+        }
+    }
+
+    private fun findBiggestScoreChangeInScores(
+        analyseScores: Map<Int, MoveScore>,
+        previewScores: Map<Int, MoveScore>,
+        totalMoves: Int
+    ): Int {
+        var biggestChangeIndex = 0
+        var biggestChange = 0f
+
+        for (i in 1 until totalMoves) {
+            val prevScore = analyseScores[i - 1] ?: previewScores[i - 1]
+            val currScore = analyseScores[i] ?: previewScores[i]
+
+            if (prevScore != null && currScore != null) {
+                val change = kotlin.math.abs(currScore.score - prevScore.score)
+                if (change > biggestChange) {
+                    biggestChange = change
+                    biggestChangeIndex = i
+                }
+            }
+        }
+
+        return biggestChangeIndex
+    }
+
     // Temporary storage for server/username when showing game selection dialog
     private var pendingGameSelectionServer: ChessServer? = null
     private var pendingGameSelectionUsername: String? = null
@@ -1227,10 +1470,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             autoAnalysisIndex = -1
         )
 
-        // Save this game as the current game for next app startup
-        saveCurrentGame(game)
-
         // Start analysis - runs Preview stage, then Analyse stage, then enters Manual stage
+        // The current game is saved when entering Manual stage (in storeAnalysedGame)
         startAnalysis()
     }
 
@@ -1977,6 +2218,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
                 // ===== MANUAL STAGE =====
                 android.util.Log.d("Analysis", "Analysis complete, entering MANUAL stage")
+
+                // Store the analysed game before entering manual stage
+                storeAnalysedGame()
+
                 val biggestChangeMoveIndex = findBiggestScoreChangeMove()
                 enterManualStageInternal(biggestChangeMoveIndex)
 
