@@ -108,7 +108,7 @@ fun EvaluationGraph(
         val height = size.height
         graphWidth = width
         val centerY = height / 2
-        val maxScore = 5f // Cap the display at +/- 5 pawns
+        val maxScore = graphSettings.lineGraphRange.toFloat() // Range from settings
 
         // Draw center line (x-axis)
         drawLine(
@@ -297,7 +297,7 @@ fun ScoreDifferenceGraph(
         val height = size.height
         graphWidth = width
         val centerY = height / 2
-        val maxDiff = 3f // Cap display at +/- 3 pawns difference
+        val maxDiff = graphSettings.barGraphRange.toFloat() // Range from settings
 
         // Draw center line (x-axis at 0 difference)
         drawLine(

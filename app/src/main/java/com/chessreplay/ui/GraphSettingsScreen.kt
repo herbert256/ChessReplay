@@ -31,6 +31,8 @@ fun GraphSettingsScreen(
     var backgroundColor by remember { mutableStateOf(graphSettings.backgroundColor) }
     var analyseLineColor by remember { mutableStateOf(graphSettings.analyseLineColor) }
     var verticalLineColor by remember { mutableStateOf(graphSettings.verticalLineColor) }
+    var lineGraphRange by remember { mutableStateOf(graphSettings.lineGraphRange) }
+    var barGraphRange by remember { mutableStateOf(graphSettings.barGraphRange) }
 
     var showPlusScoreColorPicker by remember { mutableStateOf(false) }
     var showNegativeScoreColorPicker by remember { mutableStateOf(false) }
@@ -43,14 +45,18 @@ fun GraphSettingsScreen(
         newNegativeScoreColor: Long = negativeScoreColor,
         newBackgroundColor: Long = backgroundColor,
         newAnalyseLineColor: Long = analyseLineColor,
-        newVerticalLineColor: Long = verticalLineColor
+        newVerticalLineColor: Long = verticalLineColor,
+        newLineGraphRange: Int = lineGraphRange,
+        newBarGraphRange: Int = barGraphRange
     ) {
         onSave(GraphSettings(
             plusScoreColor = newPlusScoreColor,
             negativeScoreColor = newNegativeScoreColor,
             backgroundColor = newBackgroundColor,
             analyseLineColor = newAnalyseLineColor,
-            verticalLineColor = newVerticalLineColor
+            verticalLineColor = newVerticalLineColor,
+            lineGraphRange = newLineGraphRange,
+            barGraphRange = newBarGraphRange
         ))
     }
 
@@ -73,40 +79,178 @@ fun GraphSettingsScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Plus score color picker
-        ColorSettingRow(
-            label = "Plus score color",
-            color = Color(plusScoreColor.toInt()),
-            onClick = { showPlusScoreColorPicker = true }
-        )
+        // Colors card
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Colors",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
 
-        // Negative score color picker
-        ColorSettingRow(
-            label = "Negative score color",
-            color = Color(negativeScoreColor.toInt()),
-            onClick = { showNegativeScoreColorPicker = true }
-        )
+                // Plus score color picker
+                ColorSettingRow(
+                    label = "Plus score color",
+                    color = Color(plusScoreColor.toInt()),
+                    onClick = { showPlusScoreColorPicker = true }
+                )
 
-        // Background color picker
-        ColorSettingRow(
-            label = "Background color",
-            color = Color(backgroundColor.toInt()),
-            onClick = { showBackgroundColorPicker = true }
-        )
+                // Negative score color picker
+                ColorSettingRow(
+                    label = "Negative score color",
+                    color = Color(negativeScoreColor.toInt()),
+                    onClick = { showNegativeScoreColorPicker = true }
+                )
 
-        // Analyse line color picker
-        ColorSettingRow(
-            label = "Line color in Analyse stage",
-            color = Color(analyseLineColor.toInt()),
-            onClick = { showAnalyseLineColorPicker = true }
-        )
+                // Background color picker
+                ColorSettingRow(
+                    label = "Background color",
+                    color = Color(backgroundColor.toInt()),
+                    onClick = { showBackgroundColorPicker = true }
+                )
 
-        // Vertical line color picker
-        ColorSettingRow(
-            label = "Vertical line color",
-            color = Color(verticalLineColor.toInt()),
-            onClick = { showVerticalLineColorPicker = true }
-        )
+                // Analyse line color picker
+                ColorSettingRow(
+                    label = "Line color in Analyse stage",
+                    color = Color(analyseLineColor.toInt()),
+                    onClick = { showAnalyseLineColorPicker = true }
+                )
+
+                // Vertical line color picker
+                ColorSettingRow(
+                    label = "Vertical line color",
+                    color = Color(verticalLineColor.toInt()),
+                    onClick = { showVerticalLineColorPicker = true }
+                )
+            }
+        }
+
+        // Ranges card
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Ranges",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                // Line graph range
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Graph one (line) range",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                if (lineGraphRange > 1) {
+                                    lineGraphRange -= 1
+                                    saveSettings(newLineGraphRange = lineGraphRange)
+                                }
+                            },
+                            enabled = lineGraphRange > 1,
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("-")
+                        }
+                        Text(
+                            text = lineGraphRange.toString(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.width(24.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(
+                            onClick = {
+                                if (lineGraphRange < 10) {
+                                    lineGraphRange += 1
+                                    saveSettings(newLineGraphRange = lineGraphRange)
+                                }
+                            },
+                            enabled = lineGraphRange < 10,
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("+")
+                        }
+                    }
+                }
+
+                // Bar graph range
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Graph two (bar) range",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                if (barGraphRange > 1) {
+                                    barGraphRange -= 1
+                                    saveSettings(newBarGraphRange = barGraphRange)
+                                }
+                            },
+                            enabled = barGraphRange > 1,
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("-")
+                        }
+                        Text(
+                            text = barGraphRange.toString(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.width(24.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(
+                            onClick = {
+                                if (barGraphRange < 10) {
+                                    barGraphRange += 1
+                                    saveSettings(newBarGraphRange = barGraphRange)
+                                }
+                            },
+                            enabled = barGraphRange < 10,
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("+")
+                        }
+                    }
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -118,6 +262,8 @@ fun GraphSettingsScreen(
                 backgroundColor = DEFAULT_GRAPH_BACKGROUND_COLOR
                 analyseLineColor = DEFAULT_GRAPH_ANALYSE_LINE_COLOR
                 verticalLineColor = DEFAULT_GRAPH_VERTICAL_LINE_COLOR
+                lineGraphRange = 7
+                barGraphRange = 3
                 onSave(GraphSettings())
             },
             colors = ButtonDefaults.buttonColors(

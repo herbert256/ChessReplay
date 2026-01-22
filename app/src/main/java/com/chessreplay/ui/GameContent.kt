@@ -323,7 +323,7 @@ fun GameContent(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(80.dp)
+                                .height(120.dp)
                         )
                     }
                 }
@@ -333,6 +333,10 @@ fun GameContent(
 
     // Game info card - shows graph and result bar in analyse mode
     val GameInfoCard: @Composable () -> Unit = {
+        // Add extra space before graphs in Analyse stage
+        if (uiState.currentStage == AnalysisStage.ANALYSE) {
+            Spacer(modifier = Modifier.height(8.dp))
+        }
         ConditionalGraphContent()
         if (uiState.currentStage == AnalysisStage.ANALYSE && showResultBar) {
             ResultBar()
@@ -480,17 +484,19 @@ fun GameContent(
         val evalBarPosition = uiState.boardLayoutSettings.evalBarPosition
         val showEvalBar = evalBarPosition != EvalBarPosition.NONE
 
-        // Get current score for evaluation bar - calculate directly without remember to ensure reactivity
-        val currentScore = run {
-            // Try to get score from analysis result first (for Manual stage real-time updates)
+        // Get current score for evaluation bar from WHITE's perspective (positive = white winning)
+        // The flipped parameter on EvaluationBar handles display when user played black
+        val evalBarScore = run {
             uiState.analysisResult?.lines?.firstOrNull()?.let { line ->
-                if (line.isMate) {
+                val rawScore = if (line.isMate) {
                     if (line.mateIn > 0) 100f else -100f  // Mate for white/black
                 } else {
                     line.score
                 }
+                // Flip for black's turn since Stockfish gives score from side-to-move's perspective
+                if (isWhiteTurn) rawScore else -rawScore
             } ?: run {
-                // Fall back to preview/analyse scores
+                // Fall back to preview/analyse scores - these are already adjusted to white's perspective
                 val moveIndex = uiState.currentMoveIndex
                 val analyseScore = uiState.analyseScores[moveIndex]
                 val previewScore = uiState.previewScores[moveIndex]
@@ -512,11 +518,11 @@ fun GameContent(
             // Left evaluation bar
             if (showEvalBar && evalBarPosition == EvalBarPosition.LEFT) {
                 EvaluationBar(
-                    score = currentScore,
+                    score = evalBarScore,
                     range = uiState.boardLayoutSettings.evalBarRange,
                     color1 = Color(uiState.boardLayoutSettings.evalBarColor1.toInt()),
                     color2 = Color(uiState.boardLayoutSettings.evalBarColor2.toInt()),
-                    flipped = uiState.flippedBoard,
+                    flipped = uiState.userPlayedBlack,
                     modifier = Modifier.fillMaxHeight()
                 )
             }
@@ -542,11 +548,11 @@ fun GameContent(
             // Right evaluation bar
             if (showEvalBar && evalBarPosition == EvalBarPosition.RIGHT) {
                 EvaluationBar(
-                    score = currentScore,
+                    score = evalBarScore,
                     range = uiState.boardLayoutSettings.evalBarRange,
                     color1 = Color(uiState.boardLayoutSettings.evalBarColor1.toInt()),
                     color2 = Color(uiState.boardLayoutSettings.evalBarColor2.toInt()),
-                    flipped = uiState.flippedBoard,
+                    flipped = uiState.userPlayedBlack,
                     modifier = Modifier.fillMaxHeight()
                 )
             }
@@ -686,7 +692,7 @@ fun GameContent(
 
     // Show graph cards between Stockfish panel and moves list during manual stage
     if (uiState.currentStage == AnalysisStage.MANUAL && (showScoreLineGraph || showScoreBarsGraph)) {
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         ConditionalGraphContent()
     }
 

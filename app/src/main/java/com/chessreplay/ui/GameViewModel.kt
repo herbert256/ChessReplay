@@ -102,7 +102,9 @@ data class GraphSettings(
     val negativeScoreColor: Long = DEFAULT_GRAPH_NEGATIVE_SCORE_COLOR,
     val backgroundColor: Long = DEFAULT_GRAPH_BACKGROUND_COLOR,
     val analyseLineColor: Long = DEFAULT_GRAPH_ANALYSE_LINE_COLOR,
-    val verticalLineColor: Long = DEFAULT_GRAPH_VERTICAL_LINE_COLOR
+    val verticalLineColor: Long = DEFAULT_GRAPH_VERTICAL_LINE_COLOR,
+    val lineGraphRange: Int = 7,    // Range for line graph (-7 to +7)
+    val barGraphRange: Int = 3      // Range for bar graph (-3 to +3)
 )
 
 // Player bar display mode
@@ -334,6 +336,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         private const val KEY_GRAPH_BACKGROUND_COLOR = "graph_background_color"
         private const val KEY_GRAPH_ANALYSE_LINE_COLOR = "graph_analyse_line_color"
         private const val KEY_GRAPH_VERTICAL_LINE_COLOR = "graph_vertical_line_color"
+        private const val KEY_GRAPH_LINE_RANGE = "graph_line_range"
+        private const val KEY_GRAPH_BAR_RANGE = "graph_bar_range"
         // Interface visibility settings - Preview stage
         private const val KEY_PREVIEW_VIS_MOVELIST = "preview_vis_movelist"
         private const val KEY_PREVIEW_VIS_BOARD = "preview_vis_board"
@@ -459,7 +463,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             negativeScoreColor = prefs.getLong(KEY_GRAPH_NEGATIVE_SCORE_COLOR, DEFAULT_GRAPH_NEGATIVE_SCORE_COLOR),
             backgroundColor = prefs.getLong(KEY_GRAPH_BACKGROUND_COLOR, DEFAULT_GRAPH_BACKGROUND_COLOR),
             analyseLineColor = prefs.getLong(KEY_GRAPH_ANALYSE_LINE_COLOR, DEFAULT_GRAPH_ANALYSE_LINE_COLOR),
-            verticalLineColor = prefs.getLong(KEY_GRAPH_VERTICAL_LINE_COLOR, DEFAULT_GRAPH_VERTICAL_LINE_COLOR)
+            verticalLineColor = prefs.getLong(KEY_GRAPH_VERTICAL_LINE_COLOR, DEFAULT_GRAPH_VERTICAL_LINE_COLOR),
+            lineGraphRange = prefs.getInt(KEY_GRAPH_LINE_RANGE, 7),
+            barGraphRange = prefs.getInt(KEY_GRAPH_BAR_RANGE, 3)
         )
     }
 
@@ -470,6 +476,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             .putLong(KEY_GRAPH_BACKGROUND_COLOR, settings.backgroundColor)
             .putLong(KEY_GRAPH_ANALYSE_LINE_COLOR, settings.analyseLineColor)
             .putLong(KEY_GRAPH_VERTICAL_LINE_COLOR, settings.verticalLineColor)
+            .putInt(KEY_GRAPH_LINE_RANGE, settings.lineGraphRange)
+            .putInt(KEY_GRAPH_BAR_RANGE, settings.barGraphRange)
             .apply()
     }
 
