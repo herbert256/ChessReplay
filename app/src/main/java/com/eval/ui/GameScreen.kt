@@ -221,6 +221,14 @@ fun GameScreen(
         AiReportsSelectionDialog(
             aiSettings = uiState.aiSettings,
             savedProviders = viewModel.loadAiReportProviders(),
+            availableChatGptModels = uiState.availableChatGptModels,
+            availableGeminiModels = uiState.availableGeminiModels,
+            availableGrokModels = uiState.availableGrokModels,
+            availableDeepSeekModels = uiState.availableDeepSeekModels,
+            availableMistralModels = uiState.availableMistralModels,
+            onModelChange = { service, model ->
+                viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
+            },
             onGenerate = { selectedProviders ->
                 viewModel.saveAiReportProviders(selectedProviders.map { it.name }.toSet())
                 viewModel.generateAiReports(selectedProviders)
@@ -2970,6 +2978,12 @@ fun SharePositionDialog(
 private fun AiReportsSelectionDialog(
     aiSettings: AiSettings,
     savedProviders: Set<String>,
+    availableChatGptModels: List<String>,
+    availableGeminiModels: List<String>,
+    availableGrokModels: List<String>,
+    availableDeepSeekModels: List<String>,
+    availableMistralModels: List<String>,
+    onModelChange: (com.eval.data.AiService, String) -> Unit,
     onGenerate: (Set<com.eval.data.AiService>) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -2984,6 +2998,16 @@ private fun AiReportsSelectionDialog(
 
     var selectedProviders by remember { mutableStateOf(initialSelection) }
 
+    // Track selected models for each service (initialized from settings)
+    var selectedModels by remember {
+        mutableStateOf(
+            allServices.associateWith { aiSettings.getModel(it) }
+        )
+    }
+
+    // Track which dropdown is expanded
+    var expandedDropdown by remember { mutableStateOf<com.eval.data.AiService?>(null) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -2994,93 +3018,171 @@ private fun AiReportsSelectionDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Choose which AI services to include in the report:",
+                    text = "Choose AI services and models for the report:",
                     color = Color.Gray,
-                    fontSize = 14.sp
+                    fontSize = 13.sp
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 allServices.forEach { service ->
                     val hasApiKey = aiSettings.getApiKey(service).isNotBlank()
                     val isSelected = selectedProviders.contains(service)
                     val canSelect = hasApiKey || service == com.eval.data.AiService.DUMMY
 
-                    Row(
+                    // Get available models for this service
+                    val availableModels = when (service) {
+                        com.eval.data.AiService.CHATGPT -> availableChatGptModels
+                        com.eval.data.AiService.CLAUDE -> CLAUDE_MODELS
+                        com.eval.data.AiService.GEMINI -> availableGeminiModels
+                        com.eval.data.AiService.GROK -> availableGrokModels
+                        com.eval.data.AiService.DEEPSEEK -> availableDeepSeekModels
+                        com.eval.data.AiService.MISTRAL -> availableMistralModels
+                        com.eval.data.AiService.DUMMY -> emptyList()
+                    }
+
+                    val currentModel = selectedModels[service] ?: aiSettings.getModel(service)
+                    val modelsToShow = if (availableModels.isNotEmpty()) {
+                        availableModels
+                    } else if (currentModel.isNotBlank()) {
+                        listOf(currentModel)
+                    } else {
+                        emptyList()
+                    }
+
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(6.dp))
                             .background(
                                 if (isSelected && canSelect) Color(0xFF2D4A2D) else Color(0xFF2D2D2D)
                             )
-                            .clickable(enabled = canSelect) {
-                                selectedProviders = if (isSelected) {
-                                    selectedProviders - service
-                                } else {
-                                    selectedProviders + service
-                                }
-                            }
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = canSelect) {
+                                    selectedProviders = if (isSelected) {
+                                        selectedProviders - service
+                                    } else {
+                                        selectedProviders + service
+                                    }
+                                },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Service logo/indicator
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(getAiServiceColor(service).copy(alpha = if (canSelect) 1f else 0.4f)),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(
-                                    text = getAiServiceLetter(service),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
+                                // Service logo/indicator
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(getAiServiceColor(service).copy(alpha = if (canSelect) 1f else 0.4f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = getAiServiceLetter(service),
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
+
+                                Column {
+                                    Text(
+                                        text = service.displayName,
+                                        color = if (canSelect) Color.White else Color.Gray,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp
+                                    )
+                                    if (!canSelect) {
+                                        Text(
+                                            text = "No API key configured",
+                                            color = Color(0xFF888888),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
                             }
 
-                            Column {
-                                Text(
-                                    text = service.displayName,
-                                    color = if (canSelect) Color.White else Color.Gray,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                if (!canSelect) {
-                                    Text(
-                                        text = "No API key configured",
-                                        color = Color(0xFF888888),
-                                        fontSize = 12.sp
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    if (canSelect) {
+                                        selectedProviders = if (checked) {
+                                            selectedProviders + service
+                                        } else {
+                                            selectedProviders - service
+                                        }
+                                    }
+                                },
+                                enabled = canSelect,
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Color(0xFF4CAF50),
+                                    uncheckedColor = Color.Gray
+                                ),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // Model dropdown (only show if service has API key and is not Dummy)
+                        if (canSelect && service != com.eval.data.AiService.DUMMY && modelsToShow.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Box {
+                                OutlinedButton(
+                                    onClick = {
+                                        expandedDropdown = if (expandedDropdown == service) null else service
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(32.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = Color.White
                                     )
+                                ) {
+                                    Text(
+                                        text = currentModel.ifBlank { "Select model" },
+                                        color = Color.White,
+                                        modifier = Modifier.weight(1f),
+                                        fontSize = 11.sp,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = if (expandedDropdown == service) "▲" else "▼",
+                                        color = Color.White,
+                                        fontSize = 10.sp
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = expandedDropdown == service,
+                                    onDismissRequest = { expandedDropdown = null },
+                                    modifier = Modifier.fillMaxWidth(0.8f)
+                                ) {
+                                    modelsToShow.forEach { model ->
+                                        DropdownMenuItem(
+                                            text = { Text(model, fontSize = 11.sp) },
+                                            onClick = {
+                                                selectedModels = selectedModels + (service to model)
+                                                onModelChange(service, model)
+                                                expandedDropdown = null
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
-
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { checked ->
-                                if (canSelect) {
-                                    selectedProviders = if (checked) {
-                                        selectedProviders + service
-                                    } else {
-                                        selectedProviders - service
-                                    }
-                                }
-                            },
-                            enabled = canSelect,
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF4CAF50),
-                                uncheckedColor = Color.Gray
-                            )
-                        )
                     }
                 }
             }

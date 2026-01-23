@@ -72,6 +72,30 @@ data class AiSettings(
         }
     }
 
+    fun getModel(service: AiService): String {
+        return when (service) {
+            AiService.CHATGPT -> chatGptModel
+            AiService.CLAUDE -> claudeModel
+            AiService.GEMINI -> geminiModel
+            AiService.GROK -> grokModel
+            AiService.DEEPSEEK -> deepSeekModel
+            AiService.MISTRAL -> mistralModel
+            AiService.DUMMY -> ""
+        }
+    }
+
+    fun withModel(service: AiService, model: String): AiSettings {
+        return when (service) {
+            AiService.CHATGPT -> copy(chatGptModel = model)
+            AiService.CLAUDE -> copy(claudeModel = model)
+            AiService.GEMINI -> copy(geminiModel = model)
+            AiService.GROK -> copy(grokModel = model)
+            AiService.DEEPSEEK -> copy(deepSeekModel = model)
+            AiService.MISTRAL -> copy(mistralModel = model)
+            AiService.DUMMY -> this
+        }
+    }
+
     fun hasAnyApiKey(): Boolean {
         return chatGptApiKey.isNotBlank() ||
                 claudeApiKey.isNotBlank() ||
@@ -458,7 +482,7 @@ private fun AiServiceNavigationCard(
 /**
  * Available Claude models (hardcoded as Anthropic doesn't provide a list models API).
  */
-private val CLAUDE_MODELS = listOf(
+internal val CLAUDE_MODELS = listOf(
     "claude-sonnet-4-20250514",
     "claude-opus-4-20250514",
     "claude-3-7-sonnet-20250219",

@@ -205,6 +205,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val hasPreviousRetrieves = retrievesList.isNotEmpty()
             val hasAnalysedGames = gameStorage.hasAnalysedGames()
 
+            // Load cached AI models
+            val cachedChatGptModels = settingsPrefs.loadCachedChatGptModels()
+            val cachedGeminiModels = settingsPrefs.loadCachedGeminiModels()
+            val cachedGrokModels = settingsPrefs.loadCachedGrokModels()
+            val cachedDeepSeekModels = settingsPrefs.loadCachedDeepSeekModels()
+            val cachedMistralModels = settingsPrefs.loadCachedMistralModels()
+
             _uiState.value = _uiState.value.copy(
                 stockfishSettings = settings,
                 boardLayoutSettings = boardSettings,
@@ -219,7 +226,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 previousRetrievesList = retrievesList,
                 hasAnalysedGames = hasAnalysedGames,
                 playerGamesPageSize = generalSettings.paginationPageSize,
-                gameSelectionPageSize = generalSettings.paginationPageSize
+                gameSelectionPageSize = generalSettings.paginationPageSize,
+                availableChatGptModels = cachedChatGptModels,
+                availableGeminiModels = cachedGeminiModels,
+                availableGrokModels = cachedGrokModels,
+                availableDeepSeekModels = cachedDeepSeekModels,
+                availableMistralModels = cachedMistralModels
             )
 
             viewModelScope.launch {
@@ -285,6 +297,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val chessComMaxGames = settingsPrefs.chessComMaxGames
         val hasActive = savedActiveServer != null && savedActivePlayer != null
 
+        // Load cached AI models
+        val cachedChatGptModels = settingsPrefs.loadCachedChatGptModels()
+        val cachedGeminiModels = settingsPrefs.loadCachedGeminiModels()
+        val cachedGrokModels = settingsPrefs.loadCachedGrokModels()
+        val cachedDeepSeekModels = settingsPrefs.loadCachedDeepSeekModels()
+        val cachedMistralModels = settingsPrefs.loadCachedMistralModels()
+
         _uiState.value = _uiState.value.copy(
             stockfishSettings = settings,
             boardLayoutSettings = boardSettings,
@@ -296,7 +315,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             chessComMaxGames = chessComMaxGames,
             hasActive = hasActive,
             playerGamesPageSize = generalSettings.paginationPageSize,
-            gameSelectionPageSize = generalSettings.paginationPageSize
+            gameSelectionPageSize = generalSettings.paginationPageSize,
+            availableChatGptModels = cachedChatGptModels,
+            availableGeminiModels = cachedGeminiModels,
+            availableGrokModels = cachedGrokModels,
+            availableDeepSeekModels = cachedDeepSeekModels,
+            availableMistralModels = cachedMistralModels
         )
 
         viewModelScope.launch {
@@ -1142,6 +1166,9 @@ ${opening.moves} *
         _uiState.value = _uiState.value.copy(isLoadingChatGptModels = true)
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchChatGptModels(apiKey)
+            if (models.isNotEmpty()) {
+                settingsPrefs.saveCachedChatGptModels(models)
+            }
             _uiState.value = _uiState.value.copy(
                 availableChatGptModels = models,
                 isLoadingChatGptModels = false
@@ -1154,6 +1181,9 @@ ${opening.moves} *
         _uiState.value = _uiState.value.copy(isLoadingGeminiModels = true)
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchGeminiModels(apiKey)
+            if (models.isNotEmpty()) {
+                settingsPrefs.saveCachedGeminiModels(models)
+            }
             _uiState.value = _uiState.value.copy(
                 availableGeminiModels = models,
                 isLoadingGeminiModels = false
@@ -1166,6 +1196,9 @@ ${opening.moves} *
         _uiState.value = _uiState.value.copy(isLoadingGrokModels = true)
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchGrokModels(apiKey)
+            if (models.isNotEmpty()) {
+                settingsPrefs.saveCachedGrokModels(models)
+            }
             _uiState.value = _uiState.value.copy(
                 availableGrokModels = models,
                 isLoadingGrokModels = false
@@ -1178,6 +1211,9 @@ ${opening.moves} *
         _uiState.value = _uiState.value.copy(isLoadingDeepSeekModels = true)
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchDeepSeekModels(apiKey)
+            if (models.isNotEmpty()) {
+                settingsPrefs.saveCachedDeepSeekModels(models)
+            }
             _uiState.value = _uiState.value.copy(
                 availableDeepSeekModels = models,
                 isLoadingDeepSeekModels = false
@@ -1190,6 +1226,9 @@ ${opening.moves} *
         _uiState.value = _uiState.value.copy(isLoadingMistralModels = true)
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchMistralModels(apiKey)
+            if (models.isNotEmpty()) {
+                settingsPrefs.saveCachedMistralModels(models)
+            }
             _uiState.value = _uiState.value.copy(
                 availableMistralModels = models,
                 isLoadingMistralModels = false

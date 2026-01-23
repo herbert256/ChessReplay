@@ -506,6 +506,13 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         // AI report email
         const val KEY_AI_REPORT_EMAIL = "ai_report_email"
 
+        // Cached AI models lists
+        private const val KEY_CACHED_CHATGPT_MODELS = "cached_chatgpt_models"
+        private const val KEY_CACHED_GEMINI_MODELS = "cached_gemini_models"
+        private const val KEY_CACHED_GROK_MODELS = "cached_grok_models"
+        private const val KEY_CACHED_DEEPSEEK_MODELS = "cached_deepseek_models"
+        private const val KEY_CACHED_MISTRAL_MODELS = "cached_mistral_models"
+
         // FEN history
         private const val KEY_FEN_HISTORY = "fen_history"
         const val MAX_FEN_HISTORY = 10
@@ -554,5 +561,84 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
     fun saveAiReportProviders(providers: Set<String>) {
         val json = gson.toJson(providers)
         prefs.edit().putString(KEY_AI_REPORT_PROVIDERS, json).apply()
+    }
+
+    // ============================================================================
+    // Cached AI Models
+    // ============================================================================
+
+    fun loadCachedChatGptModels(): List<String> {
+        val json = prefs.getString(KEY_CACHED_CHATGPT_MODELS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveCachedChatGptModels(models: List<String>) {
+        val json = gson.toJson(models)
+        prefs.edit().putString(KEY_CACHED_CHATGPT_MODELS, json).apply()
+    }
+
+    fun loadCachedGeminiModels(): List<String> {
+        val json = prefs.getString(KEY_CACHED_GEMINI_MODELS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveCachedGeminiModels(models: List<String>) {
+        val json = gson.toJson(models)
+        prefs.edit().putString(KEY_CACHED_GEMINI_MODELS, json).apply()
+    }
+
+    fun loadCachedGrokModels(): List<String> {
+        val json = prefs.getString(KEY_CACHED_GROK_MODELS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveCachedGrokModels(models: List<String>) {
+        val json = gson.toJson(models)
+        prefs.edit().putString(KEY_CACHED_GROK_MODELS, json).apply()
+    }
+
+    fun loadCachedDeepSeekModels(): List<String> {
+        val json = prefs.getString(KEY_CACHED_DEEPSEEK_MODELS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveCachedDeepSeekModels(models: List<String>) {
+        val json = gson.toJson(models)
+        prefs.edit().putString(KEY_CACHED_DEEPSEEK_MODELS, json).apply()
+    }
+
+    fun loadCachedMistralModels(): List<String> {
+        val json = prefs.getString(KEY_CACHED_MISTRAL_MODELS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveCachedMistralModels(models: List<String>) {
+        val json = gson.toJson(models)
+        prefs.edit().putString(KEY_CACHED_MISTRAL_MODELS, json).apply()
     }
 }
