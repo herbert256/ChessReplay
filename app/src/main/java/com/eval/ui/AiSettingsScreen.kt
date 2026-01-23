@@ -1701,7 +1701,7 @@ fun AllPromptsSection(
 
         // Server player prompt
         SinglePromptCard(
-            title = "lichess.org & chess.com player prompt",
+            title = "Chess server player prompt",
             prompt = serverPlayerPrompt,
             onPromptChange = onServerPlayerPromptChange,
             onResetToDefault = onResetServerPlayerPrompt
