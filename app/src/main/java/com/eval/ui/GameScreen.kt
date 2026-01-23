@@ -287,39 +287,41 @@ fun GameScreen(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (!isComplete) {
-                        CircularProgressIndicator(
-                            progress = {
-                                if (uiState.aiReportsTotal > 0)
-                                    uiState.aiReportsProgress.toFloat() / uiState.aiReportsTotal
-                                else 0f
-                            },
-                            modifier = Modifier.size(64.dp),
-                            strokeWidth = 6.dp
-                        )
-                    }
-                    Text(
-                        text = if (isComplete)
-                            "All ${uiState.aiReportsTotal} AI analyses completed"
-                        else
-                            "Calling AI services... ${uiState.aiReportsProgress}/${uiState.aiReportsTotal}",
-                        color = Color.Gray
-                    )
-
-                    // Show status for each service
-                    uiState.aiReportsResults.forEach { (service, result) ->
+                    // Show all selected services with their status
+                    uiState.aiReportsSelectedServices.forEach { service ->
+                        val result = uiState.aiReportsResults[service]
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(service.displayName, fontWeight = FontWeight.Medium)
-                            Text(
-                                text = if (result.isSuccess) "✓" else "✗",
-                                color = if (result.isSuccess) Color(0xFF4CAF50) else Color(0xFFF44336)
-                            )
+                            when {
+                                result == null -> {
+                                    // Still pending - show small spinner
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.Gray
+                                    )
+                                }
+                                result.isSuccess -> {
+                                    Text(
+                                        text = "✓",
+                                        color = Color(0xFF4CAF50),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                else -> {
+                                    Text(
+                                        text = "✗",
+                                        color = Color(0xFFF44336),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
                 }

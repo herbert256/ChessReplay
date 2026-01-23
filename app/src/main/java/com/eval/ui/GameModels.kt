@@ -422,6 +422,7 @@ data class GameUiState(
     val aiReportsProgress: Int = 0,  // Number of completed calls
     val aiReportsTotal: Int = 0,     // Total number of calls to make
     val aiReportsResults: Map<AiService, AiAnalysisResponse> = emptyMap(),
+    val aiReportsSelectedServices: Set<AiService> = emptySet(),  // Services being called
     // ECO Opening selection
     val showOpeningSelection: Boolean = false,
     val ecoOpenings: List<EcoOpening> = emptyList(),

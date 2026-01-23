@@ -1112,7 +1112,8 @@ ${opening.moves} *
             showAiReportsDialog = true,
             aiReportsProgress = 0,
             aiReportsTotal = servicesToCall.size,
-            aiReportsResults = emptyMap()
+            aiReportsResults = emptyMap(),
+            aiReportsSelectedServices = servicesToCall.toSet()
         )
 
         viewModelScope.launch {
@@ -1124,17 +1125,9 @@ ${opening.moves} *
             val deferredResults = servicesToCall.map { service ->
                 async {
                     val apiKey = aiSettings.getApiKey(service)
-                    val prompt = when (service) {
-                        AiService.CHATGPT -> aiSettings.chatGptPrompt
-                        AiService.CLAUDE -> aiSettings.claudePrompt
-                        AiService.GEMINI -> aiSettings.geminiPrompt
-                        AiService.GROK -> aiSettings.grokPrompt
-                        AiService.DEEPSEEK -> aiSettings.deepSeekPrompt
-                        AiService.MISTRAL -> aiSettings.mistralPrompt
-                        AiService.DUMMY -> ""
-                    }
+                    val prompt = aiSettings.getPrompt(service)
 
-                    val result = aiAnalysisRepository.analyzePosition(
+                    var result = aiAnalysisRepository.analyzePosition(
                         service = service,
                         fen = fen,
                         apiKey = apiKey,
@@ -1146,6 +1139,23 @@ ${opening.moves} *
                         deepSeekModel = aiSettings.deepSeekModel,
                         mistralModel = aiSettings.mistralModel
                     )
+
+                    // If failed, retry once after 1 second delay
+                    if (!result.isSuccess) {
+                        kotlinx.coroutines.delay(1000)
+                        result = aiAnalysisRepository.analyzePosition(
+                            service = service,
+                            fen = fen,
+                            apiKey = apiKey,
+                            prompt = prompt,
+                            chatGptModel = aiSettings.chatGptModel,
+                            claudeModel = aiSettings.claudeModel,
+                            geminiModel = aiSettings.geminiModel,
+                            grokModel = aiSettings.grokModel,
+                            deepSeekModel = aiSettings.deepSeekModel,
+                            mistralModel = aiSettings.mistralModel
+                        )
+                    }
 
                     // Update progress as each call completes
                     mutex.withLock {
@@ -1173,7 +1183,8 @@ ${opening.moves} *
             showAiReportsDialog = false,
             aiReportsResults = emptyMap(),
             aiReportsProgress = 0,
-            aiReportsTotal = 0
+            aiReportsTotal = 0,
+            aiReportsSelectedServices = emptySet()
         )
     }
 
