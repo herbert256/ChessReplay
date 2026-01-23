@@ -2787,10 +2787,24 @@ fun SharePositionDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF404040)
+                        containerColor = Color(0xFF6B8E23)
                     )
                 ) {
                     Text("Copy FEN to Clipboard")
+                }
+
+                // Copy PGN button
+                Button(
+                    onClick = {
+                        onCopyPgn()
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6B8E23)
+                    )
+                ) {
+                    Text("Copy PGN to Clipboard")
                 }
 
                 // Share button
@@ -2801,32 +2815,10 @@ fun SharePositionDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF404040)
+                        containerColor = Color(0xFF6B8E23)
                     )
                 ) {
                     Text("Share Position")
-                }
-
-                HorizontalDivider(color = Color(0xFF404040))
-
-                Text(
-                    text = "Annotated PGN (with evaluations):",
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFFAAAAAA)
-                )
-
-                // Copy PGN button
-                Button(
-                    onClick = {
-                        onCopyPgn()
-                        onDismiss()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF404040)
-                    )
-                ) {
-                    Text("Copy PGN to Clipboard")
                 }
 
                 // Export PGN button
@@ -2837,19 +2829,11 @@ fun SharePositionDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = Color(0xFF6B8E23)
                     )
                 ) {
                     Text("Share Annotated PGN")
                 }
-
-                HorizontalDivider(color = Color(0xFF404040))
-
-                Text(
-                    text = "Animated Game Replay:",
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFFAAAAAA)
-                )
 
                 // Export GIF button
                 Button(
@@ -2859,21 +2843,13 @@ fun SharePositionDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6B8E23) // Olive/green color
+                        containerColor = Color(0xFF6B8E23)
                     )
                 ) {
                     Text("Export as Animated GIF")
                 }
 
                 if (hasConfiguredAiServices) {
-                    HorizontalDivider(color = Color(0xFF404040))
-
-                    Text(
-                        text = "AI Analysis Reports:",
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFFAAAAAA)
-                    )
-
                     // AI Reports button
                     Button(
                         onClick = {
@@ -2882,7 +2858,7 @@ fun SharePositionDialog(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF8B5CF6) // Purple color for AI
+                            containerColor = Color(0xFF6B8E23)
                         )
                     ) {
                         Text("Generate AI Reports")
