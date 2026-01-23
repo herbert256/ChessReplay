@@ -1,6 +1,8 @@
 package com.eval.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -212,6 +215,46 @@ private fun RetrieveMainScreen(
     onLichessClick: () -> Unit,
     onChessComClick: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    // File picker launcher for PGN files (supports ZIP files containing PGN)
+    val pgnFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                if (inputStream != null) {
+                    // Read first bytes to check if it's a ZIP file
+                    val bufferedStream = java.io.BufferedInputStream(inputStream)
+                    bufferedStream.mark(4)
+                    val header = ByteArray(4)
+                    bufferedStream.read(header)
+                    bufferedStream.reset()
+
+                    // ZIP files start with PK (0x50 0x4B)
+                    val isZip = header[0] == 0x50.toByte() && header[1] == 0x4B.toByte()
+
+                    val pgnContent = if (isZip) {
+                        // Extract PGN content from ZIP file
+                        extractPgnFromZip(bufferedStream)
+                    } else {
+                        // Read as plain text PGN
+                        bufferedStream.bufferedReader().use { reader -> reader.readText() }
+                    }
+
+                    bufferedStream.close()
+
+                    if (pgnContent != null && pgnContent.isNotBlank()) {
+                        viewModel.loadGamesFromPgnContent(pgnContent)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("RetrieveScreen", "Error reading file: ${e.message}")
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -270,9 +313,20 @@ private fun RetrieveMainScreen(
                 }
             }
 
-            if (uiState.hasPreviousRetrieves || uiState.hasAnalysedGames) {
-                HorizontalDivider(color = Color(0xFF404040), modifier = Modifier.padding(vertical = 8.dp))
+            // Button to select from PGN file
+            Button(
+                onClick = {
+                    pgnFileLauncher.launch(arrayOf("*/*"))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF3A5A7C)
+                )
+            ) {
+                Text("Select from a PGN file")
             }
+
+            HorizontalDivider(color = Color(0xFF404040), modifier = Modifier.padding(vertical = 8.dp))
 
             // Error message
             if (uiState.errorMessage != null) {
@@ -1837,4 +1891,35 @@ private fun StreamerRow(
             }
         }
     }
+}
+
+/**
+ * Extract PGN content from a ZIP file.
+ * Looks for .pgn files inside the ZIP and concatenates their content.
+ */
+private fun extractPgnFromZip(inputStream: java.io.InputStream): String? {
+    val zipInputStream = java.util.zip.ZipInputStream(inputStream)
+    val pgnContent = StringBuilder()
+
+    try {
+        var entry = zipInputStream.nextEntry
+        while (entry != null) {
+            // Look for PGN files (case-insensitive)
+            if (!entry.isDirectory && entry.name.lowercase().endsWith(".pgn")) {
+                val content = zipInputStream.bufferedReader().readText()
+                if (pgnContent.isNotEmpty()) {
+                    pgnContent.append("\n\n")
+                }
+                pgnContent.append(content)
+            }
+            zipInputStream.closeEntry()
+            entry = zipInputStream.nextEntry
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("RetrieveScreen", "Error extracting ZIP: ${e.message}")
+    } finally {
+        zipInputStream.close()
+    }
+
+    return if (pgnContent.isNotEmpty()) pgnContent.toString() else null
 }

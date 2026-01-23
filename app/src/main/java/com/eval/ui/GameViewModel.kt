@@ -2092,6 +2092,53 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         loadGame(game, ChessServer.LICHESS, whiteName)
     }
 
+    // ==================== PGN FILE ====================
+
+    /**
+     * Load games from PGN file content.
+     * If single game, loads it directly.
+     * If multiple games, shows game selection dialog.
+     */
+    fun loadGamesFromPgnContent(pgnContent: String) {
+        when (val result = repository.parseGamesFromPgnContent(pgnContent)) {
+            is Result.Success -> {
+                val games = result.data
+                if (games.size == 1) {
+                    // Single game - load directly
+                    selectPgnGame(games.first())
+                } else {
+                    // Multiple games - show selection
+                    _uiState.value = _uiState.value.copy(
+                        gameList = games,
+                        showGameSelection = true,
+                        showRetrieveScreen = false,
+                        gameSelectionUsername = "PGN File",
+                        gameSelectionServer = ChessServer.LICHESS // Default, not really used
+                    )
+                    pendingGameSelectionServer = null
+                    pendingGameSelectionUsername = null
+                }
+            }
+            is Result.Error -> {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = result.message
+                )
+            }
+        }
+    }
+
+    /**
+     * Select a game from PGN file (white is active player).
+     */
+    fun selectPgnGame(game: LichessGame) {
+        _uiState.value = _uiState.value.copy(
+            showGameSelection = false,
+            showRetrieveScreen = false
+        )
+        val whiteName = game.players.white.user?.name ?: "White"
+        loadGame(game, null, whiteName)
+    }
+
     // ==================== LICHESS TV ====================
 
     /**

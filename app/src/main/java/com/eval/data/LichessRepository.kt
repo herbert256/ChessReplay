@@ -792,6 +792,39 @@ class ChessRepository(
     }
 
     /**
+     * Parse multiple games from a PGN file content.
+     * Games are separated by double newlines before [Event tag.
+     */
+    fun parseGamesFromPgnContent(pgnContent: String): Result<List<LichessGame>> {
+        if (pgnContent.isBlank()) {
+            return Result.Error("PGN file is empty")
+        }
+
+        // Split PGN content into individual games
+        // Games are separated by double newlines followed by [Event
+        val gameStrings = pgnContent.split(Regex("\n\n(?=\\[Event)"))
+            .filter { it.isNotBlank() }
+
+        if (gameStrings.isEmpty()) {
+            return Result.Error("No games found in PGN file")
+        }
+
+        val games = gameStrings.mapNotNull { pgn ->
+            try {
+                convertPgnToLichessGame(pgn.trim())
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        if (games.isEmpty()) {
+            return Result.Error("Failed to parse any games from PGN file")
+        }
+
+        return Result.Success(games)
+    }
+
+    /**
      * Get Lichess TV channels (current top games)
      */
     suspend fun getLichessTvChannels(): Result<List<TvChannelInfo>> = withContext(Dispatchers.IO) {
