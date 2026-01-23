@@ -58,6 +58,8 @@ fun SettingsScreen(
     isLoadingDeepSeekModels: Boolean,
     availableMistralModels: List<String>,
     isLoadingMistralModels: Boolean,
+    availablePerplexityModels: List<String>,
+    isLoadingPerplexityModels: Boolean,
     onBack: () -> Unit,
     onSaveStockfish: (StockfishSettings) -> Unit,
     onSaveBoardLayout: (BoardLayoutSettings) -> Unit,
@@ -70,7 +72,8 @@ fun SettingsScreen(
     onFetchGeminiModels: (String) -> Unit,
     onFetchGrokModels: (String) -> Unit,
     onFetchDeepSeekModels: (String) -> Unit,
-    onFetchMistralModels: (String) -> Unit
+    onFetchMistralModels: (String) -> Unit,
+    onFetchPerplexityModels: (String) -> Unit
 ) {
     var currentSubScreen by remember { mutableStateOf(SettingsSubScreen.MAIN) }
 
@@ -192,9 +195,12 @@ fun SettingsScreen(
         )
         SettingsSubScreen.AI_PERPLEXITY -> PerplexitySettingsScreen(
             aiSettings = aiSettings,
+            availableModels = availablePerplexityModels,
+            isLoadingModels = isLoadingPerplexityModels,
             onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
             onBackToGame = onBack,
-            onSave = onSaveAi
+            onSave = onSaveAi,
+            onFetchModels = onFetchPerplexityModels
         )
         SettingsSubScreen.AI_DUMMY -> DummySettingsScreen(
             aiSettings = aiSettings,

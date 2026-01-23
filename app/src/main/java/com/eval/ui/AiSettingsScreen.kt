@@ -54,42 +54,64 @@ const val DEFAULT_SERVER_PLAYER_PROMPT = """What do you know about user @PLAYER@
  */
 const val DEFAULT_OTHER_PLAYER_PROMPT = """Please give a report about chess player @PLAYER@. What is the good and the bad about this player? Is there any gossip on the internet?"""
 
+/**
+ * Enum for model source - API (fetched from provider) or Manual (user-maintained list)
+ */
+enum class ModelSource {
+    API,
+    MANUAL
+}
+
 data class AiSettings(
     val chatGptApiKey: String = "",
     val chatGptModel: String = "gpt-4o-mini",
     val chatGptPrompt: String = DEFAULT_GAME_PROMPT,
     val chatGptServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
     val chatGptOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val chatGptModelSource: ModelSource = ModelSource.API,
+    val chatGptManualModels: List<String> = emptyList(),
     val claudeApiKey: String = "",
     val claudeModel: String = "claude-sonnet-4-20250514",
     val claudePrompt: String = DEFAULT_GAME_PROMPT,
     val claudeServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
     val claudeOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val claudeModelSource: ModelSource = ModelSource.MANUAL,
+    val claudeManualModels: List<String> = CLAUDE_MODELS,
     val geminiApiKey: String = "",
     val geminiModel: String = "gemini-2.0-flash",
     val geminiPrompt: String = DEFAULT_GAME_PROMPT,
     val geminiServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
     val geminiOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val geminiModelSource: ModelSource = ModelSource.API,
+    val geminiManualModels: List<String> = emptyList(),
     val grokApiKey: String = "",
     val grokModel: String = "grok-3-mini",
     val grokPrompt: String = DEFAULT_GAME_PROMPT,
     val grokServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
     val grokOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val grokModelSource: ModelSource = ModelSource.API,
+    val grokManualModels: List<String> = emptyList(),
     val deepSeekApiKey: String = "",
     val deepSeekModel: String = "deepseek-chat",
     val deepSeekPrompt: String = DEFAULT_GAME_PROMPT,
     val deepSeekServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
     val deepSeekOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val deepSeekModelSource: ModelSource = ModelSource.API,
+    val deepSeekManualModels: List<String> = emptyList(),
     val mistralApiKey: String = "",
     val mistralModel: String = "mistral-small-latest",
     val mistralPrompt: String = DEFAULT_GAME_PROMPT,
     val mistralServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
     val mistralOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val mistralModelSource: ModelSource = ModelSource.API,
+    val mistralManualModels: List<String> = emptyList(),
     val perplexityApiKey: String = "",
     val perplexityModel: String = "sonar",
     val perplexityPrompt: String = DEFAULT_GAME_PROMPT,
     val perplexityServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
     val perplexityOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val perplexityModelSource: ModelSource = ModelSource.MANUAL,
+    val perplexityManualModels: List<String> = PERPLEXITY_MODELS,
     val dummyEnabled: Boolean = false
 ) {
     fun getApiKey(service: AiService): String {
@@ -169,6 +191,32 @@ data class AiSettings(
             AiService.MISTRAL -> copy(mistralModel = model)
             AiService.PERPLEXITY -> copy(perplexityModel = model)
             AiService.DUMMY -> this
+        }
+    }
+
+    fun getModelSource(service: AiService): ModelSource {
+        return when (service) {
+            AiService.CHATGPT -> chatGptModelSource
+            AiService.CLAUDE -> claudeModelSource
+            AiService.GEMINI -> geminiModelSource
+            AiService.GROK -> grokModelSource
+            AiService.DEEPSEEK -> deepSeekModelSource
+            AiService.MISTRAL -> mistralModelSource
+            AiService.PERPLEXITY -> perplexityModelSource
+            AiService.DUMMY -> ModelSource.MANUAL
+        }
+    }
+
+    fun getManualModels(service: AiService): List<String> {
+        return when (service) {
+            AiService.CHATGPT -> chatGptManualModels
+            AiService.CLAUDE -> claudeManualModels
+            AiService.GEMINI -> geminiManualModels
+            AiService.GROK -> grokManualModels
+            AiService.DEEPSEEK -> deepSeekManualModels
+            AiService.MISTRAL -> mistralManualModels
+            AiService.PERPLEXITY -> perplexityManualModels
+            AiService.DUMMY -> emptyList()
         }
     }
 
@@ -756,6 +804,8 @@ fun ChatGptSettingsScreen(
 ) {
     var apiKey by remember { mutableStateOf(aiSettings.chatGptApiKey) }
     var selectedModel by remember { mutableStateOf(aiSettings.chatGptModel) }
+    var modelSource by remember { mutableStateOf(aiSettings.chatGptModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.chatGptManualModels) }
     var gamePrompt by remember { mutableStateOf(aiSettings.chatGptPrompt) }
     var serverPlayerPrompt by remember { mutableStateOf(aiSettings.chatGptServerPlayerPrompt) }
     var otherPlayerPrompt by remember { mutableStateOf(aiSettings.chatGptOtherPlayerPrompt) }
@@ -777,13 +827,23 @@ fun ChatGptSettingsScreen(
     ) {
         // Model selection
         if (apiKey.isNotBlank()) {
-            ModelSelectionSection(
+            UnifiedModelSelectionSection(
                 selectedModel = selectedModel,
-                availableModels = availableModels,
+                modelSource = modelSource,
+                manualModels = manualModels,
+                availableApiModels = availableModels,
                 isLoadingModels = isLoadingModels,
                 onModelChange = {
                     selectedModel = it
                     onSave(aiSettings.copy(chatGptModel = it))
+                },
+                onModelSourceChange = {
+                    modelSource = it
+                    onSave(aiSettings.copy(chatGptModelSource = it))
+                },
+                onManualModelsChange = {
+                    manualModels = it
+                    onSave(aiSettings.copy(chatGptManualModels = it))
                 },
                 onFetchModels = { onFetchModels(apiKey) }
             )
@@ -834,6 +894,8 @@ fun ClaudeSettingsScreen(
 ) {
     var apiKey by remember { mutableStateOf(aiSettings.claudeApiKey) }
     var selectedModel by remember { mutableStateOf(aiSettings.claudeModel) }
+    var modelSource by remember { mutableStateOf(aiSettings.claudeModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.claudeManualModels) }
     var gamePrompt by remember { mutableStateOf(aiSettings.claudePrompt) }
     var serverPlayerPrompt by remember { mutableStateOf(aiSettings.claudeServerPlayerPrompt) }
     var otherPlayerPrompt by remember { mutableStateOf(aiSettings.claudeOtherPlayerPrompt) }
@@ -853,15 +915,27 @@ fun ClaudeSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection (hardcoded list)
+        // Model selection
         if (apiKey.isNotBlank()) {
-            HardcodedModelSelectionSection(
+            UnifiedModelSelectionSection(
                 selectedModel = selectedModel,
-                availableModels = CLAUDE_MODELS,
+                modelSource = modelSource,
+                manualModels = manualModels,
+                availableApiModels = emptyList(), // Claude doesn't have API for listing models
+                isLoadingModels = false,
                 onModelChange = {
                     selectedModel = it
                     onSave(aiSettings.copy(claudeModel = it))
-                }
+                },
+                onModelSourceChange = {
+                    modelSource = it
+                    onSave(aiSettings.copy(claudeModelSource = it))
+                },
+                onManualModelsChange = {
+                    manualModels = it
+                    onSave(aiSettings.copy(claudeManualModels = it))
+                },
+                onFetchModels = { } // No-op for Claude
             )
 
             // All prompts editing
@@ -913,6 +987,8 @@ fun GeminiSettingsScreen(
 ) {
     var apiKey by remember { mutableStateOf(aiSettings.geminiApiKey) }
     var selectedModel by remember { mutableStateOf(aiSettings.geminiModel) }
+    var modelSource by remember { mutableStateOf(aiSettings.geminiModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.geminiManualModels) }
     var gamePrompt by remember { mutableStateOf(aiSettings.geminiPrompt) }
     var serverPlayerPrompt by remember { mutableStateOf(aiSettings.geminiServerPlayerPrompt) }
     var otherPlayerPrompt by remember { mutableStateOf(aiSettings.geminiOtherPlayerPrompt) }
@@ -934,13 +1010,23 @@ fun GeminiSettingsScreen(
     ) {
         // Model selection
         if (apiKey.isNotBlank()) {
-            ModelSelectionSection(
+            UnifiedModelSelectionSection(
                 selectedModel = selectedModel,
-                availableModels = availableModels,
+                modelSource = modelSource,
+                manualModels = manualModels,
+                availableApiModels = availableModels,
                 isLoadingModels = isLoadingModels,
                 onModelChange = {
                     selectedModel = it
                     onSave(aiSettings.copy(geminiModel = it))
+                },
+                onModelSourceChange = {
+                    modelSource = it
+                    onSave(aiSettings.copy(geminiModelSource = it))
+                },
+                onManualModelsChange = {
+                    manualModels = it
+                    onSave(aiSettings.copy(geminiManualModels = it))
                 },
                 onFetchModels = { onFetchModels(apiKey) }
             )
@@ -994,6 +1080,8 @@ fun GrokSettingsScreen(
 ) {
     var apiKey by remember { mutableStateOf(aiSettings.grokApiKey) }
     var selectedModel by remember { mutableStateOf(aiSettings.grokModel) }
+    var modelSource by remember { mutableStateOf(aiSettings.grokModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.grokManualModels) }
     var gamePrompt by remember { mutableStateOf(aiSettings.grokPrompt) }
     var serverPlayerPrompt by remember { mutableStateOf(aiSettings.grokServerPlayerPrompt) }
     var otherPlayerPrompt by remember { mutableStateOf(aiSettings.grokOtherPlayerPrompt) }
@@ -1015,13 +1103,23 @@ fun GrokSettingsScreen(
     ) {
         // Model selection
         if (apiKey.isNotBlank()) {
-            ModelSelectionSection(
+            UnifiedModelSelectionSection(
                 selectedModel = selectedModel,
-                availableModels = availableModels,
+                modelSource = modelSource,
+                manualModels = manualModels,
+                availableApiModels = availableModels,
                 isLoadingModels = isLoadingModels,
                 onModelChange = {
                     selectedModel = it
                     onSave(aiSettings.copy(grokModel = it))
+                },
+                onModelSourceChange = {
+                    modelSource = it
+                    onSave(aiSettings.copy(grokModelSource = it))
+                },
+                onManualModelsChange = {
+                    manualModels = it
+                    onSave(aiSettings.copy(grokManualModels = it))
                 },
                 onFetchModels = { onFetchModels(apiKey) }
             )
@@ -1075,6 +1173,8 @@ fun DeepSeekSettingsScreen(
 ) {
     var apiKey by remember { mutableStateOf(aiSettings.deepSeekApiKey) }
     var selectedModel by remember { mutableStateOf(aiSettings.deepSeekModel) }
+    var modelSource by remember { mutableStateOf(aiSettings.deepSeekModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.deepSeekManualModels) }
     var gamePrompt by remember { mutableStateOf(aiSettings.deepSeekPrompt) }
     var serverPlayerPrompt by remember { mutableStateOf(aiSettings.deepSeekServerPlayerPrompt) }
     var otherPlayerPrompt by remember { mutableStateOf(aiSettings.deepSeekOtherPlayerPrompt) }
@@ -1096,13 +1196,23 @@ fun DeepSeekSettingsScreen(
     ) {
         // Model selection
         if (apiKey.isNotBlank()) {
-            ModelSelectionSection(
+            UnifiedModelSelectionSection(
                 selectedModel = selectedModel,
-                availableModels = availableModels,
+                modelSource = modelSource,
+                manualModels = manualModels,
+                availableApiModels = availableModels,
                 isLoadingModels = isLoadingModels,
                 onModelChange = {
                     selectedModel = it
                     onSave(aiSettings.copy(deepSeekModel = it))
+                },
+                onModelSourceChange = {
+                    modelSource = it
+                    onSave(aiSettings.copy(deepSeekModelSource = it))
+                },
+                onManualModelsChange = {
+                    manualModels = it
+                    onSave(aiSettings.copy(deepSeekManualModels = it))
                 },
                 onFetchModels = { onFetchModels(apiKey) }
             )
@@ -1156,6 +1266,8 @@ fun MistralSettingsScreen(
 ) {
     var apiKey by remember { mutableStateOf(aiSettings.mistralApiKey) }
     var selectedModel by remember { mutableStateOf(aiSettings.mistralModel) }
+    var modelSource by remember { mutableStateOf(aiSettings.mistralModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.mistralManualModels) }
     var gamePrompt by remember { mutableStateOf(aiSettings.mistralPrompt) }
     var serverPlayerPrompt by remember { mutableStateOf(aiSettings.mistralServerPlayerPrompt) }
     var otherPlayerPrompt by remember { mutableStateOf(aiSettings.mistralOtherPlayerPrompt) }
@@ -1177,13 +1289,23 @@ fun MistralSettingsScreen(
     ) {
         // Model selection
         if (apiKey.isNotBlank()) {
-            ModelSelectionSection(
+            UnifiedModelSelectionSection(
                 selectedModel = selectedModel,
-                availableModels = availableModels,
+                modelSource = modelSource,
+                manualModels = manualModels,
+                availableApiModels = availableModels,
                 isLoadingModels = isLoadingModels,
                 onModelChange = {
                     selectedModel = it
                     onSave(aiSettings.copy(mistralModel = it))
+                },
+                onModelSourceChange = {
+                    modelSource = it
+                    onSave(aiSettings.copy(mistralModelSource = it))
+                },
+                onManualModelsChange = {
+                    manualModels = it
+                    onSave(aiSettings.copy(mistralManualModels = it))
                 },
                 onFetchModels = { onFetchModels(apiKey) }
             )
@@ -1228,12 +1350,17 @@ fun MistralSettingsScreen(
 @Composable
 fun PerplexitySettingsScreen(
     aiSettings: AiSettings,
+    availableModels: List<String>,
+    isLoadingModels: Boolean,
     onBackToAiSettings: () -> Unit,
     onBackToGame: () -> Unit,
-    onSave: (AiSettings) -> Unit
+    onSave: (AiSettings) -> Unit,
+    onFetchModels: (String) -> Unit
 ) {
     var apiKey by remember { mutableStateOf(aiSettings.perplexityApiKey) }
     var selectedModel by remember { mutableStateOf(aiSettings.perplexityModel) }
+    var modelSource by remember { mutableStateOf(aiSettings.perplexityModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.perplexityManualModels) }
     var gamePrompt by remember { mutableStateOf(aiSettings.perplexityPrompt) }
     var serverPlayerPrompt by remember { mutableStateOf(aiSettings.perplexityServerPlayerPrompt) }
     var otherPlayerPrompt by remember { mutableStateOf(aiSettings.perplexityOtherPlayerPrompt) }
@@ -1253,15 +1380,27 @@ fun PerplexitySettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection (hardcoded list)
+        // Model selection
         if (apiKey.isNotBlank()) {
-            HardcodedModelSelectionSection(
+            UnifiedModelSelectionSection(
                 selectedModel = selectedModel,
-                availableModels = PERPLEXITY_MODELS,
+                modelSource = modelSource,
+                manualModels = manualModels,
+                availableApiModels = availableModels,
+                isLoadingModels = isLoadingModels,
                 onModelChange = {
                     selectedModel = it
                     onSave(aiSettings.copy(perplexityModel = it))
-                }
+                },
+                onModelSourceChange = {
+                    modelSource = it
+                    onSave(aiSettings.copy(perplexityModelSource = it))
+                },
+                onManualModelsChange = {
+                    manualModels = it
+                    onSave(aiSettings.copy(perplexityManualModels = it))
+                },
+                onFetchModels = { onFetchModels(apiKey) }
             )
 
             // All prompts editing
@@ -1736,6 +1875,264 @@ private fun HardcodedModelSelectionSection(
                 }
             }
         }
+    }
+}
+
+/**
+ * Unified model selection section with source toggle (API vs Manual).
+ */
+@Composable
+private fun UnifiedModelSelectionSection(
+    selectedModel: String,
+    modelSource: ModelSource,
+    manualModels: List<String>,
+    availableApiModels: List<String>,
+    isLoadingModels: Boolean,
+    onModelChange: (String) -> Unit,
+    onModelSourceChange: (ModelSource) -> Unit,
+    onManualModelsChange: (List<String>) -> Unit,
+    onFetchModels: () -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingModel by remember { mutableStateOf<String?>(null) }
+    var newModelName by remember { mutableStateOf("") }
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Model Selection",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+
+            // Model source toggle
+            Text(
+                text = "Model source:",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFAAAAAA)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = modelSource == ModelSource.API,
+                    onClick = { onModelSourceChange(ModelSource.API) },
+                    label = { Text("API") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    )
+                )
+                FilterChip(
+                    selected = modelSource == ModelSource.MANUAL,
+                    onClick = { onModelSourceChange(ModelSource.MANUAL) },
+                    label = { Text("Manual") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+
+            // API mode: Fetch button
+            if (modelSource == ModelSource.API) {
+                Button(
+                    onClick = onFetchModels,
+                    enabled = !isLoadingModels
+                ) {
+                    if (isLoadingModels) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Loading...")
+                    } else {
+                        Text("Retrieve models")
+                    }
+                }
+            }
+
+            // Manual mode: Add button and model list management
+            if (modelSource == ModelSource.MANUAL) {
+                Button(
+                    onClick = {
+                        newModelName = ""
+                        showAddDialog = true
+                    }
+                ) {
+                    Text("+ Add model")
+                }
+
+                // Show current manual models with edit/delete
+                if (manualModels.isNotEmpty()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        manualModels.forEach { model ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (model == selectedModel) Color(0xFF3A4A5A) else Color.Transparent,
+                                        shape = MaterialTheme.shapes.small
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = model,
+                                    color = Color.White,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = {
+                                        editingModel = model
+                                        newModelName = model
+                                        showAddDialog = true
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Text("✎", color = Color(0xFFAAAAAA))
+                                }
+                                IconButton(
+                                    onClick = {
+                                        val newList = manualModels.filter { it != model }
+                                        onManualModelsChange(newList)
+                                        // If deleted model was selected, select first available
+                                        if (model == selectedModel && newList.isNotEmpty()) {
+                                            onModelChange(newList.first())
+                                        }
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Text("✕", color = Color(0xFFFF6666))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Model dropdown
+            Text(
+                text = "Selected model:",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFAAAAAA)
+            )
+
+            var expanded by remember { mutableStateOf(false) }
+            val modelsToShow = if (modelSource == ModelSource.MANUAL) {
+                manualModels.ifEmpty { listOf(selectedModel) }
+            } else {
+                availableApiModels.ifEmpty { listOf(selectedModel) }
+            }
+
+            Box {
+                OutlinedButton(
+                    onClick = { expanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = selectedModel,
+                        color = Color.White,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = if (expanded) "▲" else "▼",
+                        color = Color.White
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                ) {
+                    modelsToShow.forEach { model ->
+                        DropdownMenuItem(
+                            text = { Text(model) },
+                            onClick = {
+                                onModelChange(model)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Add/Edit model dialog
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddDialog = false
+                editingModel = null
+            },
+            title = {
+                Text(
+                    if (editingModel != null) "Edit Model" else "Add Model",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                OutlinedTextField(
+                    value = newModelName,
+                    onValueChange = { newModelName = it },
+                    label = { Text("Model name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newModelName.isNotBlank()) {
+                            val newList = if (editingModel != null) {
+                                manualModels.map { if (it == editingModel) newModelName.trim() else it }
+                            } else {
+                                manualModels + newModelName.trim()
+                            }
+                            onManualModelsChange(newList)
+                            // If editing the selected model, update selection
+                            if (editingModel == selectedModel) {
+                                onModelChange(newModelName.trim())
+                            }
+                            // If adding first model, select it
+                            if (manualModels.isEmpty()) {
+                                onModelChange(newModelName.trim())
+                            }
+                        }
+                        showAddDialog = false
+                        editingModel = null
+                    },
+                    enabled = newModelName.isNotBlank()
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAddDialog = false
+                    editingModel = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

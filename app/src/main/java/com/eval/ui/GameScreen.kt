@@ -168,6 +168,8 @@ fun GameScreen(
             isLoadingDeepSeekModels = uiState.isLoadingDeepSeekModels,
             availableMistralModels = uiState.availableMistralModels,
             isLoadingMistralModels = uiState.isLoadingMistralModels,
+            availablePerplexityModels = uiState.availablePerplexityModels,
+            isLoadingPerplexityModels = uiState.isLoadingPerplexityModels,
             onBack = { viewModel.hideSettingsDialog() },
             onSaveStockfish = { viewModel.updateStockfishSettings(it) },
             onSaveBoardLayout = { viewModel.updateBoardLayoutSettings(it) },
@@ -180,7 +182,8 @@ fun GameScreen(
             onFetchGeminiModels = { viewModel.fetchGeminiModels(it) },
             onFetchGrokModels = { viewModel.fetchGrokModels(it) },
             onFetchDeepSeekModels = { viewModel.fetchDeepSeekModels(it) },
-            onFetchMistralModels = { viewModel.fetchMistralModels(it) }
+            onFetchMistralModels = { viewModel.fetchMistralModels(it) },
+            onFetchPerplexityModels = { viewModel.fetchPerplexityModels(it) }
         )
         return
     }
@@ -247,7 +250,7 @@ fun GameScreen(
             availableGrokModels = uiState.availableGrokModels,
             availableDeepSeekModels = uiState.availableDeepSeekModels,
             availableMistralModels = uiState.availableMistralModels,
-            availablePerplexityModels = PERPLEXITY_MODELS,
+            availablePerplexityModels = uiState.availablePerplexityModels,
             onModelChange = { service, model ->
                 viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
             },
@@ -395,7 +398,7 @@ fun GameScreen(
             availableGrokModels = uiState.availableGrokModels,
             availableDeepSeekModels = uiState.availableDeepSeekModels,
             availableMistralModels = uiState.availableMistralModels,
-            availablePerplexityModels = PERPLEXITY_MODELS,
+            availablePerplexityModels = uiState.availablePerplexityModels,
             onModelChange = { service, model ->
                 viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
             },

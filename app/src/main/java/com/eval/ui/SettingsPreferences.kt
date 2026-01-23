@@ -303,38 +303,81 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             chatGptPrompt = prefs.getString(KEY_AI_CHATGPT_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             chatGptServerPlayerPrompt = prefs.getString(KEY_AI_CHATGPT_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
             chatGptOtherPlayerPrompt = prefs.getString(KEY_AI_CHATGPT_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            chatGptModelSource = loadModelSource(KEY_AI_CHATGPT_MODEL_SOURCE, ModelSource.API),
+            chatGptManualModels = loadManualModels(KEY_AI_CHATGPT_MANUAL_MODELS),
             claudeApiKey = prefs.getString(KEY_AI_CLAUDE_API_KEY, "") ?: "",
             claudeModel = prefs.getString(KEY_AI_CLAUDE_MODEL, "claude-sonnet-4-20250514") ?: "claude-sonnet-4-20250514",
             claudePrompt = prefs.getString(KEY_AI_CLAUDE_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             claudeServerPlayerPrompt = prefs.getString(KEY_AI_CLAUDE_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
             claudeOtherPlayerPrompt = prefs.getString(KEY_AI_CLAUDE_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            claudeModelSource = loadModelSource(KEY_AI_CLAUDE_MODEL_SOURCE, ModelSource.MANUAL),
+            claudeManualModels = loadManualModelsWithDefault(KEY_AI_CLAUDE_MANUAL_MODELS, CLAUDE_MODELS),
             geminiApiKey = prefs.getString(KEY_AI_GEMINI_API_KEY, "") ?: "",
             geminiModel = prefs.getString(KEY_AI_GEMINI_MODEL, "gemini-2.0-flash") ?: "gemini-2.0-flash",
             geminiPrompt = prefs.getString(KEY_AI_GEMINI_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             geminiServerPlayerPrompt = prefs.getString(KEY_AI_GEMINI_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
             geminiOtherPlayerPrompt = prefs.getString(KEY_AI_GEMINI_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            geminiModelSource = loadModelSource(KEY_AI_GEMINI_MODEL_SOURCE, ModelSource.API),
+            geminiManualModels = loadManualModels(KEY_AI_GEMINI_MANUAL_MODELS),
             grokApiKey = prefs.getString(KEY_AI_GROK_API_KEY, "") ?: "",
             grokModel = prefs.getString(KEY_AI_GROK_MODEL, "grok-3-mini") ?: "grok-3-mini",
             grokPrompt = prefs.getString(KEY_AI_GROK_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             grokServerPlayerPrompt = prefs.getString(KEY_AI_GROK_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
             grokOtherPlayerPrompt = prefs.getString(KEY_AI_GROK_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            grokModelSource = loadModelSource(KEY_AI_GROK_MODEL_SOURCE, ModelSource.API),
+            grokManualModels = loadManualModels(KEY_AI_GROK_MANUAL_MODELS),
             deepSeekApiKey = prefs.getString(KEY_AI_DEEPSEEK_API_KEY, "") ?: "",
             deepSeekModel = prefs.getString(KEY_AI_DEEPSEEK_MODEL, "deepseek-chat") ?: "deepseek-chat",
             deepSeekPrompt = prefs.getString(KEY_AI_DEEPSEEK_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             deepSeekServerPlayerPrompt = prefs.getString(KEY_AI_DEEPSEEK_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
             deepSeekOtherPlayerPrompt = prefs.getString(KEY_AI_DEEPSEEK_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            deepSeekModelSource = loadModelSource(KEY_AI_DEEPSEEK_MODEL_SOURCE, ModelSource.API),
+            deepSeekManualModels = loadManualModels(KEY_AI_DEEPSEEK_MANUAL_MODELS),
             mistralApiKey = prefs.getString(KEY_AI_MISTRAL_API_KEY, "") ?: "",
             mistralModel = prefs.getString(KEY_AI_MISTRAL_MODEL, "mistral-small-latest") ?: "mistral-small-latest",
             mistralPrompt = prefs.getString(KEY_AI_MISTRAL_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             mistralServerPlayerPrompt = prefs.getString(KEY_AI_MISTRAL_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
             mistralOtherPlayerPrompt = prefs.getString(KEY_AI_MISTRAL_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            mistralModelSource = loadModelSource(KEY_AI_MISTRAL_MODEL_SOURCE, ModelSource.API),
+            mistralManualModels = loadManualModels(KEY_AI_MISTRAL_MANUAL_MODELS),
             perplexityApiKey = prefs.getString(KEY_AI_PERPLEXITY_API_KEY, "") ?: "",
             perplexityModel = prefs.getString(KEY_AI_PERPLEXITY_MODEL, "sonar") ?: "sonar",
             perplexityPrompt = prefs.getString(KEY_AI_PERPLEXITY_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             perplexityServerPlayerPrompt = prefs.getString(KEY_AI_PERPLEXITY_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
             perplexityOtherPlayerPrompt = prefs.getString(KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            perplexityModelSource = loadModelSource(KEY_AI_PERPLEXITY_MODEL_SOURCE, ModelSource.MANUAL),
+            perplexityManualModels = loadManualModelsWithDefault(KEY_AI_PERPLEXITY_MANUAL_MODELS, PERPLEXITY_MODELS),
             dummyEnabled = prefs.getBoolean(KEY_AI_DUMMY_ENABLED, false)
         )
+    }
+
+    private fun loadModelSource(key: String, default: ModelSource): ModelSource {
+        val sourceName = prefs.getString(key, null) ?: return default
+        return try {
+            ModelSource.valueOf(sourceName)
+        } catch (e: Exception) {
+            default
+        }
+    }
+
+    private fun loadManualModels(key: String): List<String> {
+        val json = prefs.getString(key, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun loadManualModelsWithDefault(key: String, default: List<String>): List<String> {
+        val json = prefs.getString(key, null) ?: return default
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: default
+        } catch (e: Exception) {
+            default
+        }
     }
 
     fun saveAiSettings(settings: AiSettings) {
@@ -344,36 +387,50 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             .putString(KEY_AI_CHATGPT_PROMPT, settings.chatGptPrompt)
             .putString(KEY_AI_CHATGPT_SERVER_PLAYER_PROMPT, settings.chatGptServerPlayerPrompt)
             .putString(KEY_AI_CHATGPT_OTHER_PLAYER_PROMPT, settings.chatGptOtherPlayerPrompt)
+            .putString(KEY_AI_CHATGPT_MODEL_SOURCE, settings.chatGptModelSource.name)
+            .putString(KEY_AI_CHATGPT_MANUAL_MODELS, gson.toJson(settings.chatGptManualModels))
             .putString(KEY_AI_CLAUDE_API_KEY, settings.claudeApiKey)
             .putString(KEY_AI_CLAUDE_MODEL, settings.claudeModel)
             .putString(KEY_AI_CLAUDE_PROMPT, settings.claudePrompt)
             .putString(KEY_AI_CLAUDE_SERVER_PLAYER_PROMPT, settings.claudeServerPlayerPrompt)
             .putString(KEY_AI_CLAUDE_OTHER_PLAYER_PROMPT, settings.claudeOtherPlayerPrompt)
+            .putString(KEY_AI_CLAUDE_MODEL_SOURCE, settings.claudeModelSource.name)
+            .putString(KEY_AI_CLAUDE_MANUAL_MODELS, gson.toJson(settings.claudeManualModels))
             .putString(KEY_AI_GEMINI_API_KEY, settings.geminiApiKey)
             .putString(KEY_AI_GEMINI_MODEL, settings.geminiModel)
             .putString(KEY_AI_GEMINI_PROMPT, settings.geminiPrompt)
             .putString(KEY_AI_GEMINI_SERVER_PLAYER_PROMPT, settings.geminiServerPlayerPrompt)
             .putString(KEY_AI_GEMINI_OTHER_PLAYER_PROMPT, settings.geminiOtherPlayerPrompt)
+            .putString(KEY_AI_GEMINI_MODEL_SOURCE, settings.geminiModelSource.name)
+            .putString(KEY_AI_GEMINI_MANUAL_MODELS, gson.toJson(settings.geminiManualModels))
             .putString(KEY_AI_GROK_API_KEY, settings.grokApiKey)
             .putString(KEY_AI_GROK_MODEL, settings.grokModel)
             .putString(KEY_AI_GROK_PROMPT, settings.grokPrompt)
             .putString(KEY_AI_GROK_SERVER_PLAYER_PROMPT, settings.grokServerPlayerPrompt)
             .putString(KEY_AI_GROK_OTHER_PLAYER_PROMPT, settings.grokOtherPlayerPrompt)
+            .putString(KEY_AI_GROK_MODEL_SOURCE, settings.grokModelSource.name)
+            .putString(KEY_AI_GROK_MANUAL_MODELS, gson.toJson(settings.grokManualModels))
             .putString(KEY_AI_DEEPSEEK_API_KEY, settings.deepSeekApiKey)
             .putString(KEY_AI_DEEPSEEK_MODEL, settings.deepSeekModel)
             .putString(KEY_AI_DEEPSEEK_PROMPT, settings.deepSeekPrompt)
             .putString(KEY_AI_DEEPSEEK_SERVER_PLAYER_PROMPT, settings.deepSeekServerPlayerPrompt)
             .putString(KEY_AI_DEEPSEEK_OTHER_PLAYER_PROMPT, settings.deepSeekOtherPlayerPrompt)
+            .putString(KEY_AI_DEEPSEEK_MODEL_SOURCE, settings.deepSeekModelSource.name)
+            .putString(KEY_AI_DEEPSEEK_MANUAL_MODELS, gson.toJson(settings.deepSeekManualModels))
             .putString(KEY_AI_MISTRAL_API_KEY, settings.mistralApiKey)
             .putString(KEY_AI_MISTRAL_MODEL, settings.mistralModel)
             .putString(KEY_AI_MISTRAL_PROMPT, settings.mistralPrompt)
             .putString(KEY_AI_MISTRAL_SERVER_PLAYER_PROMPT, settings.mistralServerPlayerPrompt)
             .putString(KEY_AI_MISTRAL_OTHER_PLAYER_PROMPT, settings.mistralOtherPlayerPrompt)
+            .putString(KEY_AI_MISTRAL_MODEL_SOURCE, settings.mistralModelSource.name)
+            .putString(KEY_AI_MISTRAL_MANUAL_MODELS, gson.toJson(settings.mistralManualModels))
             .putString(KEY_AI_PERPLEXITY_API_KEY, settings.perplexityApiKey)
             .putString(KEY_AI_PERPLEXITY_MODEL, settings.perplexityModel)
             .putString(KEY_AI_PERPLEXITY_PROMPT, settings.perplexityPrompt)
             .putString(KEY_AI_PERPLEXITY_SERVER_PLAYER_PROMPT, settings.perplexityServerPlayerPrompt)
             .putString(KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT, settings.perplexityOtherPlayerPrompt)
+            .putString(KEY_AI_PERPLEXITY_MODEL_SOURCE, settings.perplexityModelSource.name)
+            .putString(KEY_AI_PERPLEXITY_MANUAL_MODELS, gson.toJson(settings.perplexityManualModels))
             .putBoolean(KEY_AI_DUMMY_ENABLED, settings.dummyEnabled)
             .apply()
     }
@@ -563,6 +620,24 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_DEEPSEEK_OTHER_PLAYER_PROMPT = "ai_deepseek_other_player_prompt"
         private const val KEY_AI_MISTRAL_OTHER_PLAYER_PROMPT = "ai_mistral_other_player_prompt"
         private const val KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT = "ai_perplexity_other_player_prompt"
+
+        // AI model source (API or MANUAL)
+        private const val KEY_AI_CHATGPT_MODEL_SOURCE = "ai_chatgpt_model_source"
+        private const val KEY_AI_CLAUDE_MODEL_SOURCE = "ai_claude_model_source"
+        private const val KEY_AI_GEMINI_MODEL_SOURCE = "ai_gemini_model_source"
+        private const val KEY_AI_GROK_MODEL_SOURCE = "ai_grok_model_source"
+        private const val KEY_AI_DEEPSEEK_MODEL_SOURCE = "ai_deepseek_model_source"
+        private const val KEY_AI_MISTRAL_MODEL_SOURCE = "ai_mistral_model_source"
+        private const val KEY_AI_PERPLEXITY_MODEL_SOURCE = "ai_perplexity_model_source"
+
+        // AI manual models lists
+        private const val KEY_AI_CHATGPT_MANUAL_MODELS = "ai_chatgpt_manual_models"
+        private const val KEY_AI_CLAUDE_MANUAL_MODELS = "ai_claude_manual_models"
+        private const val KEY_AI_GEMINI_MANUAL_MODELS = "ai_gemini_manual_models"
+        private const val KEY_AI_GROK_MANUAL_MODELS = "ai_grok_manual_models"
+        private const val KEY_AI_DEEPSEEK_MANUAL_MODELS = "ai_deepseek_manual_models"
+        private const val KEY_AI_MISTRAL_MANUAL_MODELS = "ai_mistral_manual_models"
+        private const val KEY_AI_PERPLEXITY_MANUAL_MODELS = "ai_perplexity_manual_models"
 
         // AI report email
         const val KEY_AI_REPORT_EMAIL = "ai_report_email"
