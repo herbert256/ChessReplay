@@ -112,7 +112,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun isFirstRun(): Boolean {
         val savedVersionCode = settingsPrefs.getFirstGameRetrievedVersion()
-        return savedVersionCode != getAppVersionCode()
+        val currentVersion = getAppVersionCode()
+        // If stored version code is 0 (legacy bug), check if there's a stored game
+        // If there's a stored game, this isn't truly a first run
+        if (savedVersionCode == 0L && gameStorage.hasAnalysedGames()) {
+            // Fix the stored version code for future runs
+            settingsPrefs.setFirstGameRetrievedVersion(currentVersion)
+            return false
+        }
+        return savedVersionCode != currentVersion
     }
 
     private fun markFirstRunComplete() {
@@ -146,7 +154,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             gameStorage = gameStorage,
             analysisOrchestrator = analysisOrchestrator,
             fetchOpeningExplorer = { fetchOpeningExplorer() },
-            restartStockfishAndAnalyze = { fen -> restartStockfishAndAnalyze(fen) }
+            restartStockfishAndAnalyze = { fen -> restartStockfishAndAnalyze(fen) },
+            getAppVersionCode = { getAppVersionCode() }
         )
 
         boardNavigationManager = BoardNavigationManager(

@@ -2,11 +2,15 @@ package com.eval.ui
 
 import android.content.SharedPreferences
 import com.eval.data.ChessServer
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 /**
  * Helper class for managing all settings persistence via SharedPreferences.
  */
 class SettingsPreferences(private val prefs: SharedPreferences) {
+
+    private val gson = Gson()
 
     // ============================================================================
     // Username and Server Properties
@@ -503,5 +507,35 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
 
         // AI report email
         const val KEY_AI_REPORT_EMAIL = "ai_report_email"
+
+        // FEN history
+        private const val KEY_FEN_HISTORY = "fen_history"
+        const val MAX_FEN_HISTORY = 10
+    }
+
+    // ============================================================================
+    // FEN History
+    // ============================================================================
+
+    fun loadFenHistory(): List<String> {
+        val json = prefs.getString(KEY_FEN_HISTORY, null) ?: return emptyList()
+        return try {
+            val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveFenToHistory(fen: String) {
+        val history = loadFenHistory().toMutableList()
+        // Remove if already exists (to move to top)
+        history.remove(fen)
+        // Add at the beginning
+        history.add(0, fen)
+        // Keep only the last MAX_FEN_HISTORY entries
+        val trimmed = history.take(MAX_FEN_HISTORY)
+        val json = gson.toJson(trimmed)
+        prefs.edit().putString(KEY_FEN_HISTORY, json).apply()
     }
 }

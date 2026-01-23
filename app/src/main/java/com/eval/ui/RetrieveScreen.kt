@@ -383,8 +383,18 @@ private fun RetrieveMainScreen(
             var showFenDialog by remember { mutableStateOf(false) }
             var fenInput by remember { mutableStateOf("") }
 
+            // Load FEN history from preferences
+            val settingsPrefs = remember {
+                val prefs = context.getSharedPreferences(SettingsPreferences.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                SettingsPreferences(prefs)
+            }
+            var fenHistory by remember { mutableStateOf(settingsPrefs.loadFenHistory()) }
+
             Button(
-                onClick = { showFenDialog = true },
+                onClick = {
+                    fenHistory = settingsPrefs.loadFenHistory()  // Refresh history when opening dialog
+                    showFenDialog = true
+                },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF3A5A7C)
@@ -399,7 +409,9 @@ private fun RetrieveMainScreen(
                     onDismissRequest = { showFenDialog = false },
                     title = { Text("Enter FEN position") },
                     text = {
-                        Column {
+                        Column(
+                            modifier = Modifier.heightIn(max = 400.dp)
+                        ) {
                             Text(
                                 "Paste or type a FEN string:",
                                 color = Color.Gray,
@@ -410,17 +422,58 @@ private fun RetrieveMainScreen(
                                 value = fenInput,
                                 onValueChange = { fenInput = it },
                                 modifier = Modifier.fillMaxWidth(),
-                                placeholder = { Text("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") },
+                                placeholder = { Text("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", fontSize = 11.sp) },
                                 singleLine = false,
                                 maxLines = 3
                             )
+
+                            // FEN History
+                            if (fenHistory.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    "Recent positions:",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 200.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    fenHistory.forEach { fen ->
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { fenInput = fen },
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = Color(0xFF2A2A2A)
+                                            )
+                                        ) {
+                                            Text(
+                                                text = fen,
+                                                fontSize = 11.sp,
+                                                color = Color(0xFFCCCCCC),
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
                     confirmButton = {
                         TextButton(
                             onClick = {
                                 if (fenInput.isNotBlank()) {
-                                    viewModel.startFromFen(fenInput.trim())
+                                    val trimmedFen = fenInput.trim()
+                                    settingsPrefs.saveFenToHistory(trimmedFen)
+                                    viewModel.startFromFen(trimmedFen)
                                     showFenDialog = false
                                     fenInput = ""
                                 }

@@ -176,7 +176,7 @@ fun GameContent(
                     )
                 }
 
-                // RIGHT: Score (from player's perspective)
+                // RIGHT: Score (from player's perspective) + delta from previous move
                 val isCurrentlyAnalyzing = uiState.currentStage != AnalysisStage.MANUAL && uiState.autoAnalysisIndex == moveIndex
                 // Only use live result if it's for the current position (FEN matches)
                 val currentFen = uiState.currentBoard.getFen()
@@ -200,6 +200,17 @@ fun GameContent(
                     whiteScore
                 }
 
+                // Get previous move's score for delta calculation
+                val prevStoredScore = if (moveIndex > 0) {
+                    uiState.analyseScores[moveIndex - 1] ?: uiState.previewScores[moveIndex - 1]
+                } else null
+                val prevWhiteScore: MoveScore? = prevStoredScore
+                val prevDisplayScore: MoveScore? = if (prevWhiteScore != null && uiState.userPlayedBlack) {
+                    MoveScore(-prevWhiteScore.score, prevWhiteScore.isMate, -prevWhiteScore.mateIn)
+                } else {
+                    prevWhiteScore
+                }
+
                 if (displayScore != null) {
                     val scoreText = if (displayScore.isMate) {
                         if (displayScore.mateIn > 0) "+M${displayScore.mateIn}" else "-M${kotlin.math.abs(displayScore.mateIn)}"
@@ -213,14 +224,51 @@ fun GameContent(
                         displayScore.score < -0.1f -> Color(0xFFFF5252)  // Red for player worse
                         else -> Color(0xFF64B5F6)  // Bright blue for equal
                     }
-                    Text(
-                        text = scoreText,
-                        color = scoreColor,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.weight(1f)
-                    )
+
+                    // Calculate delta from previous move
+                    val deltaText: String?
+                    val deltaColor: Color
+                    if (prevDisplayScore != null && !displayScore.isMate && !prevDisplayScore.isMate) {
+                        val delta = displayScore.score - prevDisplayScore.score
+                        deltaText = if (delta >= 0) "+%.1f".format(delta) else "%.1f".format(delta)
+                        deltaColor = when {
+                            delta > 0.1f -> Color(0xFF00E676)  // Green - gained advantage
+                            delta < -0.1f -> Color(0xFFFF5252)  // Red - lost advantage
+                            else -> Color(0xFF64B5F6)  // Blue - neutral
+                        }
+                    } else {
+                        deltaText = null
+                        deltaColor = Color.Transparent
+                    }
+
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = scoreText,
+                            color = scoreColor,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            textAlign = TextAlign.End
+                        )
+                        if (deltaText != null) {
+                            Text(
+                                text = " / ",
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 20.sp
+                            )
+                            Text(
+                                text = deltaText,
+                                color = deltaColor,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 20.sp,
+                                textAlign = TextAlign.End
+                            )
+                        }
+                    }
                 } else {
                     Spacer(modifier = Modifier.weight(1f))
                 }
@@ -853,8 +901,8 @@ fun GameContent(
         ConditionalGraphContent()
     }
 
-    // Moves list - based on visibility settings
-    if (showMoveList) {
+    // Moves list - based on visibility settings (hide if no moves, e.g., FEN-only start)
+    if (showMoveList && uiState.moveDetails.isNotEmpty()) {
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface

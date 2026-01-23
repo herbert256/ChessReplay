@@ -27,7 +27,8 @@ internal class GameLoader(
     private val gameStorage: GameStorageManager,
     private val analysisOrchestrator: AnalysisOrchestrator,
     private val fetchOpeningExplorer: () -> Unit,
-    private val restartStockfishAndAnalyze: suspend (String) -> Unit = { }
+    private val restartStockfishAndAnalyze: suspend (String) -> Unit = { },
+    private val getAppVersionCode: () -> Long = { 0L }
 ) {
     // Temporary storage for server/username when showing game selection dialog
     private var pendingGameSelectionServer: ChessServer? = null
@@ -50,18 +51,23 @@ internal class GameLoader(
      * Automatically load a game and start analysis on app startup.
      */
     suspend fun autoLoadLastGame() {
+        android.util.Log.d("GameLoader", "autoLoadLastGame: Starting")
         val storedGame = gameStorage.loadCurrentAnalysedGame()
         if (storedGame != null) {
+            android.util.Log.d("GameLoader", "autoLoadLastGame: Found stored game, loading directly")
             loadAnalysedGameDirectly(storedGame)
             return
         }
 
+        android.util.Log.d("GameLoader", "autoLoadLastGame: No stored game, checking server/player")
         val server = savedActiveServer
         val username = savedActivePlayer
         if (server == null || username == null) {
+            android.util.Log.d("GameLoader", "autoLoadLastGame: No server ($server) or username ($username)")
             return
         }
 
+        android.util.Log.d("GameLoader", "autoLoadLastGame: Fetching from server $server for $username")
         fetchLastGameFromServer(server, username)
     }
 
@@ -765,11 +771,6 @@ internal class GameLoader(
         }
         val whiteName = game.players.white.user?.name ?: "White"
         loadGame(game, null, whiteName)
-    }
-
-    private fun getAppVersionCode(): Long {
-        // This will be passed in or obtained differently
-        return 0L
     }
 
     fun setLichessMaxGames(max: Int) {

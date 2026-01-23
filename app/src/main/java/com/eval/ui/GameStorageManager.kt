@@ -32,10 +32,17 @@ class GameStorageManager(
      * Returns null if no game is stored.
      */
     fun loadCurrentAnalysedGame(): AnalysedGame? {
-        val json = prefs.getString(SettingsPreferences.KEY_CURRENT_GAME_JSON, null) ?: return null
+        val json = prefs.getString(SettingsPreferences.KEY_CURRENT_GAME_JSON, null)
+        if (json == null) {
+            android.util.Log.d("GameStorageManager", "loadCurrentAnalysedGame: No JSON stored")
+            return null
+        }
         return try {
-            gson.fromJson(json, AnalysedGame::class.java)
+            val game = gson.fromJson(json, AnalysedGame::class.java)
+            android.util.Log.d("GameStorageManager", "loadCurrentAnalysedGame: Loaded game ${game?.whiteName} vs ${game?.blackName}")
+            game
         } catch (e: Exception) {
+            android.util.Log.e("GameStorageManager", "loadCurrentAnalysedGame: Failed to parse JSON", e)
             null
         }
     }
