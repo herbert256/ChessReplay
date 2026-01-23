@@ -304,16 +304,30 @@ fun GameScreen(
             },
             confirmButton = {
                 if (isComplete) {
-                    Button(
-                        onClick = {
-                            openAiReportsInChrome(context, uiState)
-                            viewModel.dismissAiReportsDialog()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF8B5CF6)
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("View in Chrome")
+                        Button(
+                            onClick = {
+                                shareAiReports(context, uiState)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF4CAF50)
+                            )
+                        ) {
+                            Text("Share")
+                        }
+                        Button(
+                            onClick = {
+                                openAiReportsInChrome(context, uiState)
+                                viewModel.dismissAiReportsDialog()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF8B5CF6)
+                            )
+                        ) {
+                            Text("View in Chrome")
+                        }
                     }
                 }
             },
@@ -1910,6 +1924,52 @@ private fun openAiReportsInChrome(context: android.content.Context, uiState: Gam
 }
 
 /**
+ * Shares the AI Reports HTML file using Android share sheet.
+ */
+private fun shareAiReports(context: android.content.Context, uiState: GameUiState) {
+    try {
+        val appVersion = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown"
+        } catch (e: Exception) { "unknown" }
+        val html = convertAiReportsToHtml(uiState, appVersion)
+
+        val cacheDir = java.io.File(context.cacheDir, "ai_analysis")
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs()
+        }
+
+        val game = uiState.game
+        val whiteName = game?.players?.white?.user?.name ?: "White"
+        val blackName = game?.players?.black?.user?.name ?: "Black"
+
+        val htmlFile = java.io.File(cacheDir, "ai_reports.html")
+        htmlFile.writeText(html)
+
+        val contentUri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            htmlFile
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/html"
+            putExtra(Intent.EXTRA_SUBJECT, "AI Analysis Report - $whiteName vs $blackName")
+            putExtra(Intent.EXTRA_TEXT, "Chess game AI analysis report for $whiteName vs $blackName.\n\nOpen the attached HTML file in a browser to view the interactive report.")
+            putExtra(Intent.EXTRA_STREAM, contentUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        context.startActivity(Intent.createChooser(intent, "Share AI Report"))
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(
+            context,
+            "Failed to share: ${e.message}",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+/**
  * Converts AI analysis results from multiple services to a tabbed HTML document.
  */
 private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): String {
@@ -2008,6 +2068,7 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
             border-radius: 4px;
             margin-bottom: 4px;
             width: 320px;
+            box-sizing: border-box;
         }
         .player-bar.bottom { margin-top: 4px; margin-bottom: 0; }
         .player-name { font-weight: bold; color: #fff; }
@@ -2021,23 +2082,6 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
         .player-indicator.white { background: #fff; border: 1px solid #666; }
         .player-indicator.black { background: #000; border: 1px solid #666; }
         .to-move { box-shadow: 0 0 0 2px #ff4444; }
-
-        /* Eval bar */
-        .eval-bar {
-            width: 24px;
-            background: linear-gradient(to top, #333 50%, #fff 50%);
-            border-radius: 4px;
-            position: relative;
-            overflow: hidden;
-        }
-        .eval-fill {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #fff;
-            transition: height 0.3s ease;
-        }
 
         /* Tabs */
         .tabs-container {
@@ -2104,32 +2148,22 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
 <body>
     <h1>AI Analysis Reports</h1>
 
-    <!-- Board Section -->
+    <!-- Chess Board Section -->
     <div class="board-section">
-        <div style="display: flex; flex-direction: column; align-items: center;">
-            <!-- Top player bar -->
-            <div class="player-bar">
-                <div class="player-indicator ${if (flippedBoard) "white" else "black"} ${if ((flippedBoard && isWhiteToMove) || (!flippedBoard && !isWhiteToMove)) "to-move" else ""}"></div>
-                <span class="player-name">${if (flippedBoard) whiteName else blackName}</span>
-                <span class="player-rating">${if (flippedBoard) whiteRating else blackRating}</span>
-            </div>
-
-            <div class="board-container">
-                <!-- Eval bar -->
-                <div class="eval-bar">
-                    <div class="eval-fill" id="evalFill" style="height: 50%;"></div>
+        <div class="board-container">
+            <!-- Board with player bars -->
+            <div class="board-wrapper">
+                <div class="player-bar" id="topPlayer">
+                    <div class="player-indicator ${if (flippedBoard) "white" else "black"} ${if ((flippedBoard && isWhiteToMove) || (!flippedBoard && !isWhiteToMove)) "to-move" else ""}"></div>
+                    <span class="player-name">${if (flippedBoard) whiteName else blackName}</span>
+                    <span class="player-rating">${if (flippedBoard) whiteRating else blackRating}</span>
                 </div>
-                <!-- Chess board -->
-                <div class="board-wrapper">
-                    <div id="board" style="width: 320px;"></div>
+                <div id="board" style="width: 320px;"></div>
+                <div class="player-bar bottom" id="bottomPlayer">
+                    <div class="player-indicator ${if (flippedBoard) "black" else "white"} ${if ((flippedBoard && !isWhiteToMove) || (!flippedBoard && isWhiteToMove)) "to-move" else ""}"></div>
+                    <span class="player-name">${if (flippedBoard) blackName else whiteName}</span>
+                    <span class="player-rating">${if (flippedBoard) blackRating else whiteRating}</span>
                 </div>
-            </div>
-
-            <!-- Bottom player bar -->
-            <div class="player-bar bottom">
-                <div class="player-indicator ${if (flippedBoard) "black" else "white"} ${if ((flippedBoard && !isWhiteToMove) || (!flippedBoard && isWhiteToMove)) "to-move" else ""}"></div>
-                <span class="player-name">${if (flippedBoard) blackName else whiteName}</span>
-                <span class="player-rating">${if (flippedBoard) blackRating else whiteRating}</span>
             </div>
         </div>
     </div>
@@ -2147,7 +2181,7 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
         var board = Chessboard('board', {
             position: '$fen',
             orientation: '${if (flippedBoard) "black" else "white"}',
-            pieceTheme: 'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/img/chesspieces/wikipedia/{piece}.png'
+            pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
         });
 
         // Tab switching

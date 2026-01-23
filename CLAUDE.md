@@ -14,7 +14,7 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew assembleRelease
 # Clean build
 ./gradlew clean
 
-# Deploy to emulator (also copy to cloud folder)
+# Deploy to device and cloud folder
 adb install -r app/build/outputs/apk/debug/app-debug.apk && \
 adb shell am start -n com.eval/.MainActivity && \
 cp app/build/outputs/apk/debug/app-debug.apk /Users/herbert/cloud/
@@ -22,7 +22,7 @@ cp app/build/outputs/apk/debug/app-debug.apk /Users/herbert/cloud/
 
 ## Project Overview
 
-Eval is an Android app for fetching and analyzing chess games from Lichess.org and Chess.com using the Stockfish 17.1 chess engine and 5 AI services (ChatGPT, Claude, Gemini, Grok, DeepSeek). The app retrieves games via APIs, parses PGN notation, and provides multi-stage computer analysis with an interactive board display.
+Eval is an Android app for fetching and analyzing chess games from Lichess.org and Chess.com using the Stockfish 17.1 chess engine and 6 AI services (ChatGPT, Claude, Gemini, Grok, DeepSeek, Mistral). The app retrieves games via APIs, parses PGN notation, and provides multi-stage computer analysis with an interactive board display.
 
 **Key Dependencies:**
 - External app required: "Stockfish 17.1 Chess Engine" (com.stockfish141) from Google Play Store
@@ -32,45 +32,59 @@ Eval is an Android app for fetching and analyzing chess games from Lichess.org a
 
 ## Architecture
 
-### Package Structure (32 Kotlin files, ~14,600 lines)
+### Package Structure (44 Kotlin files, ~25,000 lines)
 
 ```
 com.eval/
 ├── MainActivity.kt (33 lines) - Entry point, sets up Compose theme
 ├── chess/
-│   ├── ChessBoard.kt (550 lines) - Board state, move validation, FEN generation
-│   └── PgnParser.kt (70 lines) - PGN parsing with clock time extraction
+│   ├── ChessBoard.kt (643 lines) - Board state, move validation, FEN generation/parsing
+│   └── PgnParser.kt (100 lines) - PGN parsing with clock time extraction
 ├── data/
-│   ├── LichessApi.kt (48 lines) - Retrofit interface for Lichess NDJSON API
-│   ├── ChessComApi.kt (87 lines) - Retrofit interface for Chess.com API
+│   ├── LichessApi.kt (307 lines) - Retrofit interface for Lichess API (games, tournaments, broadcasts, TV, streamers)
+│   ├── ChessComApi.kt (334 lines) - Retrofit interface for Chess.com API (games, puzzle, leaderboards)
 │   ├── LichessModels.kt (40 lines) - Data classes: LichessGame, Players, Clock
-│   ├── LichessRepository.kt (206 lines) - Repository with ChessServer enum and dual-server support
-│   ├── AiAnalysisApi.kt (264 lines) - Retrofit interfaces for 5 AI services
-│   └── AiAnalysisRepository.kt (300 lines) - AI position analysis with model fetching
+│   ├── LichessRepository.kt (1,417 lines) - Repository with ChessServer enum, dual-server support, content sources
+│   ├── AiAnalysisApi.kt (294 lines) - Retrofit interfaces for 6 AI services
+│   ├── AiAnalysisRepository.kt (355 lines) - AI position analysis with model fetching
+│   ├── OpeningBook.kt (225 lines) - ECO opening identification by move sequences
+│   └── OpeningExplorerApi.kt (61 lines) - Opening statistics API
 ├── stockfish/
-│   └── StockfishEngine.kt (512 lines) - UCI protocol wrapper, process management
+│   └── StockfishEngine.kt (529 lines) - UCI protocol wrapper, process management
+├── export/
+│   ├── GifExporter.kt (357 lines) - Animated GIF export of game replay
+│   ├── PgnExporter.kt (134 lines) - PGN file export
+│   └── AnimatedGifEncoder.kt (895 lines) - GIF encoding library
+├── audio/
+│   └── MoveSoundPlayer.kt (84 lines) - Move sound effects
 └── ui/
-    ├── GameViewModel.kt (2,245 lines) - Central state management, analysis orchestration
-    ├── GameScreen.kt (1,482 lines) - Main screen, dialogs, AI analysis dialog with Chrome/email export
-    ├── GameContent.kt (1,427 lines) - Game display: board, players, moves, result bar, AI logos
+    ├── GameViewModel.kt (1,214 lines) - Central state management, orchestration hub
+    ├── AnalysisOrchestrator.kt (632 lines) - 3-stage analysis pipeline
+    ├── GameLoader.kt (787 lines) - Game loading from APIs, files, storage
+    ├── BoardNavigationManager.kt (376 lines) - Move navigation and line exploration
+    ├── ContentSourceManager.kt (678 lines) - Tournaments, broadcasts, TV, streamers, puzzle
+    ├── LiveGameManager.kt (199 lines) - Real-time game following via streaming
+    ├── GameScreen.kt (2,919 lines) - Main screen, dialogs, AI analysis, HTML export
+    ├── GameContent.kt (1,793 lines) - Game display: board, players, moves, result bar, eval bar
     ├── ChessBoardView.kt (546 lines) - Canvas-based interactive chess board with arrows
-    ├── AnalysisComponents.kt (615 lines) - Evaluation graphs, analysis panel
-    ├── MovesDisplay.kt (195 lines) - Move list with scores and piece symbols
-    ├── GameSelectionDialog.kt (562 lines) - Dialog for selecting from multiple games
-    ├── SettingsScreen.kt (342 lines) - Settings navigation hub
+    ├── AnalysisComponents.kt (779 lines) - Evaluation graphs, analysis panel
+    ├── MovesDisplay.kt (222 lines) - Move list with scores and piece symbols
+    ├── OpeningExplorerPanel.kt (235 lines) - Opening statistics display
+    ├── GameSelectionDialog.kt (688 lines) - Dialog for selecting from multiple games
+    ├── RetrieveScreen.kt (2,422 lines) - Game retrieval UI with all content sources
+    ├── SettingsScreen.kt (364 lines) - Settings navigation hub
     ├── StockfishSettingsScreen.kt (447 lines) - Engine settings for all 3 stages
     ├── ArrowSettingsScreen.kt (336 lines) - Arrow display configuration
     ├── BoardLayoutSettingsScreen.kt (507 lines) - Board colors, pieces, coordinates, player bars, eval bar
-    ├── InterfaceSettingsScreen.kt (368 lines) - UI visibility settings per stage
+    ├── InterfaceSettingsScreen.kt (401 lines) - UI visibility settings per stage
     ├── GraphSettingsScreen.kt (371 lines) - Evaluation graph color and range settings
-    ├── AiSettingsScreen.kt (1,159 lines) - AI service settings (keys, prompts, models, export)
-    ├── GeneralSettingsScreen.kt (99 lines) - General app settings
-    ├── HelpScreen.kt (217 lines) - In-app help documentation
+    ├── AiSettingsScreen.kt (1,380 lines) - AI service settings (keys, prompts, models, export)
+    ├── GeneralSettingsScreen.kt (160 lines) - General app settings (fullscreen, pagination, sounds)
+    ├── HelpScreen.kt (221 lines) - In-app help documentation
     ├── ColorPickerDialog.kt (254 lines) - HSV color picker for colors
-    ├── RetrieveScreen.kt (303 lines) - Game retrieval UI screen
-    ├── GameModels.kt (298 lines) - Data classes and enums (core domain models)
-    ├── SettingsPreferences.kt (476 lines) - SharedPreferences persistence layer
-    ├── GameStorageManager.kt (208 lines) - Game persistence and retrieval
+    ├── GameModels.kt (427 lines) - Data classes and enums (core domain models)
+    ├── SettingsPreferences.kt (541 lines) - SharedPreferences persistence layer
+    ├── GameStorageManager.kt (216 lines) - Game persistence and retrieval
     └── theme/Theme.kt (32 lines) - Material3 dark theme
 ```
 
@@ -92,13 +106,17 @@ enum class PlayerBarMode { NONE, TOP, BOTTOM, BOTH }
 // Evaluation bar position
 enum class EvalBarPosition { NONE, LEFT, RIGHT }
 
-// AI Services
+// Move quality assessment
+enum class MoveQuality { BRILLIANT, GOOD, INTERESTING, DUBIOUS, MISTAKE, BLUNDER, BOOK, NORMAL }
+
+// AI Services (6 services)
 enum class AiService(displayName, baseUrl) {
     CHATGPT("ChatGPT", "https://api.openai.com/"),
     CLAUDE("Claude", "https://api.anthropic.com/"),
     GEMINI("Gemini", "https://generativelanguage.googleapis.com/"),
     GROK("Grok", "https://api.x.ai/"),
-    DEEPSEEK("DeepSeek", "https://api.deepseek.com/")
+    DEEPSEEK("DeepSeek", "https://api.deepseek.com/"),
+    MISTRAL("Mistral", "https://api.mistral.ai/")
 }
 
 // Settings for each analysis stage
@@ -123,21 +141,39 @@ data class AnalyseStageVisibility(showScoreLineGraph, showScoreBarsGraph, showBo
 data class ManualStageVisibility(showResultBar, showScoreLineGraph, showScoreBarsGraph,
     showMoveList, showGameInfo, showPgn)
 
-// AI Settings
-data class AiSettings(showAiLogos, chatGptApiKey, chatGptModel, chatGptPrompt,
-    claudeApiKey, claudeModel, claudePrompt, geminiApiKey, geminiModel, geminiPrompt,
-    grokApiKey, grokModel, grokPrompt, deepSeekApiKey, deepSeekModel, deepSeekPrompt)
+// AI Settings (6 services × 3 fields each)
+data class AiSettings(showAiLogos,
+    chatGptApiKey, chatGptModel, chatGptPrompt,
+    claudeApiKey, claudeModel, claudePrompt,
+    geminiApiKey, geminiModel, geminiPrompt,
+    grokApiKey, grokModel, grokPrompt,
+    deepSeekApiKey, deepSeekModel, deepSeekPrompt,
+    mistralApiKey, mistralModel, mistralPrompt)
+
+// General settings
+data class GeneralSettings(longTapFullscreen, paginationPageSize, moveSoundsEnabled)
 
 // Game storage
 data class AnalysedGame(timestamp, whiteName, blackName, result, pgn, moves, moveDetails,
     previewScores, analyseScores, openingName, speed, activePlayer, activeServer)
 data class RetrievedGamesEntry(accountName, server)
 
-// UI state (40+ fields)
+// Move analysis
+data class MoveScore(score, isMate, mateIn, depth, nodes, nps)
+data class MoveDetails(san, from, to, isCapture, pieceType, clockTime)
+
+// UI state (60+ fields) - central state holder
 data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
     currentMoveIndex, analysisResult, currentStage, previewScores, analyseScores,
     isExploringLine, stockfishSettings, boardLayoutSettings, graphSettings,
-    interfaceVisibility, aiSettings, showAiAnalysisDialog, aiAnalysisResult, ...)
+    interfaceVisibility, aiSettings, showAiAnalysisDialog, aiAnalysisResult,
+    // Content sources
+    showTournaments, tournaments, showBroadcasts, broadcasts, showTvChannels, tvChannels,
+    showStreamers, streamers, showDailyPuzzle, dailyPuzzle,
+    // Player info & rankings
+    playerInfo, topRankings, playerGames,
+    // Live game following
+    isFollowingLive, liveGameId, autoFollowLive, ...)
 ```
 
 ### Key Design Patterns
@@ -146,7 +182,12 @@ data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
 
 2. **Three-Stage Analysis System**: Games progress through PREVIEW → ANALYSE → MANUAL stages automatically
 
-3. **Helper Class Pattern**: Large ViewModel split into helper classes:
+3. **Helper Class Pattern**: Large ViewModel split into focused helper classes:
+   - `AnalysisOrchestrator` - 3-stage analysis pipeline orchestration
+   - `GameLoader` - Game loading from APIs, PGN files, storage
+   - `BoardNavigationManager` - Move navigation and line exploration
+   - `ContentSourceManager` - Tournaments, broadcasts, TV, streamers, puzzle
+   - `LiveGameManager` - Real-time game following
    - `SettingsPreferences` - All settings load/save operations
    - `GameStorageManager` - Game persistence operations
 
@@ -155,17 +196,13 @@ data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
    - MAIN_LINE: Multiple arrows from PV line (1-8 arrows, colored by side, numbered)
    - MULTI_LINES: One arrow per Stockfish line with evaluation score displayed
 
-5. **Player Bar Modes**:
-   - NONE: No player bars
-   - TOP: Single combined bar at top (white left, black right)
-   - BOTTOM: Single combined bar at bottom
-   - BOTH: Separate bars above and below board (default)
+5. **Player Bar Modes**: NONE / TOP / BOTTOM / BOTH
 
 6. **Evaluation Bar**: Vertical bar showing position evaluation (LEFT, RIGHT, or NONE)
 
-7. **AI Analysis Integration**: 5 AI services with custom prompts using @FEN@ placeholder
+7. **AI Analysis Integration**: 6 AI services with custom prompts using @FEN@ placeholder
 
-8. **SharedPreferences Persistence**: All settings saved via `SettingsPreferences` helper
+8. **Result Type Pattern**: `sealed class Result<T> { Success, Error }` for API responses
 
 ## Analysis Stages
 
@@ -192,14 +229,38 @@ data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
 - **Features**:
   - Navigation buttons: ⏮ ◀ ▶ ⏭ ↻ (flip)
   - Three arrow modes (cycle with ↗ icon)
-  - AI logos for position analysis (5 services)
+  - AI logos for position analysis (6 services)
   - Line exploration (click PV moves to explore variations)
   - "Back to game" button when exploring
   - Evaluation graph with tap/drag navigation
+  - Opening explorer with statistics
+
+## Content Sources
+
+### Lichess.org
+- User games (NDJSON streaming)
+- Tournaments (list and games)
+- Broadcasts (rounds with PGN)
+- TV channels (featured games)
+- Top rankings (bullet, blitz, rapid, classical)
+- Streamers (active streams)
+- Live game following (WebSocket-like streaming)
+
+### Chess.com
+- User games (monthly archives)
+- Daily puzzle
+- Top rankings (leaderboards)
+
+### Local Sources
+- PGN file upload (with ZIP support)
+- PGN event grouping (multi-game files)
+- Opening selection (ECO codes A-E)
+- FEN position entry (with history)
+- Previously analysed games
 
 ## AI Analysis Feature
 
-### Supported Services
+### Supported Services (6)
 | Service | API Endpoint | Auth Method |
 |---------|-------------|-------------|
 | ChatGPT | `api.openai.com/v1/chat/completions` | Bearer token |
@@ -207,6 +268,7 @@ data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
 | Gemini | `generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` | Query param |
 | Grok | `api.x.ai/v1/chat/completions` | Bearer token |
 | DeepSeek | `api.deepseek.com/chat/completions` | Bearer token |
+| Mistral | `api.mistral.ai/v1/chat/completions` | Bearer token |
 
 ### Features
 - **AI Logos**: Displayed next to board in Manual stage (configurable visibility)
@@ -215,7 +277,9 @@ data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
 - **Analysis Dialog**: Shows AI response with markdown rendering
 - **View in Chrome**: Opens rich HTML report with chessboard.js, graphs, and move list
 - **Send by Email**: Emails HTML report as attachment (remembers email address)
+- **AI Reports**: Analyze multiple positions with multiple AI services, export as HTML
 - **Export API Keys**: Export configured keys via email from settings
+- **Generated Footer**: All HTML reports include "Generated by Eval <version>" with timestamp
 
 ## UI Components
 
@@ -225,6 +289,11 @@ data class GameUiState(stockfishInstalled, isLoading, game, currentBoard,
 - **↗** : Arrow mode toggle (cycles: None → Main line → Multi lines)
 - **⚙** : Settings
 - **?** : Help screen
+
+### Result Bar
+- Shows current move with piece symbol and coordinates
+- Displays evaluation score + delta from previous move (e.g., "+2.1 / -0.8")
+- Delta color indicates if move was good (green), bad (red), or neutral (blue)
 
 ### Settings Structure
 ```
@@ -262,9 +331,12 @@ Settings (main menu)
 │   ├── Gemini: API key, model, custom prompt
 │   ├── Grok: API key, model, custom prompt
 │   ├── DeepSeek: API key, model, custom prompt
+│   ├── Mistral: API key, model, custom prompt
 │   └── Export API keys (button)
 └── General
-    └── Long tap for fullscreen (toggle)
+    ├── Long tap for fullscreen (toggle)
+    ├── Pagination page size (5-50)
+    └── Move sounds (toggle)
 ```
 
 ## Stockfish Integration
@@ -294,6 +366,26 @@ data class PvLine(
 )
 ```
 
+## Export Features
+
+### PGN Export
+- Full PGN with headers (Event, Site, Date, White, Black, Result, etc.)
+- Evaluation comments for each move
+- Share via Android share sheet
+
+### GIF Export
+- Animated replay of the game
+- Configurable frame delay
+- Board state at each move
+- Share via Android share sheet
+
+### AI Reports Export
+- HTML report with interactive chessboard (chessboard.js)
+- Evaluation graphs (line and bar)
+- Move list with scores
+- AI analysis for selected positions
+- View in Chrome or send via email
+
 ## Settings Persistence
 
 All settings managed via `SettingsPreferences` class with SharedPreferences (`eval_prefs`):
@@ -301,11 +393,11 @@ All settings managed via `SettingsPreferences` class with SharedPreferences (`ev
 ```
 // Server configuration
 lichess_username, lichess_max_games, chesscom_username, chesscom_max_games
-active_server, active_player
+active_server, active_player, first_game_retrieved_version
 
 // Game storage
 current_game_json, retrieves_list, retrieved_games_{server}_{username}
-analysed_games
+analysed_games, fen_history
 
 // Stockfish settings (per stage)
 preview_seconds, preview_threads, preview_hash, preview_nnue
@@ -329,16 +421,17 @@ graph_line_range, graph_bar_range
 // Interface visibility (per stage)
 preview_vis_*, analyse_vis_*, manual_vis_*
 
-// AI settings
+// AI settings (6 services)
 ai_show_logos, ai_report_email
 ai_chatgpt_api_key, ai_chatgpt_model, ai_chatgpt_prompt
 ai_claude_api_key, ai_claude_model, ai_claude_prompt
 ai_gemini_api_key, ai_gemini_model, ai_gemini_prompt
 ai_grok_api_key, ai_grok_model, ai_grok_prompt
 ai_deepseek_api_key, ai_deepseek_model, ai_deepseek_prompt
+ai_mistral_api_key, ai_mistral_model, ai_mistral_prompt
 
 // General
-general_long_tap_fullscreen
+general_long_tap_fullscreen, general_pagination_page_size, general_move_sounds
 ```
 
 ## Common Tasks
@@ -356,16 +449,25 @@ general_long_tap_fullscreen
 2. Create Retrofit interface for the service in `AiAnalysisApi.kt`
 3. Add factory method in `AiApiFactory`
 4. Add analysis method in `AiAnalysisRepository.kt`
-5. Add settings fields to `AiSettings` in `AiSettingsScreen.kt`
+5. Add settings fields to `AiSettings` in `GameModels.kt`
 6. Add UI in `AiSettingsScreen.kt` (navigation card + settings screen)
 7. Add SharedPreferences keys in `SettingsPreferences.kt`
 8. Update load/save methods for AI settings
 
+### Adding a New Content Source
+1. Add API endpoints to `LichessApi.kt` or `ChessComApi.kt`
+2. Add data models if needed
+3. Add repository methods in `LichessRepository.kt`
+4. Add state fields to `GameUiState` in `GameModels.kt`
+5. Add methods to `ContentSourceManager.kt`
+6. Add UI in `RetrieveScreen.kt`
+7. Connect to `GameLoader` if games need to be loaded
+
 ### Modifying Arrow Behavior
 1. Check `ArrowMode` enum in `GameModels.kt`
 2. Update `MoveArrow` data class in `ChessBoardView.kt` if needed
-3. Modify arrow generation in `GameContent.kt` (around line 500)
-4. Update arrow drawing in `ChessBoardView.kt` (around line 290)
+3. Modify arrow generation in `GameContent.kt`
+4. Update arrow drawing in `ChessBoardView.kt`
 
 ### Changing Board Display
 1. `ChessBoardView.kt` - Canvas drawing, gestures, arrows, piece tinting
@@ -373,12 +475,13 @@ general_long_tap_fullscreen
 3. `AnalysisComponents.kt` - Evaluation graphs, analysis panel
 
 ### Modifying HTML Report (View in Chrome)
-1. Update `convertMarkdownToHtml()` in `GameScreen.kt`
+1. Update `convertMarkdownToHtml()` or `convertAiReportsToHtml()` in `GameScreen.kt`
 2. HTML uses chessboard.js and chess.js from CDN
 3. Includes: board with eval bar, player bars, AI analysis, graphs, move list, Stockfish analysis
+4. Footer shows "Generated by Eval <version>" with timestamp
 
 ### Triggering Stockfish Analysis
-Use `restartAnalysisForExploringLine()` for proper restart sequence:
+Use `restartAnalysisForExploringLine()` in `AnalysisOrchestrator` for proper restart sequence:
 - Stops current analysis
 - Sends newGame command
 - Waits 100ms
@@ -389,3 +492,16 @@ Use `restartAnalysisForExploringLine()` for proper restart sequence:
 For sharing HTML reports via email, the app uses FileProvider configured in:
 - `AndroidManifest.xml` - Provider declaration
 - `res/xml/file_paths.xml` - Cache directory paths
+
+## Testing Checklist
+
+After making changes, verify:
+- [ ] App builds: `JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew assembleDebug`
+- [ ] App installs and launches without crash
+- [ ] Load game from Lichess and Chess.com
+- [ ] Run full analysis (Preview → Analyse → Manual)
+- [ ] Navigate through moves
+- [ ] Arrow modes work (None → Main line → Multi lines)
+- [ ] AI analysis works (if API keys configured)
+- [ ] Settings changes persist
+- [ ] Export features work (PGN, GIF, HTML)
