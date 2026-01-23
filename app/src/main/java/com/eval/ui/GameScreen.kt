@@ -222,15 +222,16 @@ fun GameScreen(
         )
     }
 
-    // Show AI analysis dialog
+    // Show AI analysis screen (full screen)
     if (uiState.showAiAnalysisDialog) {
-        AiAnalysisDialog(
+        AiAnalysisScreen(
             serviceName = uiState.aiAnalysisServiceName,
             result = uiState.aiAnalysisResult,
             isLoading = uiState.aiAnalysisLoading,
             uiState = uiState,
             onDismiss = { viewModel.dismissAiAnalysisDialog() }
         )
+        return
     }
 
     // Show player info screen (full screen)
@@ -662,7 +663,7 @@ fun EvalLogo() {
  * Dialog displaying AI analysis results for the current chess position.
  */
 @Composable
-fun AiAnalysisDialog(
+fun AiAnalysisScreen(
     serviceName: String,
     result: AiAnalysisResponse?,
     isLoading: Boolean,
@@ -676,105 +677,145 @@ fun AiAnalysisDialog(
     val prefs = context.getSharedPreferences(SettingsPreferences.PREFS_NAME, android.content.Context.MODE_PRIVATE)
     var savedEmail by remember { mutableStateOf(prefs.getString(SettingsPreferences.KEY_AI_REPORT_EMAIL, "") ?: "") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "$serviceName Analysis",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        text = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 150.dp, max = 400.dp)
-            ) {
-                when {
-                    isLoading -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = Color(0xFF6B9BFF)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Analyzing position...",
-                                color = Color(0xFFAAAAAA)
-                            )
-                        }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        // Header
+        Text(
+            text = "$serviceName Analysis",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Content area
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            when {
+                isLoading -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF6B9BFF),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Analyzing position...",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 16.sp
+                        )
                     }
-                    result?.error != null -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "Error",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = result.error,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                }
+                result?.error != null -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Error",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF5252)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = result.error,
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center
+                        )
                     }
-                    result?.analysis != null -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            MarkdownText(
-                                markdown = result.analysis,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                }
+                result?.analysis != null -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        MarkdownText(
+                            markdown = result.analysis,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = Color.White,
+                                fontSize = 15.sp
                             )
-                        }
+                        )
                     }
-                    else -> {
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Text(
                             text = "No analysis available",
-                            color = Color(0xFFAAAAAA)
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 16.sp
                         )
                     }
                 }
             }
-        },
-        dismissButton = {
-            if (result?.analysis != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = {
+        }
+
+        // Action buttons
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (result?.analysis != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
                         openAnalysisInChrome(context, serviceName, result.analysis, uiState)
-                    }) {
-                        Text("View in Chrome")
-                    }
-                    TextButton(onClick = { showEmailDialog = true }) {
-                        Text("Send by email")
-                    }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF4A6A8C)
+                    )
+                ) {
+                    Text("View in Chrome", fontSize = 14.sp)
+                }
+                Button(
+                    onClick = { showEmailDialog = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF4A6A8C)
+                    )
+                ) {
+                    Text("Send by email", fontSize = 14.sp)
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
-    )
+
+        // Back to game button
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF3A5A7C)
+            )
+        ) {
+            Text(
+                text = "Back to game",
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+    }
 
     // Email dialog
     if (showEmailDialog && result?.analysis != null) {
@@ -1234,21 +1275,21 @@ fun PlayerInfoScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFF2A2A4A))
+                                    .background(Color.White)
                                     .padding(horizontal = 8.dp, vertical = 8.dp)
                             ) {
                                 Text(
                                     text = "Opponent",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Color(0xFFAAAAAA),
+                                    color = Color.Black,
                                     modifier = Modifier.weight(1.5f)
                                 )
                                 Text(
                                     text = "Format",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Color(0xFFAAAAAA),
+                                    color = Color.Black,
                                     modifier = Modifier.weight(1f),
                                     textAlign = TextAlign.Center
                                 )
@@ -1256,7 +1297,7 @@ fun PlayerInfoScreen(
                                     text = "Result",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Color(0xFFAAAAAA),
+                                    color = Color.Black,
                                     modifier = Modifier.weight(0.8f),
                                     textAlign = TextAlign.Center
                                 )
@@ -1320,7 +1361,6 @@ fun PlayerInfoScreen(
                                         textAlign = TextAlign.Center
                                     )
                                 }
-                                HorizontalDivider(color = Color(0xFF303050), thickness = 0.5.dp)
                             }
 
                             // Pagination controls - show if we have more than one page or there might be more to fetch
