@@ -87,8 +87,8 @@ class AnimatedGifEncoder {
                 setSize(im.width, im.height)
             }
             image = im
-            getImagePixels() // convert to correct format if necessary
-            analyzePixels() // build color table & map pixels
+            if (!getImagePixels()) return false // convert to correct format if necessary
+            if (!analyzePixels()) return false // build color table & map pixels
             if (firstFrame) {
                 writeLSD() // logical screen descriptor
                 writePalette() // global color table
@@ -194,77 +194,87 @@ class AnimatedGifEncoder {
 
     /**
      * Extracts image pixels into byte array "pixels"
+     * @return true if successful, false if image is null
      */
-    private fun getImagePixels() {
-        val w = image!!.width
-        val h = image!!.height
-        if (w != width || h != height) {
+    private fun getImagePixels(): Boolean {
+        val img = image ?: return false
+        val w = img.width
+        val h = img.height
+        val scaledImg = if (w != width || h != height) {
             // create new image with right size/format
-            val temp = Bitmap.createScaledBitmap(image!!, width, height, true)
-            image = temp
+            Bitmap.createScaledBitmap(img, width, height, true).also { image = it }
+        } else {
+            img
         }
         val pixelsInt = IntArray(width * height)
-        image!!.getPixels(pixelsInt, 0, width, 0, 0, width, height)
+        scaledImg.getPixels(pixelsInt, 0, width, 0, 0, width, height)
 
         // convert to RGB bytes
-        pixels = ByteArray(width * height * 3)
+        val pixelBytes = ByteArray(width * height * 3)
         var idx = 0
         for (pixel in pixelsInt) {
-            pixels!![idx++] = ((pixel shr 16) and 0xff).toByte() // R
-            pixels!![idx++] = ((pixel shr 8) and 0xff).toByte()  // G
-            pixels!![idx++] = (pixel and 0xff).toByte()          // B
+            pixelBytes[idx++] = ((pixel shr 16) and 0xff).toByte() // R
+            pixelBytes[idx++] = ((pixel shr 8) and 0xff).toByte()  // G
+            pixelBytes[idx++] = (pixel and 0xff).toByte()          // B
         }
+        pixels = pixelBytes
+        return true
     }
 
     /**
      * Analyzes image colors and creates color map.
+     * @return true if successful, false if pixels is null
      */
-    private fun analyzePixels() {
-        val len = pixels!!.size
+    private fun analyzePixels(): Boolean {
+        val pix = pixels ?: return false
+        val len = pix.size
         val nPix = len / 3
-        indexedPixels = ByteArray(nPix)
+        val indexed = ByteArray(nPix)
 
         // Use NeuQuant algorithm to quantize colors
-        val nq = NeuQuant(pixels!!, len, sample)
+        val nq = NeuQuant(pix, len, sample)
         colorTab = nq.process() // create reduced palette
 
         // Map image pixels to new palette
         var k = 0
         for (i in 0 until nPix) {
             val index = nq.map(
-                pixels!![k++].toInt() and 0xff,
-                pixels!![k++].toInt() and 0xff,
-                pixels!![k++].toInt() and 0xff
+                pix[k++].toInt() and 0xff,
+                pix[k++].toInt() and 0xff,
+                pix[k++].toInt() and 0xff
             )
             usedEntry[index] = true
-            indexedPixels!![i] = index.toByte()
+            indexed[i] = index.toByte()
         }
+        indexedPixels = indexed
         pixels = null
         colorDepth = 8
         palSize = 7
 
         // Get closest match to transparent color if specified
-        if (transparent != null) {
-            transIndex = findClosest(transparent!!)
+        val trans = transparent
+        if (trans != null) {
+            transIndex = findClosest(trans)
         }
+        return true
     }
 
     /**
      * Returns index of palette color closest to c
      */
     private fun findClosest(c: Int): Int {
-        if (colorTab == null) return -1
+        val colors = colorTab ?: return -1
         val r = (c shr 16) and 0xff
         val g = (c shr 8) and 0xff
         val b = c and 0xff
         var minpos = 0
         var dmin = 256 * 256 * 256
-        val len = colorTab!!.size
+        val len = colors.size
         var i = 0
         while (i < len) {
-            val dr = r - (colorTab!![i++].toInt() and 0xff)
-            val dg = g - (colorTab!![i++].toInt() and 0xff)
-            val db = b - (colorTab!![i].toInt() and 0xff)
+            val dr = r - (colors[i++].toInt() and 0xff)
+            val dg = g - (colors[i++].toInt() and 0xff)
+            val db = b - (colors[i].toInt() and 0xff)
             val d = dr * dr + dg * dg + db * db
             val index = i / 3
             if (usedEntry[index] && d < dmin) {
@@ -371,8 +381,9 @@ class AnimatedGifEncoder {
      * Writes color table
      */
     private fun writePalette() {
-        out?.write(colorTab!!, 0, colorTab!!.size)
-        val n = (3 * 256) - colorTab!!.size
+        val colors = colorTab ?: return
+        out?.write(colors, 0, colors.size)
+        val n = (3 * 256) - colors.size
         for (i in 0 until n) {
             out?.write(0)
         }
@@ -382,8 +393,10 @@ class AnimatedGifEncoder {
      * Encodes and writes pixel data
      */
     private fun writePixels() {
-        val encoder = LZWEncoder(width, height, indexedPixels!!, colorDepth)
-        encoder.encode(out!!)
+        val indexed = indexedPixels ?: return
+        val output = out ?: return
+        val encoder = LZWEncoder(width, height, indexed, colorDepth)
+        encoder.encode(output)
     }
 
     /**

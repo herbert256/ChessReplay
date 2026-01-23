@@ -1235,8 +1235,13 @@ class ChessRepository(
     suspend fun getOpeningExplorer(fen: String): Result<OpeningExplorerResponse> = withContext(Dispatchers.IO) {
         try {
             val response = openingExplorerApi.getLichessOpeningExplorer(fen)
-            if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    Result.Success(body)
+                } else {
+                    Result.Error("Empty response body for opening data")
+                }
             } else {
                 Result.Error("Failed to fetch opening data: ${response.code()}")
             }

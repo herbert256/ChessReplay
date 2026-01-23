@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.withLock
 import java.io.*
+import java.util.concurrent.atomic.AtomicLong
 
 data class PvLine(
     val score: Float,
@@ -51,9 +52,14 @@ class StockfishEngine(private val context: Context) {
     val isReady: StateFlow<Boolean> = _isReady
 
     private var analysisJob: Job? = null
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Scope is created lazily and can be recreated after shutdown
+    private var _scope: CoroutineScope? = null
+    private val scope: CoroutineScope
+        get() = _scope ?: CoroutineScope(Dispatchers.IO + SupervisorJob()).also { _scope = it }
     // Mutex to ensure only one analysis runs at a time
     private val analysisMutex = kotlinx.coroutines.sync.Mutex()
+    // Lock for thread-safe access to pvLines
+    private val pvLinesLock = Any()
 
     private var stockfishPath: String? = null
     private var currentMultiPv = 1
@@ -136,8 +142,9 @@ class StockfishEngine(private val context: Context) {
                 .redirectErrorStream(true)
                 .start()
 
-            processWriter = BufferedWriter(OutputStreamWriter(process!!.outputStream))
-            processReader = BufferedReader(InputStreamReader(process!!.inputStream))
+            val p = process ?: throw IllegalStateException("Stockfish process creation failed")
+            processWriter = BufferedWriter(OutputStreamWriter(p.outputStream))
+            processReader = BufferedReader(InputStreamReader(p.inputStream))
 
             // Initialize UCI
             sendCommand("uci")
@@ -227,8 +234,10 @@ class StockfishEngine(private val context: Context) {
                     // Stop any ongoing analysis
                     sendCommand("stop")
 
-                    // Clear previous lines and reset result
-                    pvLines.clear()
+                    // Clear previous lines and reset result (synchronized for thread safety)
+                    synchronized(pvLinesLock) {
+                        pvLines.clear()
+                    }
                     currentNodes = 0
                     _analysisResult.value = null
 
@@ -299,8 +308,10 @@ class StockfishEngine(private val context: Context) {
                     // Stop any ongoing analysis in the engine
                     sendCommand("stop")
 
-                    // Clear previous lines and reset result
-                    pvLines.clear()
+                    // Clear previous lines and reset result (synchronized for thread safety)
+                    synchronized(pvLinesLock) {
+                        pvLines.clear()
+                    }
                     currentNodes = 0
                     _analysisResult.value = null
 
@@ -416,14 +427,17 @@ class StockfishEngine(private val context: Context) {
                 pv = pv.split(" ").take(MAX_PV_MOVES_DISPLAY).joinToString(" "),
                 multipv = multipv
             )
-            pvLines[multipv] = pvLine
 
-            // Update result with all collected lines sorted by multipv
+            // Update pvLines and emit result (synchronized for thread safety)
+            val sortedLines = synchronized(pvLinesLock) {
+                pvLines[multipv] = pvLine
+                pvLines.values.sortedBy { it.multipv }
+            }
             _analysisResult.value = AnalysisResult(
                 depth = depth,
                 nodes = currentNodes,
                 nps = currentNps,
-                lines = pvLines.values.sortedBy { it.multipv }
+                lines = sortedLines
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -481,7 +495,9 @@ class StockfishEngine(private val context: Context) {
             process = null
             processWriter = null
             processReader = null
-            pvLines.clear()
+            synchronized(pvLinesLock) {
+                pvLines.clear()
+            }
             currentNodes = 0
 
             // Delay to ensure process is fully terminated
@@ -499,7 +515,8 @@ class StockfishEngine(private val context: Context) {
 
     fun shutdown() {
         analysisJob?.cancel()
-        scope.cancel()
+        _scope?.cancel()
+        _scope = null  // Allow scope to be recreated if engine is restarted
         try {
             sendCommand("quit")
             processWriter?.close()
