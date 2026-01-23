@@ -161,7 +161,7 @@ private fun RetrieveMainScreen(
                 Text("< Back", color = Color.White)
             }
             Text(
-                text = "Retrieve games",
+                text = "Select a game",
                 style = MaterialTheme.typography.titleLarge,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
