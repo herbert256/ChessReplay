@@ -130,6 +130,13 @@ data class AiSettings(
     val perplexityOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
     val perplexityModelSource: ModelSource = ModelSource.MANUAL,
     val perplexityManualModels: List<String> = PERPLEXITY_MODELS,
+    val togetherApiKey: String = "",
+    val togetherModel: String = "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    val togetherPrompt: String = DEFAULT_GAME_PROMPT,
+    val togetherServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
+    val togetherOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val togetherModelSource: ModelSource = ModelSource.API,
+    val togetherManualModels: List<String> = emptyList(),
     val dummyEnabled: Boolean = false,
     val dummyPrompt: String = DEFAULT_GAME_PROMPT,
     val dummyServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
@@ -144,6 +151,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekApiKey
             AiService.MISTRAL -> mistralApiKey
             AiService.PERPLEXITY -> perplexityApiKey
+            AiService.TOGETHER -> togetherApiKey
             AiService.DUMMY -> if (dummyEnabled) "enabled" else ""
         }
     }
@@ -157,6 +165,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekModel
             AiService.MISTRAL -> mistralModel
             AiService.PERPLEXITY -> perplexityModel
+            AiService.TOGETHER -> togetherModel
             AiService.DUMMY -> ""
         }
     }
@@ -172,6 +181,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekPrompt
             AiService.MISTRAL -> mistralPrompt
             AiService.PERPLEXITY -> perplexityPrompt
+            AiService.TOGETHER -> togetherPrompt
             AiService.DUMMY -> dummyPrompt
         }
     }
@@ -185,6 +195,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekServerPlayerPrompt
             AiService.MISTRAL -> mistralServerPlayerPrompt
             AiService.PERPLEXITY -> perplexityServerPlayerPrompt
+            AiService.TOGETHER -> togetherServerPlayerPrompt
             AiService.DUMMY -> dummyServerPlayerPrompt
         }
     }
@@ -198,6 +209,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekOtherPlayerPrompt
             AiService.MISTRAL -> mistralOtherPlayerPrompt
             AiService.PERPLEXITY -> perplexityOtherPlayerPrompt
+            AiService.TOGETHER -> togetherOtherPlayerPrompt
             AiService.DUMMY -> dummyOtherPlayerPrompt
         }
     }
@@ -211,6 +223,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> copy(deepSeekModel = model)
             AiService.MISTRAL -> copy(mistralModel = model)
             AiService.PERPLEXITY -> copy(perplexityModel = model)
+            AiService.TOGETHER -> copy(togetherModel = model)
             AiService.DUMMY -> this
         }
     }
@@ -224,6 +237,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekModelSource
             AiService.MISTRAL -> mistralModelSource
             AiService.PERPLEXITY -> perplexityModelSource
+            AiService.TOGETHER -> togetherModelSource
             AiService.DUMMY -> ModelSource.MANUAL
         }
     }
@@ -237,6 +251,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekManualModels
             AiService.MISTRAL -> mistralManualModels
             AiService.PERPLEXITY -> perplexityManualModels
+            AiService.TOGETHER -> togetherManualModels
             AiService.DUMMY -> emptyList()
         }
     }
@@ -249,6 +264,7 @@ data class AiSettings(
                 deepSeekApiKey.isNotBlank() ||
                 mistralApiKey.isNotBlank() ||
                 perplexityApiKey.isNotBlank() ||
+                togetherApiKey.isNotBlank() ||
                 dummyEnabled
     }
 
@@ -366,6 +382,16 @@ fun AiSettingsScreen(
             isConfigured = aiSettings.perplexityApiKey.isNotBlank(),
             selectedModel = if (aiSettings.perplexityApiKey.isNotBlank()) aiSettings.perplexityModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_PERPLEXITY) }
+        )
+
+        // Together
+        AiServiceNavigationCard(
+            title = "Together",
+            subtitle = "Together AI",
+            accentColor = Color(0xFF6366F1),
+            isConfigured = aiSettings.togetherApiKey.isNotBlank(),
+            selectedModel = if (aiSettings.togetherApiKey.isNotBlank()) aiSettings.togetherModel else null,
+            onClick = { onNavigate(SettingsSubScreen.AI_TOGETHER) }
         )
 
         // Dummy (for testing)
@@ -540,6 +566,18 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
         ))
     }
 
+    if (aiSettings.togetherApiKey.isNotBlank()) {
+        services.add(AiServiceConfig(
+            name = "Together",
+            apiKey = aiSettings.togetherApiKey,
+            model = aiSettings.togetherModel,
+            prompt = aiSettings.togetherPrompt,
+            gamePrompt = aiSettings.togetherPrompt,
+            serverPlayerPrompt = aiSettings.togetherServerPlayerPrompt,
+            otherPlayerPrompt = aiSettings.togetherOtherPlayerPrompt
+        ))
+    }
+
     val export = AiConfigExport(
         services = services,
         dummyEnabled = aiSettings.dummyEnabled
@@ -635,6 +673,13 @@ private fun importAiConfigFromClipboard(context: Context): AiSettings? {
                     perplexityPrompt = gamePrompt,
                     perplexityServerPlayerPrompt = serverPlayerPrompt,
                     perplexityOtherPlayerPrompt = otherPlayerPrompt
+                )
+                "Together" -> settings.copy(
+                    togetherApiKey = service.apiKey,
+                    togetherModel = service.model,
+                    togetherPrompt = gamePrompt,
+                    togetherServerPlayerPrompt = serverPlayerPrompt,
+                    togetherOtherPlayerPrompt = otherPlayerPrompt
                 )
                 else -> settings
             }
@@ -1452,6 +1497,99 @@ fun PerplexitySettingsScreen(
                 onResetOtherPlayerPrompt = {
                     otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
                     onSave(aiSettings.copy(perplexityOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Together AI settings screen.
+ */
+@Composable
+fun TogetherSettingsScreen(
+    aiSettings: AiSettings,
+    availableModels: List<String>,
+    isLoadingModels: Boolean,
+    onBackToAiSettings: () -> Unit,
+    onBackToGame: () -> Unit,
+    onSave: (AiSettings) -> Unit,
+    onFetchModels: (String) -> Unit
+) {
+    var apiKey by remember { mutableStateOf(aiSettings.togetherApiKey) }
+    var showKey by remember { mutableStateOf(false) }
+    var selectedModel by remember { mutableStateOf(aiSettings.togetherModel) }
+    var gamePrompt by remember { mutableStateOf(aiSettings.togetherPrompt) }
+    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.togetherServerPlayerPrompt) }
+    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.togetherOtherPlayerPrompt) }
+    var modelSource by remember { mutableStateOf(aiSettings.togetherModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.togetherManualModels) }
+
+    AiServiceSettingsScreenTemplate(
+        title = "Together",
+        subtitle = "Together AI",
+        accentColor = Color(0xFF6366F1),
+        apiKey = apiKey,
+        showKey = showKey,
+        onApiKeyChange = {
+            apiKey = it
+            onSave(aiSettings.copy(togetherApiKey = it))
+        },
+        onToggleVisibility = { showKey = !showKey },
+        onBackToAiSettings = onBackToAiSettings,
+        onBackToGame = onBackToGame
+    ) {
+        // Model selection
+        if (apiKey.isNotBlank()) {
+            UnifiedModelSelectionSection(
+                selectedModel = selectedModel,
+                modelSource = modelSource,
+                manualModels = manualModels,
+                availableApiModels = availableModels,
+                isLoadingModels = isLoadingModels,
+                onModelChange = {
+                    selectedModel = it
+                    onSave(aiSettings.copy(togetherModel = it))
+                },
+                onModelSourceChange = {
+                    modelSource = it
+                    onSave(aiSettings.copy(togetherModelSource = it))
+                },
+                onManualModelsChange = {
+                    manualModels = it
+                    onSave(aiSettings.copy(togetherManualModels = it))
+                },
+                onFetchModels = { onFetchModels(apiKey) }
+            )
+
+            // All prompts editing
+            AllPromptsSection(
+                gamePrompt = gamePrompt,
+                serverPlayerPrompt = serverPlayerPrompt,
+                otherPlayerPrompt = otherPlayerPrompt,
+                onGamePromptChange = {
+                    gamePrompt = it
+                    onSave(aiSettings.copy(togetherPrompt = it))
+                },
+                onServerPlayerPromptChange = {
+                    serverPlayerPrompt = it
+                    onSave(aiSettings.copy(togetherServerPlayerPrompt = it))
+                },
+                onOtherPlayerPromptChange = {
+                    otherPlayerPrompt = it
+                    onSave(aiSettings.copy(togetherOtherPlayerPrompt = it))
+                },
+                onResetGamePrompt = {
+                    gamePrompt = DEFAULT_GAME_PROMPT
+                    onSave(aiSettings.copy(togetherPrompt = DEFAULT_GAME_PROMPT))
+                },
+                onResetServerPlayerPrompt = {
+                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
+                    onSave(aiSettings.copy(togetherServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
+                },
+                onResetOtherPlayerPrompt = {
+                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
+                    onSave(aiSettings.copy(togetherOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
                 }
             )
         }

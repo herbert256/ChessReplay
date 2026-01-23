@@ -347,6 +347,13 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             perplexityOtherPlayerPrompt = prefs.getString(KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
             perplexityModelSource = loadModelSource(KEY_AI_PERPLEXITY_MODEL_SOURCE, ModelSource.MANUAL),
             perplexityManualModels = loadManualModelsWithDefault(KEY_AI_PERPLEXITY_MANUAL_MODELS, PERPLEXITY_MODELS),
+            togetherApiKey = prefs.getString(KEY_AI_TOGETHER_API_KEY, "") ?: "",
+            togetherModel = prefs.getString(KEY_AI_TOGETHER_MODEL, "meta-llama/Llama-3.3-70B-Instruct-Turbo") ?: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            togetherPrompt = prefs.getString(KEY_AI_TOGETHER_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
+            togetherServerPlayerPrompt = prefs.getString(KEY_AI_TOGETHER_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
+            togetherOtherPlayerPrompt = prefs.getString(KEY_AI_TOGETHER_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            togetherModelSource = loadModelSource(KEY_AI_TOGETHER_MODEL_SOURCE, ModelSource.API),
+            togetherManualModels = loadManualModels(KEY_AI_TOGETHER_MANUAL_MODELS),
             dummyEnabled = prefs.getBoolean(KEY_AI_DUMMY_ENABLED, false),
             dummyPrompt = prefs.getString(KEY_AI_DUMMY_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             dummyServerPlayerPrompt = prefs.getString(KEY_AI_DUMMY_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
@@ -434,6 +441,13 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             .putString(KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT, settings.perplexityOtherPlayerPrompt)
             .putString(KEY_AI_PERPLEXITY_MODEL_SOURCE, settings.perplexityModelSource.name)
             .putString(KEY_AI_PERPLEXITY_MANUAL_MODELS, gson.toJson(settings.perplexityManualModels))
+            .putString(KEY_AI_TOGETHER_API_KEY, settings.togetherApiKey)
+            .putString(KEY_AI_TOGETHER_MODEL, settings.togetherModel)
+            .putString(KEY_AI_TOGETHER_PROMPT, settings.togetherPrompt)
+            .putString(KEY_AI_TOGETHER_SERVER_PLAYER_PROMPT, settings.togetherServerPlayerPrompt)
+            .putString(KEY_AI_TOGETHER_OTHER_PLAYER_PROMPT, settings.togetherOtherPlayerPrompt)
+            .putString(KEY_AI_TOGETHER_MODEL_SOURCE, settings.togetherModelSource.name)
+            .putString(KEY_AI_TOGETHER_MANUAL_MODELS, gson.toJson(settings.togetherManualModels))
             .putBoolean(KEY_AI_DUMMY_ENABLED, settings.dummyEnabled)
             .putString(KEY_AI_DUMMY_PROMPT, settings.dummyPrompt)
             .putString(KEY_AI_DUMMY_SERVER_PLAYER_PROMPT, settings.dummyServerPlayerPrompt)
@@ -607,6 +621,9 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_PERPLEXITY_API_KEY = "ai_perplexity_api_key"
         private const val KEY_AI_PERPLEXITY_MODEL = "ai_perplexity_model"
         private const val KEY_AI_PERPLEXITY_PROMPT = "ai_perplexity_prompt"
+        private const val KEY_AI_TOGETHER_API_KEY = "ai_together_api_key"
+        private const val KEY_AI_TOGETHER_MODEL = "ai_together_model"
+        private const val KEY_AI_TOGETHER_PROMPT = "ai_together_prompt"
         private const val KEY_AI_DUMMY_ENABLED = "ai_dummy_enabled"
         private const val KEY_AI_DUMMY_PROMPT = "ai_dummy_prompt"
         private const val KEY_AI_DUMMY_SERVER_PLAYER_PROMPT = "ai_dummy_server_player_prompt"
@@ -620,6 +637,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_DEEPSEEK_SERVER_PLAYER_PROMPT = "ai_deepseek_server_player_prompt"
         private const val KEY_AI_MISTRAL_SERVER_PLAYER_PROMPT = "ai_mistral_server_player_prompt"
         private const val KEY_AI_PERPLEXITY_SERVER_PLAYER_PROMPT = "ai_perplexity_server_player_prompt"
+        private const val KEY_AI_TOGETHER_SERVER_PLAYER_PROMPT = "ai_together_server_player_prompt"
 
         // AI prompts - Other player prompts
         private const val KEY_AI_CHATGPT_OTHER_PLAYER_PROMPT = "ai_chatgpt_other_player_prompt"
@@ -629,6 +647,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_DEEPSEEK_OTHER_PLAYER_PROMPT = "ai_deepseek_other_player_prompt"
         private const val KEY_AI_MISTRAL_OTHER_PLAYER_PROMPT = "ai_mistral_other_player_prompt"
         private const val KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT = "ai_perplexity_other_player_prompt"
+        private const val KEY_AI_TOGETHER_OTHER_PLAYER_PROMPT = "ai_together_other_player_prompt"
 
         // AI model source (API or MANUAL)
         private const val KEY_AI_CHATGPT_MODEL_SOURCE = "ai_chatgpt_model_source"
@@ -638,6 +657,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_DEEPSEEK_MODEL_SOURCE = "ai_deepseek_model_source"
         private const val KEY_AI_MISTRAL_MODEL_SOURCE = "ai_mistral_model_source"
         private const val KEY_AI_PERPLEXITY_MODEL_SOURCE = "ai_perplexity_model_source"
+        private const val KEY_AI_TOGETHER_MODEL_SOURCE = "ai_together_model_source"
 
         // AI manual models lists
         private const val KEY_AI_CHATGPT_MANUAL_MODELS = "ai_chatgpt_manual_models"
@@ -647,6 +667,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_DEEPSEEK_MANUAL_MODELS = "ai_deepseek_manual_models"
         private const val KEY_AI_MISTRAL_MANUAL_MODELS = "ai_mistral_manual_models"
         private const val KEY_AI_PERPLEXITY_MANUAL_MODELS = "ai_perplexity_manual_models"
+        private const val KEY_AI_TOGETHER_MANUAL_MODELS = "ai_together_manual_models"
 
         // AI report email
         const val KEY_AI_REPORT_EMAIL = "ai_report_email"
@@ -658,6 +679,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_CACHED_DEEPSEEK_MODELS = "cached_deepseek_models"
         private const val KEY_CACHED_MISTRAL_MODELS = "cached_mistral_models"
         private const val KEY_CACHED_PERPLEXITY_MODELS = "cached_perplexity_models"
+        private const val KEY_CACHED_TOGETHER_MODELS = "cached_together_models"
 
         // FEN history
         private const val KEY_FEN_HISTORY = "fen_history"
@@ -801,5 +823,20 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
     fun saveCachedPerplexityModels(models: List<String>) {
         val json = gson.toJson(models)
         prefs.edit().putString(KEY_CACHED_PERPLEXITY_MODELS, json).apply()
+    }
+
+    fun loadCachedTogetherModels(): List<String> {
+        val json = prefs.getString(KEY_CACHED_TOGETHER_MODELS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveCachedTogetherModels(models: List<String>) {
+        val json = gson.toJson(models)
+        prefs.edit().putString(KEY_CACHED_TOGETHER_MODELS, json).apply()
     }
 }

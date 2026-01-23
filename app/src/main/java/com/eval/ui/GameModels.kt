@@ -357,6 +357,9 @@ data class GameUiState(
     // Perplexity model selection
     val availablePerplexityModels: List<String> = emptyList(),
     val isLoadingPerplexityModels: Boolean = false,
+    // Together model selection
+    val availableTogetherModels: List<String> = emptyList(),
+    val isLoadingTogetherModels: Boolean = false,
     // Player info screen
     val showPlayerInfoScreen: Boolean = false,
     val playerInfo: PlayerInfo? = null,

@@ -37,6 +37,7 @@ class AiAnalysisRepository {
     private val deepSeekApi = AiApiFactory.createDeepSeekApi()
     private val mistralApi = AiApiFactory.createMistralApi()
     private val perplexityApi = AiApiFactory.createPerplexityApi()
+    private val togetherApi = AiApiFactory.createTogetherApi()
 
     /**
      * Builds the chess analysis prompt by replacing @FEN@ placeholder with actual FEN.
@@ -84,7 +85,8 @@ class AiAnalysisRepository {
         grokModel: String = "grok-3-mini",
         deepSeekModel: String = "deepseek-chat",
         mistralModel: String = "mistral-small-latest",
-        perplexityModel: String = "sonar"
+        perplexityModel: String = "sonar",
+        togetherModel: String = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
     ): AiAnalysisResponse = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
             return@withContext AiAnalysisResponse(
@@ -105,6 +107,7 @@ class AiAnalysisRepository {
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(apiKey, finalPrompt, deepSeekModel)
                 AiService.MISTRAL -> analyzeWithMistral(apiKey, finalPrompt, mistralModel)
                 AiService.PERPLEXITY -> analyzeWithPerplexity(apiKey, finalPrompt, perplexityModel)
+                AiService.TOGETHER -> analyzeWithTogether(apiKey, finalPrompt, togetherModel)
                 AiService.DUMMY -> analyzeWithDummy()
             }
         }
@@ -160,7 +163,8 @@ class AiAnalysisRepository {
         grokModel: String = "grok-3-mini",
         deepSeekModel: String = "deepseek-chat",
         mistralModel: String = "mistral-small-latest",
-        perplexityModel: String = "sonar"
+        perplexityModel: String = "sonar",
+        togetherModel: String = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
     ): AiAnalysisResponse = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
             return@withContext AiAnalysisResponse(
@@ -181,6 +185,7 @@ class AiAnalysisRepository {
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(apiKey, finalPrompt, deepSeekModel)
                 AiService.MISTRAL -> analyzeWithMistral(apiKey, finalPrompt, mistralModel)
                 AiService.PERPLEXITY -> analyzeWithPerplexity(apiKey, finalPrompt, perplexityModel)
+                AiService.TOGETHER -> analyzeWithTogether(apiKey, finalPrompt, togetherModel)
                 AiService.DUMMY -> analyzeWithDummy()
             }
         }
@@ -426,6 +431,36 @@ class AiAnalysisRepository {
         }
     }
 
+    private suspend fun analyzeWithTogether(apiKey: String, prompt: String, model: String): AiAnalysisResponse {
+        val request = TogetherRequest(
+            model = model,
+            messages = listOf(OpenAiMessage(role = "user", content = prompt))
+        )
+        val response = togetherApi.createChatCompletion(
+            authorization = "Bearer $apiKey",
+            request = request
+        )
+
+        return if (response.isSuccessful) {
+            val body = response.body()
+            val content = body?.choices?.firstOrNull()?.message?.content
+            val usage = body?.usage?.let {
+                TokenUsage(
+                    inputTokens = it.prompt_tokens ?: 0,
+                    outputTokens = it.completion_tokens ?: 0
+                )
+            }
+            if (content != null) {
+                AiAnalysisResponse(AiService.TOGETHER, content, null, usage)
+            } else {
+                val errorMsg = body?.error?.message ?: "No response content"
+                AiAnalysisResponse(AiService.TOGETHER, null, errorMsg)
+            }
+        } else {
+            AiAnalysisResponse(AiService.TOGETHER, null, "API error: ${response.code()} ${response.message()}")
+        }
+    }
+
     private fun analyzeWithDummy(): AiAnalysisResponse {
         return AiAnalysisResponse(AiService.DUMMY, "Hi, greetings from AI", null, TokenUsage(10, 5))
     }
@@ -563,6 +598,28 @@ class AiAnalysisRepository {
             }
         } catch (e: Exception) {
             android.util.Log.e("PerplexityAPI", "Error fetching models: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch available Together AI models.
+     */
+    suspend fun fetchTogetherModels(apiKey: String): List<String> = withContext(Dispatchers.IO) {
+        try {
+            val response = togetherApi.listModels("Bearer $apiKey")
+            if (response.isSuccessful) {
+                val models = response.body()?.data ?: emptyList()
+                models
+                    .mapNotNull { it.id }
+                    .filter { it.contains("chat") || it.contains("instruct", ignoreCase = true) || it.contains("llama", ignoreCase = true) }
+                    .sorted()
+            } else {
+                android.util.Log.e("TogetherAPI", "Failed to fetch models: ${response.code()}")
+                emptyList()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TogetherAPI", "Error fetching models: ${e.message}")
             emptyList()
         }
     }

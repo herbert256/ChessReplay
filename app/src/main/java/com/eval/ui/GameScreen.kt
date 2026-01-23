@@ -170,6 +170,8 @@ fun GameScreen(
             isLoadingMistralModels = uiState.isLoadingMistralModels,
             availablePerplexityModels = uiState.availablePerplexityModels,
             isLoadingPerplexityModels = uiState.isLoadingPerplexityModels,
+            availableTogetherModels = uiState.availableTogetherModels,
+            isLoadingTogetherModels = uiState.isLoadingTogetherModels,
             onBack = { viewModel.hideSettingsDialog() },
             onSaveStockfish = { viewModel.updateStockfishSettings(it) },
             onSaveBoardLayout = { viewModel.updateBoardLayoutSettings(it) },
@@ -183,7 +185,8 @@ fun GameScreen(
             onFetchGrokModels = { viewModel.fetchGrokModels(it) },
             onFetchDeepSeekModels = { viewModel.fetchDeepSeekModels(it) },
             onFetchMistralModels = { viewModel.fetchMistralModels(it) },
-            onFetchPerplexityModels = { viewModel.fetchPerplexityModels(it) }
+            onFetchPerplexityModels = { viewModel.fetchPerplexityModels(it) },
+            onFetchTogetherModels = { viewModel.fetchTogetherModels(it) }
         )
         return
     }
@@ -251,6 +254,7 @@ fun GameScreen(
             availableDeepSeekModels = uiState.availableDeepSeekModels,
             availableMistralModels = uiState.availableMistralModels,
             availablePerplexityModels = uiState.availablePerplexityModels,
+            availableTogetherModels = uiState.availableTogetherModels,
             onModelChange = { service, model ->
                 viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
             },
@@ -399,6 +403,7 @@ fun GameScreen(
             availableDeepSeekModels = uiState.availableDeepSeekModels,
             availableMistralModels = uiState.availableMistralModels,
             availablePerplexityModels = uiState.availablePerplexityModels,
+            availableTogetherModels = uiState.availableTogetherModels,
             onModelChange = { service, model ->
                 viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
             },
@@ -2308,15 +2313,13 @@ private fun convertPlayerAiReportsToHtml(uiState: GameUiState, appVersion: Strin
     val results = uiState.playerAiReportsResults
     val serviceNames = results.keys.sortedBy { it.ordinal }
 
-    // Generate tabs HTML
+    // Generate tabs HTML (show only service name, not model)
     val tabsHtml = serviceNames.mapIndexed { index, service ->
         val isActive = if (index == 0) "active" else ""
-        val model = aiSettings.getModel(service)
-        val nameWithModel = if (model.isNotBlank()) "${service.displayName} ($model)" else service.displayName
-        """<button class="tab-btn $isActive" onclick="showTab('${service.name}')">${escapeHtml(nameWithModel)}</button>"""
+        """<button class="tab-btn $isActive" onclick="showTab('${service.name}')">${service.displayName}</button>"""
     }.joinToString("\n")
 
-    // Generate content panels for each service
+    // Generate content panels for each service (show model name in header)
     val panelsHtml = serviceNames.mapIndexed { index, service ->
         val result = results[service]!!
         val isActive = if (index == 0) "active" else ""
@@ -2813,15 +2816,13 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
     val serviceNames = results.keys.sortedBy { it.ordinal }
     val aiSettings = uiState.aiSettings
 
-    // Generate tabs HTML
+    // Generate tabs HTML (show only service name, not model)
     val tabsHtml = serviceNames.mapIndexed { index, service ->
         val isActive = if (index == 0) "active" else ""
-        val model = aiSettings.getModel(service)
-        val nameWithModel = if (model.isNotBlank()) "${service.displayName} ($model)" else service.displayName
-        """<button class="tab-btn $isActive" onclick="showTab('${service.name}')">${escapeHtml(nameWithModel)}</button>"""
+        """<button class="tab-btn $isActive" onclick="showTab('${service.name}')">${service.displayName}</button>"""
     }.joinToString("\n")
 
-    // Generate content panels for each service
+    // Generate content panels for each service (show model name in header)
     val panelsHtml = serviceNames.mapIndexed { index, service ->
         val result = results[service]!!
         val isActive = if (index == 0) "active" else ""
@@ -3933,6 +3934,7 @@ private fun AiReportsSelectionDialog(
     availableDeepSeekModels: List<String>,
     availableMistralModels: List<String>,
     availablePerplexityModels: List<String>,
+    availableTogetherModels: List<String>,
     onModelChange: (com.eval.data.AiService, String) -> Unit,
     onGenerate: (Set<com.eval.data.AiService>) -> Unit,
     onDismiss: () -> Unit,
@@ -3994,6 +3996,7 @@ private fun AiReportsSelectionDialog(
                         com.eval.data.AiService.DEEPSEEK -> availableDeepSeekModels
                         com.eval.data.AiService.MISTRAL -> availableMistralModels
                         com.eval.data.AiService.PERPLEXITY -> availablePerplexityModels
+                        com.eval.data.AiService.TOGETHER -> availableTogetherModels
                         com.eval.data.AiService.DUMMY -> emptyList()
                     }
 
@@ -4171,6 +4174,7 @@ private fun getAiServiceColor(service: com.eval.data.AiService): Color {
         com.eval.data.AiService.DEEPSEEK -> Color(0xFF0066FF)
         com.eval.data.AiService.MISTRAL -> Color(0xFFFF7000)
         com.eval.data.AiService.PERPLEXITY -> Color(0xFF20B2AA)
+        com.eval.data.AiService.TOGETHER -> Color(0xFF6366F1)
         com.eval.data.AiService.DUMMY -> Color(0xFF888888)
     }
 }
@@ -4184,6 +4188,7 @@ private fun getAiServiceLetter(service: com.eval.data.AiService): String {
         com.eval.data.AiService.DEEPSEEK -> "D"
         com.eval.data.AiService.MISTRAL -> "M"
         com.eval.data.AiService.PERPLEXITY -> "P"
+        com.eval.data.AiService.TOGETHER -> "T"
         com.eval.data.AiService.DUMMY -> "?"
     }
 }

@@ -23,6 +23,7 @@ enum class AiService(val displayName: String, val baseUrl: String) {
     DEEPSEEK("DeepSeek", "https://api.deepseek.com/"),
     MISTRAL("Mistral", "https://api.mistral.ai/"),
     PERPLEXITY("Perplexity", "https://api.perplexity.ai/"),
+    TOGETHER("Together", "https://api.together.xyz/"),
     DUMMY("Dummy", "")
 }
 
@@ -160,6 +161,13 @@ data class PerplexityRequest(
     val max_tokens: Int = 1024
 )
 
+// Together AI models (uses OpenAI-compatible format)
+data class TogetherRequest(
+    val model: String = "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    val messages: List<OpenAiMessage>,
+    val max_tokens: Int = 1024
+)
+
 /**
  * Retrofit interface for OpenAI / ChatGPT API.
  */
@@ -291,6 +299,22 @@ interface PerplexityApi {
 }
 
 /**
+ * Retrofit interface for Together AI API (OpenAI-compatible).
+ */
+interface TogetherApi {
+    @POST("v1/chat/completions")
+    suspend fun createChatCompletion(
+        @Header("Authorization") authorization: String,
+        @Body request: TogetherRequest
+    ): Response<OpenAiResponse>
+
+    @retrofit2.http.GET("v1/models")
+    suspend fun listModels(
+        @Header("Authorization") authorization: String
+    ): Response<OpenAiModelsResponse>
+}
+
+/**
  * Factory for creating API instances.
  */
 object AiApiFactory {
@@ -340,6 +364,10 @@ object AiApiFactory {
 
     fun createPerplexityApi(): PerplexityApi {
         return getRetrofit(AiService.PERPLEXITY.baseUrl).create(PerplexityApi::class.java)
+    }
+
+    fun createTogetherApi(): TogetherApi {
+        return getRetrofit(AiService.TOGETHER.baseUrl).create(TogetherApi::class.java)
     }
 
 }

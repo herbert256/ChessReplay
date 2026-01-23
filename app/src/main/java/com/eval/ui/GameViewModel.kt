@@ -223,6 +223,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val cachedDeepSeekModels = settingsPrefs.loadCachedDeepSeekModels()
             val cachedMistralModels = settingsPrefs.loadCachedMistralModels()
             val cachedPerplexityModels = settingsPrefs.loadCachedPerplexityModels()
+            val cachedTogetherModels = settingsPrefs.loadCachedTogetherModels()
 
             _uiState.value = _uiState.value.copy(
                 stockfishSettings = settings,
@@ -244,7 +245,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 availableGrokModels = cachedGrokModels,
                 availableDeepSeekModels = cachedDeepSeekModels,
                 availableMistralModels = cachedMistralModels,
-                availablePerplexityModels = cachedPerplexityModels
+                availablePerplexityModels = cachedPerplexityModels,
+                availableTogetherModels = cachedTogetherModels
             )
 
             viewModelScope.launch {
@@ -317,6 +319,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val cachedDeepSeekModels = settingsPrefs.loadCachedDeepSeekModels()
         val cachedMistralModels = settingsPrefs.loadCachedMistralModels()
         val cachedPerplexityModels = settingsPrefs.loadCachedPerplexityModels()
+        val cachedTogetherModels = settingsPrefs.loadCachedTogetherModels()
 
         _uiState.value = _uiState.value.copy(
             stockfishSettings = settings,
@@ -335,7 +338,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             availableGrokModels = cachedGrokModels,
             availableDeepSeekModels = cachedDeepSeekModels,
             availableMistralModels = cachedMistralModels,
-            availablePerplexityModels = cachedPerplexityModels
+            availablePerplexityModels = cachedPerplexityModels,
+            availableTogetherModels = cachedTogetherModels
         )
 
         viewModelScope.launch {
@@ -1101,6 +1105,7 @@ ${opening.moves} *
                 AiService.DEEPSEEK -> aiSettings.deepSeekPrompt
                 AiService.MISTRAL -> aiSettings.mistralPrompt
                 AiService.PERPLEXITY -> aiSettings.perplexityPrompt
+                AiService.TOGETHER -> aiSettings.togetherPrompt
                 AiService.DUMMY -> ""
             }
             val result = aiAnalysisRepository.analyzePosition(
@@ -1114,7 +1119,8 @@ ${opening.moves} *
                 grokModel = aiSettings.grokModel,
                 deepSeekModel = aiSettings.deepSeekModel,
                 mistralModel = aiSettings.mistralModel,
-                perplexityModel = aiSettings.perplexityModel
+                perplexityModel = aiSettings.perplexityModel,
+                togetherModel = aiSettings.togetherModel
             )
             _uiState.value = _uiState.value.copy(
                 aiAnalysisLoading = false,
@@ -1196,7 +1202,9 @@ ${opening.moves} *
                         geminiModel = aiSettings.geminiModel,
                         grokModel = aiSettings.grokModel,
                         deepSeekModel = aiSettings.deepSeekModel,
-                        mistralModel = aiSettings.mistralModel
+                        mistralModel = aiSettings.mistralModel,
+                        perplexityModel = aiSettings.perplexityModel,
+                        togetherModel = aiSettings.togetherModel
                     )
 
                     // If failed, retry once after 1 second delay
@@ -1212,7 +1220,9 @@ ${opening.moves} *
                             geminiModel = aiSettings.geminiModel,
                             grokModel = aiSettings.grokModel,
                             deepSeekModel = aiSettings.deepSeekModel,
-                            mistralModel = aiSettings.mistralModel
+                            mistralModel = aiSettings.mistralModel,
+                            perplexityModel = aiSettings.perplexityModel,
+                            togetherModel = aiSettings.togetherModel
                         )
                     }
 
@@ -1326,7 +1336,9 @@ ${opening.moves} *
                         geminiModel = aiSettings.geminiModel,
                         grokModel = aiSettings.grokModel,
                         deepSeekModel = aiSettings.deepSeekModel,
-                        mistralModel = aiSettings.mistralModel
+                        mistralModel = aiSettings.mistralModel,
+                        perplexityModel = aiSettings.perplexityModel,
+                        togetherModel = aiSettings.togetherModel
                     )
 
                     // If failed, retry once after 1 second delay
@@ -1343,7 +1355,9 @@ ${opening.moves} *
                             geminiModel = aiSettings.geminiModel,
                             grokModel = aiSettings.grokModel,
                             deepSeekModel = aiSettings.deepSeekModel,
-                            mistralModel = aiSettings.mistralModel
+                            mistralModel = aiSettings.mistralModel,
+                            perplexityModel = aiSettings.perplexityModel,
+                            togetherModel = aiSettings.togetherModel
                         )
                     }
 
@@ -1468,6 +1482,21 @@ ${opening.moves} *
             _uiState.value = _uiState.value.copy(
                 availablePerplexityModels = models,
                 isLoadingPerplexityModels = false
+            )
+        }
+    }
+
+    fun fetchTogetherModels(apiKey: String) {
+        if (apiKey.isBlank()) return
+        _uiState.value = _uiState.value.copy(isLoadingTogetherModels = true)
+        viewModelScope.launch {
+            val models = aiAnalysisRepository.fetchTogetherModels(apiKey)
+            if (models.isNotEmpty()) {
+                settingsPrefs.saveCachedTogetherModels(models)
+            }
+            _uiState.value = _uiState.value.copy(
+                availableTogetherModels = models,
+                isLoadingTogetherModels = false
             )
         }
     }
