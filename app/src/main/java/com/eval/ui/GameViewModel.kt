@@ -5,18 +5,23 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eval.chess.ChessBoard
-import com.eval.chess.PgnParser
+import com.eval.chess.Square
 import com.eval.data.AiAnalysisRepository
 import com.eval.data.AiAnalysisResponse
 import com.eval.data.AiService
+import com.eval.data.BroadcastInfo
+import com.eval.data.BroadcastRoundInfo
 import com.eval.data.ChessRepository
 import com.eval.data.ChessServer
 import com.eval.data.LichessGame
+import com.eval.data.OpeningBook
 import com.eval.data.Result
+import com.eval.data.StreamerInfo
+import com.eval.data.TournamentInfo
+import com.eval.data.TvChannelInfo
 import com.google.gson.Gson
 import com.eval.stockfish.StockfishEngine
 import com.eval.audio.MoveSoundPlayer
-import com.eval.data.OpeningBook
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -43,7 +48,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private var boardHistory = mutableListOf<ChessBoard>()
     private var exploringLineHistory = mutableListOf<ChessBoard>()
-    private var autoAnalysisJob: Job? = null
 
     // Track settings when dialog opens to detect changes
     private var settingsOnDialogOpen: SettingsSnapshot? = null
@@ -53,6 +57,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val analyseStageSettings: AnalyseStageSettings,
         val manualStageSettings: ManualStageSettings
     )
+
+    // Helper classes for better organization
+    private val analysisOrchestrator: AnalysisOrchestrator
+    private val gameLoader: GameLoader
+    private val boardNavigationManager: BoardNavigationManager
+    private val contentSourceManager: ContentSourceManager
+    private val liveGameManager: LiveGameManager
+
+    // Opening explorer job
+    private var openingExplorerJob: Job? = null
 
     val savedLichessUsername: String
         get() = settingsPrefs.savedLichessUsername
@@ -79,31 +93,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun loadAiSettings(): AiSettings = settingsPrefs.loadAiSettings()
     private fun saveAiSettings(settings: AiSettings) = settingsPrefs.saveAiSettings(settings)
 
-    private fun saveCurrentAnalysedGame(analysedGame: AnalysedGame) = gameStorage.saveCurrentAnalysedGame(analysedGame)
-    private fun loadCurrentAnalysedGame(): AnalysedGame? = gameStorage.loadCurrentAnalysedGame()
-    private fun loadRetrievesList(): List<RetrievedGamesEntry> = gameStorage.loadRetrievesList()
-    private fun loadGamesForRetrieve(entry: RetrievedGamesEntry): List<LichessGame> = gameStorage.loadGamesForRetrieve(entry)
-    private fun loadAnalysedGames(): List<AnalysedGame> = gameStorage.loadAnalysedGames()
-
-    private fun configureForPreviewStage() {
-        val settings = _uiState.value.stockfishSettings.previewStage
-        stockfish.configure(settings.threads, settings.hashMb, 1, settings.useNnue) // MultiPV=1 for preview stage
-    }
-
-    private fun configureForAnalyseStage() {
-        val settings = _uiState.value.stockfishSettings.analyseStage
-        stockfish.configure(settings.threads, settings.hashMb, 1, settings.useNnue) // MultiPV=1 for analyse stage
-    }
-
-    private fun configureForManualStage() {
-        val settings = _uiState.value.stockfishSettings.manualStage
-        stockfish.configure(settings.threads, settings.hashMb, settings.multiPv, settings.useNnue)
-    }
-
-
-    /**
-     * Get the current app version code.
-     */
     private fun getAppVersionCode(): Long {
         return try {
             val packageInfo = getApplication<Application>().packageManager
@@ -119,43 +108,79 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Check if this is a first run (fresh install or app update).
-     * Returns true if user hasn't made a game retrieval choice for this app version.
-     */
     private fun isFirstRun(): Boolean {
         val savedVersionCode = settingsPrefs.getFirstGameRetrievedVersion()
         return savedVersionCode != getAppVersionCode()
     }
 
-    /**
-     * Mark that the user has made their first game retrieval choice for this app version.
-     */
     private fun markFirstRunComplete() {
         settingsPrefs.setFirstGameRetrievedVersion(getAppVersionCode())
     }
 
-    /**
-     * Reset all settings to their default values.
-     * Called on first run after fresh install or app update.
-     */
     private fun resetSettingsToDefaults() {
         settingsPrefs.resetAllSettingsToDefaults()
     }
 
     init {
+        // Initialize helper classes first
+        analysisOrchestrator = AnalysisOrchestrator(
+            stockfish = stockfish,
+            getUiState = { _uiState.value },
+            updateUiState = { transform -> _uiState.value = _uiState.value.transform() },
+            viewModelScope = viewModelScope,
+            getBoardHistory = { boardHistory },
+            storeAnalysedGame = { storeAnalysedGame() },
+            fetchOpeningExplorer = { fetchOpeningExplorer() }
+        )
+
+        gameLoader = GameLoader(
+            repository = repository,
+            getUiState = { _uiState.value },
+            updateUiState = { transform -> _uiState.value = _uiState.value.transform() },
+            viewModelScope = viewModelScope,
+            getBoardHistory = { boardHistory },
+            getExploringLineHistory = { exploringLineHistory },
+            settingsPrefs = settingsPrefs,
+            gameStorage = gameStorage,
+            analysisOrchestrator = analysisOrchestrator,
+            fetchOpeningExplorer = { fetchOpeningExplorer() },
+            restartStockfishAndAnalyze = { fen -> restartStockfishAndAnalyze(fen) }
+        )
+
+        boardNavigationManager = BoardNavigationManager(
+            getUiState = { _uiState.value },
+            updateUiState = { transform -> _uiState.value = _uiState.value.transform() },
+            getBoardHistory = { boardHistory },
+            getExploringLineHistory = { exploringLineHistory },
+            analysisOrchestrator = analysisOrchestrator,
+            moveSoundPlayer = moveSoundPlayer
+        )
+
+        contentSourceManager = ContentSourceManager(
+            repository = repository,
+            getUiState = { _uiState.value },
+            updateUiState = { transform -> _uiState.value = _uiState.value.transform() },
+            viewModelScope = viewModelScope,
+            loadGame = { game, server, username -> gameLoader.loadGame(game, server, username) }
+        )
+
+        liveGameManager = LiveGameManager(
+            repository = repository,
+            getUiState = { _uiState.value },
+            updateUiState = { transform -> _uiState.value = _uiState.value.transform() },
+            viewModelScope = viewModelScope,
+            moveSoundPlayer = moveSoundPlayer
+        )
+
         // Check if Stockfish is installed first
         val stockfishInstalled = stockfish.isStockfishInstalled()
         _uiState.value = _uiState.value.copy(stockfishInstalled = stockfishInstalled)
 
-        // Only proceed with initialization if Stockfish is installed
         if (stockfishInstalled) {
-            // Reset settings to defaults on first run (fresh install or app update)
             if (isFirstRun()) {
                 resetSettingsToDefaults()
             }
 
-            // Load saved settings (will use defaults if reset or not previously set)
             val settings = loadStockfishSettings()
             val boardSettings = loadBoardLayoutSettings()
             val graphSettings = loadGraphSettings()
@@ -165,11 +190,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val lichessMaxGames = settingsPrefs.lichessMaxGames
             val chessComMaxGames = settingsPrefs.chessComMaxGames
             val hasActive = savedActiveServer != null && savedActivePlayer != null
-            // Check for previous retrieves
-            val retrievesList = loadRetrievesList()
+            val retrievesList = gameStorage.loadRetrievesList()
             val hasPreviousRetrieves = retrievesList.isNotEmpty()
-            // Check for stored analysed games
             val hasAnalysedGames = gameStorage.hasAnalysedGames()
+
             _uiState.value = _uiState.value.copy(
                 stockfishSettings = settings,
                 boardLayoutSettings = boardSettings,
@@ -187,29 +211,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 gameSelectionPageSize = generalSettings.paginationPageSize
             )
 
-            // Initialize Stockfish with manual stage settings (default)
             viewModelScope.launch {
                 val ready = stockfish.initialize()
                 if (ready) {
-                    configureForManualStage()
+                    analysisOrchestrator.configureForManualStage()
                 }
                 _uiState.value = _uiState.value.copy(stockfishReady = ready)
 
-                // Auto-load the last user's most recent game and start analysis
-                // Skip on first run (after install or update) - user must make a choice first
                 if (ready && !isFirstRun()) {
-                    autoLoadLastGame()
+                    gameLoader.autoLoadLastGame()
                 }
             }
 
-            // Observe analysis results (only for Preview/Analyse stages - Manual stage handles its own updates)
             viewModelScope.launch {
                 stockfish.analysisResult.collect { result ->
-                    // In Manual stage, results are handled directly by ensureStockfishAnalysis
-                    // to avoid race conditions. Only update UI here for other stages.
                     if (_uiState.value.currentStage != AnalysisStage.MANUAL) {
                         if (result != null) {
-                            val expectedFen = currentAnalysisFen
+                            val expectedFen = analysisOrchestrator.currentAnalysisFen
                             if (expectedFen != null && expectedFen == _uiState.value.currentBoard.getFen()) {
                                 _uiState.value = _uiState.value.copy(
                                     analysisResult = result,
@@ -226,7 +244,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            // Observe engine ready state
             viewModelScope.launch {
                 stockfish.isReady.collect { ready ->
                     _uiState.value = _uiState.value.copy(stockfishReady = ready)
@@ -235,29 +252,18 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Check if Stockfish is installed. Returns true if installed.
-     */
-    fun checkStockfishInstalled(): Boolean {
-        return stockfish.isStockfishInstalled()
-    }
+    fun checkStockfishInstalled(): Boolean = stockfish.isStockfishInstalled()
 
-    /**
-     * Initialize Stockfish after it has been installed.
-     * Called when the app detects Stockfish was installed while on the "not installed" screen.
-     */
     fun initializeStockfish() {
         val installed = stockfish.isStockfishInstalled()
         if (!installed) return
 
         _uiState.value = _uiState.value.copy(stockfishInstalled = true)
 
-        // Reset settings to defaults on first run (fresh install or app update)
         if (isFirstRun()) {
             resetSettingsToDefaults()
         }
 
-        // Load saved settings (will use defaults if reset or not previously set)
         val settings = loadStockfishSettings()
         val boardSettings = loadBoardLayoutSettings()
         val graphSettings = loadGraphSettings()
@@ -267,6 +273,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val lichessMaxGames = settingsPrefs.lichessMaxGames
         val chessComMaxGames = settingsPrefs.chessComMaxGames
         val hasActive = savedActiveServer != null && savedActivePlayer != null
+
         _uiState.value = _uiState.value.copy(
             stockfishSettings = settings,
             boardLayoutSettings = boardSettings,
@@ -281,29 +288,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             gameSelectionPageSize = generalSettings.paginationPageSize
         )
 
-        // Initialize Stockfish with manual stage settings (default)
         viewModelScope.launch {
             val ready = stockfish.initialize()
             if (ready) {
-                configureForManualStage()
+                analysisOrchestrator.configureForManualStage()
             }
             _uiState.value = _uiState.value.copy(stockfishReady = ready)
 
-            // Auto-load the last user's most recent game and start analysis
-            // Skip on first run (after install or update) - user must make a choice first
             if (ready && !isFirstRun()) {
-                autoLoadLastGame()
+                gameLoader.autoLoadLastGame()
             }
         }
 
-        // Observe analysis results (only for Preview/Analyse stages - Manual stage handles its own updates)
         viewModelScope.launch {
             stockfish.analysisResult.collect { result ->
-                // In Manual stage, results are handled directly by ensureStockfishAnalysis
-                // to avoid race conditions. Only update UI here for other stages.
                 if (_uiState.value.currentStage != AnalysisStage.MANUAL) {
                     if (result != null) {
-                        val expectedFen = currentAnalysisFen
+                        val expectedFen = analysisOrchestrator.currentAnalysisFen
                         if (expectedFen != null && expectedFen == _uiState.value.currentBoard.getFen()) {
                             _uiState.value = _uiState.value.copy(
                                 analysisResult = result,
@@ -320,7 +321,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Observe engine ready state
         viewModelScope.launch {
             stockfish.isReady.collect { ready ->
                 _uiState.value = _uiState.value.copy(stockfishReady = ready)
@@ -328,344 +328,120 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Automatically load a game and start analysis on app startup.
-     * First tries to load the stored current analysed game (goes directly to Manual stage),
-     * then falls back to fetching the most recent game from Lichess for DrNykterstein.
-     */
-    private suspend fun autoLoadLastGame() {
-        // First, try to load the stored current analysed game
-        val storedGame = loadCurrentAnalysedGame()
-        if (storedGame != null) {
-            loadAnalysedGameDirectly(storedGame) // Load directly into Manual stage
-            return
-        }
+    // ===== GAME LOADING DELEGATION =====
+    fun reloadLastGame() = gameLoader.reloadLastGame()
+    fun fetchGames(server: ChessServer, username: String) = gameLoader.fetchGames(server, username)
+    fun selectGame(game: LichessGame) = gameLoader.selectGame(game)
+    fun dismissGameSelection() = gameLoader.dismissGameSelection()
+    fun clearGame() = gameLoader.clearGame()
+    fun selectGameFromRetrieve(game: LichessGame) = gameLoader.selectGameFromRetrieve(game)
+    fun selectAnalysedGame(game: AnalysedGame) = gameLoader.selectAnalysedGame(game)
+    fun showPreviousRetrieves() = gameLoader.showPreviousRetrieves()
+    fun dismissPreviousRetrievesSelection() = gameLoader.dismissPreviousRetrievesSelection()
+    fun selectPreviousRetrieve(entry: RetrievedGamesEntry) = gameLoader.selectPreviousRetrieve(entry)
+    fun dismissSelectedRetrieveGames() = gameLoader.dismissSelectedRetrieveGames()
+    fun showAnalysedGames() = gameLoader.showAnalysedGames()
+    fun dismissAnalysedGamesSelection() = gameLoader.dismissAnalysedGamesSelection()
+    fun nextGameSelectionPage() = gameLoader.nextGameSelectionPage()
+    fun previousGameSelectionPage() = gameLoader.previousGameSelectionPage()
+    fun setLichessMaxGames(max: Int) = gameLoader.setLichessMaxGames(max)
+    fun setChessComMaxGames(max: Int) = gameLoader.setChessComMaxGames(max)
 
-        // No stored game - check if we have an Active player/server stored
-        val server = savedActiveServer
-        val username = savedActivePlayer
-        if (server == null || username == null) {
-            // No Active stored, show the First card (nothing to auto-load)
-            return
-        }
+    // PGN file loading
+    fun loadGamesFromPgnContent(pgnContent: String, onMultipleEvents: ((Boolean) -> Unit)? = null) =
+        gameLoader.loadGamesFromPgnContent(pgnContent, onMultipleEvents)
+    fun selectPgnEvent(event: String) = gameLoader.selectPgnEvent(event)
+    fun backToPgnEventList() = gameLoader.backToPgnEventList()
+    fun dismissPgnEventSelection() = gameLoader.dismissPgnEventSelection()
+    fun selectPgnGameFromEvent(game: LichessGame) = gameLoader.selectPgnGameFromEvent(game)
+    fun selectPgnGame(game: LichessGame) = gameLoader.selectPgnGame(game)
 
-        // Fetch the last game from Active player/server
-        fetchLastGameFromServer(server, username)
-    }
+    // ===== NAVIGATION DELEGATION =====
+    fun goToStart() = boardNavigationManager.goToStart()
+    fun goToEnd() = boardNavigationManager.goToEnd()
+    fun goToMove(index: Int) = boardNavigationManager.goToMove(index)
+    fun nextMove() = boardNavigationManager.nextMove()
+    fun prevMove() = boardNavigationManager.prevMove()
+    fun exploreLine(pv: String, moveIndex: Int = 0) = boardNavigationManager.exploreLine(pv, moveIndex)
+    fun backToOriginalGame() = boardNavigationManager.backToOriginalGame()
+    fun flipBoard() = boardNavigationManager.flipBoard()
+    fun makeManualMove(from: Square, to: Square) = boardNavigationManager.makeManualMove(from, to)
 
-    /**
-     * Reload the last game from the stored Active player/server.
-     * Called when user clicks the reload button.
-     * Uses the saved Active to fetch fresh game.
-     */
-    fun reloadLastGame() {
-        val server = savedActiveServer ?: return
-        val player = savedActivePlayer ?: return
+    fun restartAnalysisAtMove(moveIndex: Int) = analysisOrchestrator.restartAnalysisAtMove(moveIndex)
 
-        viewModelScope.launch {
-            fetchLastGameFromServer(server, player)
-        }
-    }
-
-    /**
-     * Fetch the most recent game from a specific server for a username.
-     * Used by the reload button - always fetches fresh from the server.
-     */
-    private suspend fun fetchLastGameFromServer(server: ChessServer, username: String) {
-        if (username.isBlank()) return
-
-        _uiState.value = _uiState.value.copy(
-            isLoading = true,
-            errorMessage = null
-        )
-
-        val result = when (server) {
-            ChessServer.LICHESS -> repository.getLichessGames(username, 1)
-            ChessServer.CHESS_COM -> repository.getChessComGames(username, 1)
-        }
-
-        when (result) {
-            is Result.Success -> {
-                val games = result.data
-                if (games.isNotEmpty()) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        gameList = games,
-                        showGameSelection = false
-                    )
-                    loadGame(games.first(), server, username)
-                } else {
-                    val serverName = if (server == ChessServer.LICHESS) "Lichess" else "Chess.com"
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "No games found for $username on $serverName"
-                    )
-                }
-            }
-            is Result.Error -> {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = result.message
-                )
-            }
-        }
-    }
-
-    fun setLichessMaxGames(max: Int) {
-        val validMax = max.coerceIn(1, 25)
-        settingsPrefs.saveLichessMaxGames(validMax)
-        _uiState.value = _uiState.value.copy(lichessMaxGames = validMax)
-    }
-
-    fun setChessComMaxGames(max: Int) {
-        val validMax = max.coerceIn(1, 25)
-        settingsPrefs.saveChessComMaxGames(validMax)
-        _uiState.value = _uiState.value.copy(chessComMaxGames = validMax)
-    }
-
-    fun fetchGames(server: ChessServer, username: String) {
-        // Save the username for next time
-        when (server) {
-            ChessServer.LICHESS -> settingsPrefs.saveLichessUsername(username)
-            ChessServer.CHESS_COM -> settingsPrefs.saveChessComUsername(username)
-        }
-
-        // Mark first run complete - user has made their game retrieval choice
-        markFirstRunComplete()
-
-        // Cancel any ongoing auto-analysis
-        autoAnalysisJob?.cancel()
-
-        val pageSize = _uiState.value.gameSelectionPageSize
-
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                errorMessage = null,
-                game = null,
-                gameList = emptyList(),
-                showGameSelection = false,
-                gameSelectionPage = 0,
-                gameSelectionLoading = false,
-                gameSelectionHasMore = true
-            )
-
-            val result = when (server) {
-                ChessServer.LICHESS -> repository.getLichessGames(username, pageSize)
-                ChessServer.CHESS_COM -> repository.getChessComGames(username, pageSize)
-            }
-
-            when (result) {
-                is Result.Success -> {
-                    val games = result.data
-                    // Store the retrieved games for later use
-                    if (games.isNotEmpty()) {
-                        storeRetrievedGames(games, username, server)
-                    }
-                    if (games.size == 1) {
-                        // Auto-select if only 1 game
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            gameList = games,
-                            showGameSelection = false,
-                            gameSelectionUsername = username,
-                            gameSelectionServer = server,
-                            gameSelectionHasMore = false
-                        )
-                        loadGame(games.first(), server, username)
-                    } else {
-                        // Show the SelectedRetrieveGamesScreen directly
-                        val entry = RetrievedGamesEntry(accountName = username, server = server)
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            showRetrieveScreen = false,
-                            showSelectedRetrieveGames = true,
-                            selectedRetrieveEntry = entry,
-                            selectedRetrieveGames = games,
-                            gameSelectionPage = 0,
-                            gameSelectionHasMore = games.size >= pageSize
-                        )
-                    }
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = result.message,
-                        gameSelectionHasMore = false
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Go to next page of game selection, fetching more if needed.
-     */
-    fun nextGameSelectionPage() {
-        val currentPage = _uiState.value.gameSelectionPage
-        val pageSize = _uiState.value.gameSelectionPageSize
-        val currentGames = _uiState.value.selectedRetrieveGames
-        val hasMore = _uiState.value.gameSelectionHasMore
-        val entry = _uiState.value.selectedRetrieveEntry ?: return
-
-        val nextPageStartIndex = (currentPage + 1) * pageSize
-
-        // Check if we need to fetch more games
-        if (nextPageStartIndex >= currentGames.size && hasMore) {
-            // Need to fetch more games
-            _uiState.value = _uiState.value.copy(gameSelectionLoading = true)
-
-            viewModelScope.launch {
-                val newCount = currentGames.size + pageSize
-                val gamesResult = when (entry.server) {
-                    ChessServer.LICHESS -> repository.getLichessGames(entry.accountName, newCount)
-                    ChessServer.CHESS_COM -> repository.getChessComGames(entry.accountName, newCount)
-                }
-                when (gamesResult) {
-                    is Result.Success -> {
-                        val fetchedGames = gamesResult.data
-                        val gotMoreGames = fetchedGames.size > currentGames.size
-                        // Update stored games
-                        if (fetchedGames.isNotEmpty()) {
-                            storeRetrievedGames(fetchedGames, entry.accountName, entry.server)
-                        }
-                        _uiState.value = _uiState.value.copy(
-                            selectedRetrieveGames = fetchedGames,
-                            gameSelectionLoading = false,
-                            gameSelectionPage = if (gotMoreGames) currentPage + 1 else currentPage,
-                            gameSelectionHasMore = fetchedGames.size >= newCount
-                        )
-                    }
-                    is Result.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            gameSelectionLoading = false,
-                            gameSelectionHasMore = false
-                        )
-                    }
-                }
-            }
-        } else if (nextPageStartIndex < currentGames.size) {
-            // We already have the games, just change page
-            _uiState.value = _uiState.value.copy(gameSelectionPage = currentPage + 1)
-        }
-    }
-
-    /**
-     * Go to previous page of game selection.
-     */
-    fun previousGameSelectionPage() {
-        val currentPage = _uiState.value.gameSelectionPage
-        if (currentPage > 0) {
-            _uiState.value = _uiState.value.copy(gameSelectionPage = currentPage - 1)
-        }
-    }
-
-    // ===== RETRIEVED GAMES LIST STORAGE =====
-
-    /**
-     * Store the Active player/server for the reload button.
-     * Only stores if we have a real player name and a valid server (Lichess or Chess.com).
-     */
-    private fun storeActive(player: String, server: ChessServer) {
-        // Only store if we have a real player name from Lichess or Chess.com
-        if (player.isBlank()) return
-
-        settingsPrefs.saveActivePlayerAndServer(player, server)
-        _uiState.value = _uiState.value.copy(hasActive = true)
-    }
-
-    /**
-     * Store a retrieved games list for a specific account/server.
-     * Updates the retrieves list and maintains max 25 entries.
-     */
-    private fun storeRetrievedGames(games: List<LichessGame>, username: String, server: ChessServer) {
-        gameStorage.storeRetrievedGames(games, username, server)
-        val retrievesList = loadRetrievesList()
-        _uiState.value = _uiState.value.copy(
-            hasPreviousRetrieves = retrievesList.isNotEmpty(),
-            previousRetrievesList = retrievesList
-        )
-    }
-
-    /**
-     * Show the list of previous retrieves.
-     */
-    fun showPreviousRetrieves() {
-        val retrievesList = loadRetrievesList()
-        if (retrievesList.isEmpty()) return
-
-        // If only one retrieve, skip selection and go directly to games
-        if (retrievesList.size == 1) {
-            val entry = retrievesList.first()
-            val games = loadGamesForRetrieve(entry)
-            if (games.isNotEmpty()) {
-                _uiState.value = _uiState.value.copy(
-                    showRetrieveScreen = false,
-                    showSelectedRetrieveGames = true,
-                    selectedRetrieveEntry = entry,
-                    selectedRetrieveGames = games
-                )
-            }
+    fun setAnalysisEnabled(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(analysisEnabled = enabled)
+        if (enabled) {
+            analysisOrchestrator.restartAnalysisForExploringLine()
         } else {
-            _uiState.value = _uiState.value.copy(
-                showRetrieveScreen = false,
-                previousRetrievesList = retrievesList,
-                showPreviousRetrievesSelection = true
-            )
+            stockfish.stop()
         }
     }
 
-    /**
-     * Dismiss the previous retrieves selection.
-     */
-    fun dismissPreviousRetrievesSelection() {
-        _uiState.value = _uiState.value.copy(showPreviousRetrievesSelection = false)
-    }
+    // ===== ANALYSIS DELEGATION =====
+    fun enterManualStageAtBiggestChange() = analysisOrchestrator.enterManualStageAtBiggestChange()
+    fun enterManualStageAtMove(moveIndex: Int) = analysisOrchestrator.enterManualStageAtMove(moveIndex)
 
-    /**
-     * Select a previous retrieve to show its games.
-     */
-    fun selectPreviousRetrieve(entry: RetrievedGamesEntry) {
-        val games = loadGamesForRetrieve(entry)
-        if (games.isNotEmpty()) {
-            _uiState.value = _uiState.value.copy(
-                showPreviousRetrievesSelection = false,
-                showSelectedRetrieveGames = true,
-                selectedRetrieveEntry = entry,
-                selectedRetrieveGames = games
-            )
+    // ===== CONTENT SOURCE DELEGATION =====
+    fun showTournaments(server: ChessServer) = contentSourceManager.showTournaments(server)
+    fun selectTournament(tournament: TournamentInfo) = contentSourceManager.selectTournament(tournament)
+    fun backToTournamentList() = contentSourceManager.backToTournamentList()
+    fun dismissTournaments() = contentSourceManager.dismissTournaments()
+    fun selectTournamentGame(game: LichessGame) = contentSourceManager.selectTournamentGame(game)
+
+    fun showBroadcasts() = contentSourceManager.showBroadcasts()
+    fun selectBroadcast(broadcast: BroadcastInfo) = contentSourceManager.selectBroadcast(broadcast)
+    fun selectBroadcastRound(round: BroadcastRoundInfo) = contentSourceManager.selectBroadcastRound(round)
+    fun backToBroadcastList() = contentSourceManager.backToBroadcastList()
+    fun dismissBroadcasts() = contentSourceManager.dismissBroadcasts()
+    fun selectBroadcastGame(game: LichessGame) = contentSourceManager.selectBroadcastGame(game)
+
+    fun showLichessTv() = contentSourceManager.showLichessTv()
+    fun selectTvGame(channel: TvChannelInfo) = contentSourceManager.selectTvGame(channel)
+    fun dismissLichessTv() = contentSourceManager.dismissLichessTv()
+
+    fun showDailyPuzzle() = contentSourceManager.showDailyPuzzle()
+    fun dismissDailyPuzzle() = contentSourceManager.dismissDailyPuzzle()
+
+    fun showStreamers() = contentSourceManager.showStreamers()
+    fun selectStreamer(streamer: StreamerInfo) = contentSourceManager.selectStreamer(streamer) { username, server ->
+        contentSourceManager.showPlayerInfoWithServer(username, server)
+    }
+    fun dismissStreamers() = contentSourceManager.dismissStreamers()
+
+    fun showPlayerInfo(username: String) = contentSourceManager.showPlayerInfo(username, _uiState.value.activeServer)
+    fun showPlayerInfo(username: String, server: ChessServer) = contentSourceManager.showPlayerInfoWithServer(username, server)
+    fun clearGoogleSearch() = contentSourceManager.clearGoogleSearch()
+    fun nextPlayerGamesPage() = contentSourceManager.nextPlayerGamesPage()
+    fun previousPlayerGamesPage() = contentSourceManager.previousPlayerGamesPage()
+    fun selectGameFromPlayerInfo(game: LichessGame) = contentSourceManager.selectGameFromPlayerInfo(game)
+    fun dismissPlayerInfo() = contentSourceManager.dismissPlayerInfo()
+
+    fun showTopRankings(server: ChessServer) = contentSourceManager.showTopRankings(server)
+    fun dismissTopRankings() = contentSourceManager.dismissTopRankings()
+    fun selectTopRankingPlayer(username: String, server: ChessServer) = contentSourceManager.selectTopRankingPlayer(username, server)
+
+    // ===== LIVE GAME DELEGATION =====
+    fun startLiveFollow(gameId: String) = liveGameManager.startLiveFollow(gameId)
+    fun stopLiveFollow() = liveGameManager.stopLiveFollow()
+    fun toggleAutoFollowLive() = liveGameManager.toggleAutoFollowLive()
+
+    // ===== STOCKFISH HELPERS =====
+    private suspend fun restartStockfishAndAnalyze(fen: String) {
+        analysisOrchestrator.stop()
+        val ready = stockfish.restart()
+        _uiState.value = _uiState.value.copy(stockfishReady = ready)
+        if (ready) {
+            stockfish.newGame()
+            analysisOrchestrator.configureForManualStage()
+            delay(100)
+            val thisRequestId = analysisOrchestrator.analysisRequestId.incrementAndGet()
+            analysisOrchestrator.currentAnalysisFen = fen
+            analysisOrchestrator.ensureStockfishAnalysis(fen, thisRequestId)
         }
     }
 
-    /**
-     * Dismiss the selected retrieve games view.
-     */
-    fun dismissSelectedRetrieveGames() {
-        _uiState.value = _uiState.value.copy(
-            showSelectedRetrieveGames = false,
-            selectedRetrieveEntry = null,
-            selectedRetrieveGames = emptyList()
-        )
-    }
-
-    /**
-     * Select a game from a previous retrieve and start analysis.
-     * Sets ActivePlayer from the retrieve entry's account name.
-     */
-    fun selectGameFromRetrieve(game: LichessGame) {
-        val entry = _uiState.value.selectedRetrieveEntry ?: return
-        _uiState.value = _uiState.value.copy(
-            showSelectedRetrieveGames = false,
-            showRetrieveScreen = false,
-            selectedRetrieveEntry = null,
-            selectedRetrieveGames = emptyList()
-        )
-        // Load the game with the account name as the active player
-        loadGame(game, entry.server, entry.accountName)
-    }
-
-    // ===== ANALYSED GAMES STORAGE =====
-
+    // ===== GAME STORAGE =====
     private fun storeAnalysedGame() {
         val game = _uiState.value.game ?: return
         val moves = _uiState.value.moves
@@ -685,744 +461,48 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(hasAnalysedGames = true)
     }
 
-    fun showAnalysedGames() {
-        val games = loadAnalysedGames()
-        if (games.isNotEmpty()) {
-            _uiState.value = _uiState.value.copy(
-                analysedGamesList = games,
-                showAnalysedGamesSelection = true,
-                showRetrieveScreen = false
-            )
-        }
-    }
+    // ===== OPENING EXPLORER =====
+    fun fetchOpeningExplorer() {
+        if (!_uiState.value.interfaceVisibility.manualStage.showOpeningExplorer) return
 
-    fun dismissAnalysedGamesSelection() {
-        _uiState.value = _uiState.value.copy(showAnalysedGamesSelection = false)
-    }
+        openingExplorerJob?.cancel()
+        openingExplorerJob = viewModelScope.launch {
+            delay(500)
+            _uiState.value = _uiState.value.copy(openingExplorerLoading = true)
 
-    fun selectAnalysedGame(game: AnalysedGame) {
-        _uiState.value = _uiState.value.copy(showAnalysedGamesSelection = false, showRetrieveScreen = false)
-        loadAnalysedGameDirectly(game)
-    }
-
-    private fun loadAnalysedGameDirectly(analysedGame: AnalysedGame) {
-        // Cancel any ongoing analysis
-        autoAnalysisJob?.cancel()
-
-        // Parse the PGN to get board states
-        val parsedMoves = PgnParser.parseMoves(analysedGame.pgn)
-
-        // Build board history
-        boardHistory.clear()
-        val tempBoard = ChessBoard()
-        boardHistory.add(tempBoard.copy())
-
-        for (move in parsedMoves) {
-            // Try SAN first, then UCI format (for streamed live games)
-            val moveSuccess = tempBoard.makeMove(move) || tempBoard.makeUciMove(move)
-            if (moveSuccess) {
-                boardHistory.add(tempBoard.copy())
-            }
-        }
-
-        // Create a minimal LichessGame object for display purposes
-        val lichessGame = LichessGame(
-            id = "analysed_${analysedGame.timestamp}",
-            rated = false,
-            variant = "standard",
-            speed = analysedGame.speed ?: "unknown",
-            perf = null,
-            status = if (analysedGame.result == "1/2-1/2") "draw" else "mate",
-            winner = when (analysedGame.result) {
-                "1-0" -> "white"
-                "0-1" -> "black"
-                else -> null
-            },
-            players = com.eval.data.Players(
-                white = com.eval.data.Player(
-                    user = com.eval.data.User(name = analysedGame.whiteName, id = analysedGame.whiteName.lowercase()),
-                    rating = null,
-                    aiLevel = null
-                ),
-                black = com.eval.data.Player(
-                    user = com.eval.data.User(name = analysedGame.blackName, id = analysedGame.blackName.lowercase()),
-                    rating = null,
-                    aiLevel = null
-                )
-            ),
-            pgn = analysedGame.pgn,
-            moves = null,
-            clock = null,
-            createdAt = analysedGame.timestamp,
-            lastMoveAt = analysedGame.timestamp
-        )
-
-        // Start directly in Manual stage at the biggest score change
-        val biggestChangeMoveIndex = findBiggestScoreChangeInScores(analysedGame.analyseScores, analysedGame.previewScores, analysedGame.moves.size)
-        val validIndex = biggestChangeMoveIndex.coerceIn(-1, boardHistory.size - 2)
-        val board = if (validIndex >= 0 && validIndex < boardHistory.size - 1) {
-            boardHistory[validIndex + 1]
-        } else {
-            boardHistory.firstOrNull() ?: ChessBoard()
-        }
-
-        // Determine if active player played black (for score perspective)
-        // If no activePlayer is stored (e.g., from PGN import), default to white
-        val originalActivePlayer = analysedGame.activePlayer
-        val hasRealActivePlayer = !originalActivePlayer.isNullOrEmpty()
-        val activePlayerName = if (hasRealActivePlayer) {
-            originalActivePlayer!!
-        } else {
-            // Default to white player when no active player is set
-            analysedGame.whiteName
-        }
-        val activePlayerLower = activePlayerName.lowercase()
-        val userPlayedBlack = activePlayerLower == analysedGame.blackName.lowercase()
-
-        _uiState.value = _uiState.value.copy(
-            game = lichessGame,
-            moves = analysedGame.moves,
-            moveDetails = analysedGame.moveDetails,
-            currentMoveIndex = validIndex,
-            currentBoard = board.copy(),
-            flippedBoard = userPlayedBlack,
-            userPlayedBlack = userPlayedBlack,
-            activePlayer = activePlayerName,
-            activeServer = analysedGame.activeServer,
-            activePlayerError = null,
-            openingName = analysedGame.openingName,
-            previewScores = analysedGame.previewScores,
-            analyseScores = analysedGame.analyseScores,
-            currentStage = AnalysisStage.MANUAL,
-            autoAnalysisIndex = -1,
-            isExploringLine = false,
-            exploringLineMoves = emptyList(),
-            exploringLineMoveIndex = -1,
-            savedGameMoveIndex = -1
-        )
-
-        // Store Active for reload button - only if we had a real active player from the source
-        val activeServer = analysedGame.activeServer
-        if (hasRealActivePlayer && activeServer != null) {
-            storeActive(activePlayerName, activeServer)
-        }
-
-        // Save as current game
-        saveCurrentAnalysedGame(analysedGame)
-
-        // Start Stockfish analysis for current position
-        val fenToAnalyze = board.getFen()
-        currentAnalysisFen = fenToAnalyze
-        analysisRequestId++
-        val thisRequestId = analysisRequestId
-
-        viewModelScope.launch {
-            stockfish.stop()
-            val ready = stockfish.restart()
-            _uiState.value = _uiState.value.copy(stockfishReady = ready)
-            if (ready) {
-                stockfish.newGame()
-                configureForManualStage()
-                delay(100)
-                ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
-                // Fetch opening explorer data for initial position
-                fetchOpeningExplorer()
-            }
-        }
-    }
-
-    private fun findBiggestScoreChangeInScores(
-        analyseScores: Map<Int, MoveScore>,
-        previewScores: Map<Int, MoveScore>,
-        totalMoves: Int
-    ): Int {
-        var biggestChangeIndex = 0
-        var biggestChange = 0f
-
-        for (i in 1 until totalMoves) {
-            val prevScore = analyseScores[i - 1] ?: previewScores[i - 1]
-            val currScore = analyseScores[i] ?: previewScores[i]
-
-            if (prevScore != null && currScore != null) {
-                val change = kotlin.math.abs(currScore.score - prevScore.score)
-                if (change > biggestChange) {
-                    biggestChange = change
-                    biggestChangeIndex = i
+            val fen = _uiState.value.currentBoard.getFen()
+            when (val result = repository.getOpeningExplorer(fen)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        openingExplorerData = result.data,
+                        openingExplorerLoading = false
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        openingExplorerData = null,
+                        openingExplorerLoading = false
+                    )
                 }
             }
         }
-
-        return biggestChangeIndex
     }
 
-    // Temporary storage for server/username when showing game selection dialog
-    private var pendingGameSelectionServer: ChessServer? = null
-    private var pendingGameSelectionUsername: String? = null
-    private var isPgnFileSelection: Boolean = false
-
-    fun selectGame(game: LichessGame) {
-        _uiState.value = _uiState.value.copy(showGameSelection = false, showRetrieveScreen = false)
-
-        // For PGN file selection, use white player as active player and don't store Active
-        if (isPgnFileSelection) {
-            isPgnFileSelection = false
-            pendingGameSelectionServer = null
-            pendingGameSelectionUsername = null
-            val whiteName = game.players.white.user?.name ?: "White"
-            loadGame(game, null, whiteName)
-            return
-        }
-
-        val server = pendingGameSelectionServer
-        val username = pendingGameSelectionUsername
-        pendingGameSelectionServer = null
-        pendingGameSelectionUsername = null
-        loadGame(game, server, username)
+    fun toggleOpeningExplorer() {
+        _uiState.value = _uiState.value.copy(showOpeningExplorer = !_uiState.value.showOpeningExplorer)
     }
 
-    fun dismissGameSelection() {
-        _uiState.value = _uiState.value.copy(showGameSelection = false)
-        isPgnFileSelection = false
-    }
-
-    fun clearGame() {
-        // Stop any ongoing auto-analysis
-        autoAnalysisJob?.cancel()
-        stockfish.stop()
-
-        // Clear game state and show retrieve screen
-        boardHistory.clear()
-        exploringLineHistory.clear()
-        _uiState.value = _uiState.value.copy(
-            game = null,
-            gameList = emptyList(),
-            showGameSelection = false,
-            showRetrieveScreen = true,
-            currentBoard = ChessBoard(),
-            moves = emptyList(),
-            moveDetails = emptyList(),
-            currentMoveIndex = -1,
-            analysisResult = null,
-            flippedBoard = false,
-            userPlayedBlack = false,
-            isExploringLine = false,
-            exploringLineMoves = emptyList(),
-            exploringLineMoveIndex = -1,
-            savedGameMoveIndex = -1,
-            currentStage = AnalysisStage.PREVIEW,
-            previewScores = emptyMap(),
-            analyseScores = emptyMap(),
-            autoAnalysisIndex = -1
-        )
-    }
-
-    private fun loadGame(game: LichessGame, server: ChessServer?, username: String?) {
-        // Cancel any ongoing analysis before loading new game
-        autoAnalysisJob?.cancel()
-        manualAnalysisJob?.cancel()
-        stockfish.stop()
-
-        val pgn = game.pgn
-        if (pgn == null) {
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                errorMessage = "No PGN data available"
-            )
-            return
-        }
-
-        // Save as Active for reload button
-        if (server != null && username != null) {
-            storeActive(username, server)
-        }
-
-        // Extract opening name from PGN headers
-        val pgnHeaders = PgnParser.parseHeaders(pgn)
-        val openingName = pgnHeaders["Opening"] ?: pgnHeaders["ECO"]
-
-        val parsedMoves = PgnParser.parseMovesWithClock(pgn)
-        val initialBoard = ChessBoard()
-        boardHistory.clear()
-        exploringLineHistory.clear()
-        boardHistory.add(initialBoard.copy())
-
-        // Pre-compute all board positions and move details for efficient navigation
-        val tempBoard = ChessBoard()
-        val moveDetailsList = mutableListOf<MoveDetails>()
-        val validMoves = mutableListOf<String>()
-
-        for ((index, parsedMove) in parsedMoves.withIndex()) {
-            val move = parsedMove.san
-            val moveNum = (index / 2) + 1
-            val isWhite = index % 2 == 0
-            // Check if this move is a capture (target square has a piece before the move)
-            val boardBeforeMove = tempBoard.copy()
-            // Try SAN first, then UCI format (for streamed live games)
-            val moveSuccess = tempBoard.makeMove(move) || tempBoard.makeUciMove(move)
-            if (!moveSuccess) {
-                // Skip invalid moves (e.g., malformed PGN artifacts)
-                val prefix = if (isWhite) "$moveNum." else "$moveNum..."
-                android.util.Log.e("GameViewModel", "FAILED to apply move $prefix $move - FEN: ${boardBeforeMove.getFen()}")
-                continue
-            }
-            validMoves.add(move)
-            boardHistory.add(tempBoard.copy())
-
-            // Get move details from the board's last move
-            val lastMove = tempBoard.getLastMove()
-            if (lastMove != null) {
-                val fromSquare = lastMove.from.toAlgebraic()
-                val toSquare = lastMove.to.toAlgebraic()
-                val capturedPiece = boardBeforeMove.getPiece(lastMove.to)
-                val movedPiece = tempBoard.getPiece(lastMove.to)
-                val pieceType = when (movedPiece?.type) {
-                    com.eval.chess.PieceType.KING -> "K"
-                    com.eval.chess.PieceType.QUEEN -> "Q"
-                    com.eval.chess.PieceType.ROOK -> "R"
-                    com.eval.chess.PieceType.BISHOP -> "B"
-                    com.eval.chess.PieceType.KNIGHT -> "N"
-                    com.eval.chess.PieceType.PAWN -> "P"
-                    else -> "P"
-                }
-                // Check for en passant capture (pawn capture but no piece on target square)
-                val isEnPassant = pieceType == "P" &&
-                    lastMove.from.file != lastMove.to.file &&
-                    capturedPiece == null
-                val isCapture = capturedPiece != null || isEnPassant
-
-                moveDetailsList.add(MoveDetails(
-                    san = move,
-                    from = fromSquare,
-                    to = toSquare,
-                    isCapture = isCapture,
-                    pieceType = pieceType,
-                    clockTime = parsedMove.clockTime
-                ))
-            }
-        }
-
-        // Determine the active player - the user whose perspective we're viewing from
-        // Use the username parameter if provided, otherwise fall back to saved Lichess username
-        val providedActivePlayer = username ?: savedLichessUsername ?: ""
-        val whitePlayerName = game.players.white.user?.name ?: "White"
-        val blackPlayerName = game.players.black.user?.name?.lowercase() ?: ""
-
-        // Check if the provided active player matches either white or black
-        val activePlayerMatchesGame = providedActivePlayer.isNotEmpty() &&
-            (providedActivePlayer.lowercase() == whitePlayerName.lowercase() ||
-             providedActivePlayer.lowercase() == blackPlayerName)
-
-        // If active player doesn't match, default to white (but don't update stored Active)
-        val activePlayerName = if (activePlayerMatchesGame) providedActivePlayer else whitePlayerName
-        val userPlayedBlack = activePlayerName.lowercase() == blackPlayerName
-
-        _uiState.value = _uiState.value.copy(
-            isLoading = false,
-            game = game,
-            openingName = openingName,
-            moves = validMoves,
-            moveDetails = moveDetailsList,
-            currentBoard = initialBoard,
-            currentMoveIndex = -1,
-            flippedBoard = userPlayedBlack,
-            userPlayedBlack = userPlayedBlack,
-            activePlayer = activePlayerName,
-            activeServer = server,
-            showRetrieveScreen = false,
-            // Reset exploring state
-            isExploringLine = false,
-            exploringLineMoves = emptyList(),
-            exploringLineMoveIndex = -1,
-            savedGameMoveIndex = -1,
-            // Reset analysis state - start at Preview stage
-            currentStage = AnalysisStage.PREVIEW,
-            previewScores = emptyMap(),
-            analyseScores = emptyMap(),
-            autoAnalysisIndex = -1
-        )
-
-        // Start analysis - runs Preview stage, then Analyse stage, then enters Manual stage
-        // The current game is saved when entering Manual stage (in storeAnalysedGame)
-        startAnalysis()
-    }
-
-    /**
-     * Check if navigation is allowed in the current stage.
-     * Preview stage: not interruptible, navigation not allowed
-     * Analyse stage: interruptible, will switch to Manual stage
-     * Manual stage: navigation always allowed
-     */
-    private fun canNavigate(): Boolean {
-        return _uiState.value.currentStage != AnalysisStage.PREVIEW
-    }
-
-    /**
-     * Handle navigation during Analyse stage - interrupts analysis and switches to Manual stage.
-     * Returns true if we should proceed with navigation, false if blocked.
-     */
-    private fun handleNavigationInterrupt(): Boolean {
-        when (_uiState.value.currentStage) {
-            AnalysisStage.PREVIEW -> return false  // Preview stage is not interruptible
-            AnalysisStage.ANALYSE -> {
-                // Interrupt analyse stage and switch to manual
-                enterManualStageAtCurrentPosition()
-                return false  // Don't proceed - enterManualStageAtCurrentPosition handles navigation
-            }
-            AnalysisStage.MANUAL -> return true  // Allow navigation in manual stage
-        }
-    }
-
-    fun goToStart() {
-        if (!handleNavigationInterrupt()) return
-
-        if (_uiState.value.isExploringLine) {
-            val newBoard = exploringLineHistory.firstOrNull()?.copy() ?: ChessBoard()
-            _uiState.value = _uiState.value.copy(
-                currentBoard = newBoard,
-                exploringLineMoveIndex = -1
-            )
-            analyzePosition(newBoard)
-        } else {
-            // In manual stage, use restartAnalysisAtMove for reliable sync
-            if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
-                restartAnalysisAtMove(-1)
-            } else {
-                val newBoard = boardHistory.firstOrNull()?.copy() ?: ChessBoard()
-                _uiState.value = _uiState.value.copy(
-                    currentBoard = newBoard,
-                    currentMoveIndex = -1
-                )
-                analyzePosition(newBoard)
-            }
-        }
-    }
-
-    fun goToEnd() {
-        if (!handleNavigationInterrupt()) return
-
-        if (_uiState.value.isExploringLine) {
-            val moves = _uiState.value.exploringLineMoves
-            if (moves.isEmpty()) {
-                analyzePosition(_uiState.value.currentBoard)
-                return
-            }
-            val newBoard = exploringLineHistory.lastOrNull()?.copy() ?: ChessBoard()
-            _uiState.value = _uiState.value.copy(
-                currentBoard = newBoard,
-                exploringLineMoveIndex = moves.size - 1
-            )
-            analyzePosition(newBoard)
-        } else {
-            val moves = _uiState.value.moves
-            if (moves.isEmpty()) return
-            // In manual stage, use restartAnalysisAtMove for reliable sync
-            if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
-                restartAnalysisAtMove(moves.size - 1)
-            } else {
-                val newBoard = boardHistory.lastOrNull()?.copy() ?: ChessBoard()
-                _uiState.value = _uiState.value.copy(
-                    currentBoard = newBoard,
-                    currentMoveIndex = moves.size - 1
-                )
-                analyzePosition(newBoard)
-            }
-        }
-    }
-
-    fun goToMove(index: Int) {
-        if (!handleNavigationInterrupt()) return
-
-        val newBoard: ChessBoard
-        if (_uiState.value.isExploringLine) {
-            val moves = _uiState.value.exploringLineMoves
-            if (index < -1 || index >= moves.size) return
-            newBoard = exploringLineHistory.getOrNull(index + 1)?.copy() ?: ChessBoard()
-            _uiState.value = _uiState.value.copy(
-                currentBoard = newBoard,
-                exploringLineMoveIndex = index
-            )
-            playMoveSound()
-        } else {
-            val moves = _uiState.value.moves
-            if (index < -1 || index >= moves.size) return
-            newBoard = boardHistory.getOrNull(index + 1)?.copy() ?: ChessBoard()
-            _uiState.value = _uiState.value.copy(
-                currentBoard = newBoard,
-                currentMoveIndex = index
-            )
-            playMoveSound(index)
-        }
-        // Pass the exact board we just set to avoid any race conditions
-        analyzePosition(newBoard)
-    }
-
-    /**
-     * Restart analysis at a specific move - stops Stockfish and starts fresh.
-     * Used for graph clicks in manual stage to ensure clean state.
-     */
-    fun restartAnalysisAtMove(moveIndex: Int) {
-        // Cancel any running analysis
-        manualAnalysisJob?.cancel()
-
-        // Get the board for the clicked position
-        val validIndex = moveIndex.coerceIn(-1, boardHistory.size - 2)
-        val board = boardHistory.getOrNull(validIndex + 1) ?: ChessBoard()
-
-        viewModelScope.launch {
-            // Stop Stockfish completely
-            stockfish.stop()
-
-            // Increment request ID to invalidate any pending results
-            analysisRequestId++
-            val thisRequestId = analysisRequestId
-
-            // Set up the new position
-            val fenToAnalyze = board.getFen()
-            currentAnalysisFen = fenToAnalyze
-
-            // Update opening name for current position
-            val openingName = if (validIndex >= 0 && _uiState.value.moves.isNotEmpty()) {
-                OpeningBook.getOpeningName(_uiState.value.moves, validIndex)
-            } else null
-
-            // Update UI state - keep analysisResult to avoid UI jumping, just clear the FEN
-            // The card will stay visible with old content until new results arrive
-            _uiState.value = _uiState.value.copy(
-                currentMoveIndex = validIndex,
-                currentBoard = board.copy(),
-                currentOpeningName = openingName,
-                analysisResultFen = null  // Mark as stale, but keep result for UI stability
-            )
-
-            // Small delay to ensure Stockfish has stopped
-            delay(50)
-
-            // Send new game command to clear Stockfish's internal state
-            stockfish.newGame()
-            delay(50)
-
-            // Start fresh analysis
-            if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
-                ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
-                // Fetch opening explorer data for current position
-                fetchOpeningExplorer()
-            }
-        }
-    }
-
-    fun nextMove() {
-        if (!handleNavigationInterrupt()) return
-
-        if (_uiState.value.isExploringLine) {
-            val currentIndex = _uiState.value.exploringLineMoveIndex
-            val moves = _uiState.value.exploringLineMoves
-            if (currentIndex >= moves.size - 1) return
-            val newIndex = currentIndex + 1
-            val newBoard = exploringLineHistory.getOrNull(newIndex + 1)?.copy() ?: _uiState.value.currentBoard
-            _uiState.value = _uiState.value.copy(
-                currentBoard = newBoard,
-                exploringLineMoveIndex = newIndex
-            )
-            playMoveSound()
-            // Use full restart for proper Stockfish analysis
-            restartAnalysisForExploringLine()
-        } else {
-            val currentIndex = _uiState.value.currentMoveIndex
-            val moves = _uiState.value.moves
-            if (currentIndex >= moves.size - 1) return
-            val newIndex = currentIndex + 1
-            playMoveSound(newIndex)
-            // In manual stage, use restartAnalysisAtMove for reliable sync
-            if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
-                restartAnalysisAtMove(newIndex)
-            } else {
-                val newBoard = boardHistory.getOrNull(newIndex + 1)?.copy() ?: _uiState.value.currentBoard
-                _uiState.value = _uiState.value.copy(
-                    currentBoard = newBoard,
-                    currentMoveIndex = newIndex
-                )
-                analyzePosition(newBoard)
-            }
-        }
-    }
-
-    fun prevMove() {
-        if (!handleNavigationInterrupt()) return
-
-        if (_uiState.value.isExploringLine) {
-            val currentIndex = _uiState.value.exploringLineMoveIndex
-            if (currentIndex < 0) return
-            val newIndex = currentIndex - 1
-            val newBoard = exploringLineHistory.getOrNull(newIndex + 1)?.copy() ?: ChessBoard()
-            _uiState.value = _uiState.value.copy(
-                currentBoard = newBoard,
-                exploringLineMoveIndex = newIndex
-            )
-            playMoveSound()
-            // Use full restart for proper Stockfish analysis
-            restartAnalysisForExploringLine()
-        } else {
-            val currentIndex = _uiState.value.currentMoveIndex
-            if (currentIndex < 0) return
-            val newIndex = currentIndex - 1
-            playMoveSound(newIndex)
-            // In manual stage, use restartAnalysisAtMove for reliable sync
-            if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
-                restartAnalysisAtMove(newIndex)
-            } else {
-                val newBoard = boardHistory.getOrNull(newIndex + 1)?.copy() ?: ChessBoard()
-                _uiState.value = _uiState.value.copy(
-                    currentBoard = newBoard,
-                    currentMoveIndex = newIndex
-                )
-                analyzePosition(newBoard)
-            }
-        }
-    }
-
-    fun exploreLine(pv: String, moveIndex: Int = 0) {
-        if (pv.isBlank()) return
-
-        // Save current game position
-        val savedMoveIndex = _uiState.value.currentMoveIndex
-
-        // Get the starting board (current position before exploring)
-        val startBoard = _uiState.value.currentBoard.copy()
-
-        // Parse UCI moves and build board history for the line
-        val uciMoves = pv.split(" ").filter { it.isNotBlank() }
-        exploringLineHistory.clear()
-        exploringLineHistory.add(startBoard)
-
-        val tempBoard = startBoard.copy()
-        for (uciMove in uciMoves) {
-            if (tempBoard.makeUciMove(uciMove)) {
-                exploringLineHistory.add(tempBoard.copy())
-            } else {
-                break // Invalid move, stop here
-            }
-        }
-
-        // Go to the specified move index
-        val targetIndex = moveIndex.coerceIn(-1, exploringLineHistory.size - 2)
-
-        _uiState.value = _uiState.value.copy(
-            isExploringLine = true,
-            exploringLineMoves = uciMoves.take(exploringLineHistory.size - 1),
-            exploringLineMoveIndex = targetIndex,
-            savedGameMoveIndex = savedMoveIndex,
-            currentBoard = exploringLineHistory.getOrNull(targetIndex + 1)?.copy() ?: startBoard
-        )
-
-        // Use full restart for proper Stockfish analysis
-        restartAnalysisForExploringLine()
-    }
-
-    fun backToOriginalGame() {
-        val savedIndex = _uiState.value.savedGameMoveIndex
-        exploringLineHistory.clear()
-
-        _uiState.value = _uiState.value.copy(
-            isExploringLine = false,
-            exploringLineMoves = emptyList(),
-            exploringLineMoveIndex = -1,
-            savedGameMoveIndex = -1,
-            currentBoard = boardHistory.getOrNull(savedIndex + 1)?.copy() ?: ChessBoard(),
-            currentMoveIndex = savedIndex
-        )
-
-        // Use full restart for proper Stockfish analysis
-        restartAnalysisForExploringLine()
-    }
-
-    fun setAnalysisEnabled(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(analysisEnabled = enabled)
-        if (enabled) {
-            // Use full restart for proper Stockfish analysis
-            restartAnalysisForExploringLine()
-        } else {
-            stockfish.stop()
-        }
-    }
-
-    fun flipBoard() {
-        _uiState.value = _uiState.value.copy(flippedBoard = !_uiState.value.flippedBoard)
-    }
-
-    /**
-     * Play move sound if enabled in settings.
-     * @param moveIndex The index of the move to get sound info from
-     */
-    private fun playMoveSound(moveIndex: Int = -1) {
-        if (!_uiState.value.generalSettings.moveSoundsEnabled) return
-
-        val moveDetails = _uiState.value.moveDetails.getOrNull(moveIndex)
-        if (moveDetails != null) {
-            val isCastle = moveDetails.pieceType == "K" &&
-                kotlin.math.abs(moveDetails.from[0] - moveDetails.to[0]) > 1
-            moveSoundPlayer.playMove(
-                isCapture = moveDetails.isCapture,
-                isCheck = false, // We don't track check status in MoveDetails
-                isCastle = isCastle
-            )
-        } else {
-            moveSoundPlayer.playMoveSound()
-        }
-    }
-
-    /**
-     * Update the current opening name based on the move index.
-     * Uses the OpeningBook to find the best matching opening.
-     */
-    private fun updateCurrentOpeningName(moveIndex: Int) {
-        val moves = _uiState.value.moves
-        val openingName = if (moveIndex >= 0 && moves.isNotEmpty()) {
-            OpeningBook.getOpeningName(moves, moveIndex)
-        } else {
-            null
-        }
-        _uiState.value = _uiState.value.copy(currentOpeningName = openingName)
-    }
-
-    fun cycleArrowMode() {
-        val currentSettings = _uiState.value.stockfishSettings
-        val currentMode = currentSettings.manualStage.arrowMode
-        val newMode = when (currentMode) {
-            ArrowMode.NONE -> ArrowMode.MAIN_LINE
-            ArrowMode.MAIN_LINE -> ArrowMode.MULTI_LINES
-            ArrowMode.MULTI_LINES -> ArrowMode.NONE
-        }
-        val newSettings = currentSettings.copy(
-            manualStage = currentSettings.manualStage.copy(arrowMode = newMode)
-        )
-        saveStockfishSettings(newSettings)
-        _uiState.value = _uiState.value.copy(stockfishSettings = newSettings)
-    }
-
-    /**
-     * Show the share position dialog.
-     */
+    // ===== SHARE/EXPORT =====
     fun showSharePositionDialog() {
         _uiState.value = _uiState.value.copy(showSharePositionDialog = true)
     }
 
-    /**
-     * Hide the share position dialog.
-     */
     fun hideSharePositionDialog() {
         _uiState.value = _uiState.value.copy(showSharePositionDialog = false)
     }
 
-    /**
-     * Get the current position's FEN string.
-     */
-    fun getCurrentFen(): String {
-        return _uiState.value.currentBoard.getFen()
-    }
+    fun getCurrentFen(): String = _uiState.value.currentBoard.getFen()
 
-    /**
-     * Copy the current FEN to clipboard.
-     */
     fun copyFenToClipboard(context: android.content.Context) {
         val fen = getCurrentFen()
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -1430,9 +510,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         clipboard.setPrimaryClip(clip)
     }
 
-    /**
-     * Share the current position as text (FEN and analysis).
-     */
     fun sharePositionAsText(context: android.content.Context) {
         val fen = getCurrentFen()
         val moveIndex = _uiState.value.currentMoveIndex
@@ -1471,49 +548,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         context.startActivity(shareIntent)
     }
 
-    /**
-     * Fetch opening explorer data for the current position (debounced).
-     */
-    private var openingExplorerJob: Job? = null
-    fun fetchOpeningExplorer() {
-        // Only fetch if opening explorer is enabled in settings
-        if (!_uiState.value.interfaceVisibility.manualStage.showOpeningExplorer) return
-
-        openingExplorerJob?.cancel()
-        openingExplorerJob = viewModelScope.launch {
-            delay(500) // Debounce to avoid excessive API calls
-            _uiState.value = _uiState.value.copy(openingExplorerLoading = true)
-
-            val fen = _uiState.value.currentBoard.getFen()
-            when (val result = repository.getOpeningExplorer(fen)) {
-                is com.eval.data.Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        openingExplorerData = result.data,
-                        openingExplorerLoading = false
-                    )
-                }
-                is com.eval.data.Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        openingExplorerData = null,
-                        openingExplorerLoading = false
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Toggle showing the opening explorer panel.
-     */
-    fun toggleOpeningExplorer() {
-        _uiState.value = _uiState.value.copy(
-            showOpeningExplorer = !_uiState.value.showOpeningExplorer
-        )
-    }
-
-    /**
-     * Export the current game as annotated PGN.
-     */
     fun exportAnnotatedPgn(context: android.content.Context) {
         val game = _uiState.value.game ?: return
         val moveDetails = _uiState.value.moveDetails
@@ -1529,7 +563,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             openingName = openingName
         )
 
-        // Share the PGN
         val sendIntent = android.content.Intent().apply {
             action = android.content.Intent.ACTION_SEND
             putExtra(android.content.Intent.EXTRA_TEXT, pgn)
@@ -1540,9 +573,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         context.startActivity(shareIntent)
     }
 
-    /**
-     * Copy annotated PGN to clipboard.
-     */
     fun copyPgnToClipboard(context: android.content.Context) {
         val game = _uiState.value.game ?: return
         val moveDetails = _uiState.value.moveDetails
@@ -1563,15 +593,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         clipboard.setPrimaryClip(clip)
     }
 
-    /**
-     * Export the game as an animated GIF.
-     */
     fun exportAsGif(context: android.content.Context) {
-        val game = _uiState.value.game ?: return
+        if (_uiState.value.game == null) return
         val moveDetails = _uiState.value.moveDetails
         val analyseScores = _uiState.value.analyseScores.ifEmpty { _uiState.value.previewScores }
 
-        // Show progress dialog
         _uiState.value = _uiState.value.copy(
             showGifExportDialog = true,
             gifExportProgress = 0f
@@ -1579,9 +605,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                // Build list of board positions
-                val boards = mutableListOf<com.eval.chess.ChessBoard>()
-                var board = com.eval.chess.ChessBoard()
+                val boards = mutableListOf<ChessBoard>()
+                var board = ChessBoard()
                 boards.add(board.copy())
 
                 for (i in moveDetails.indices) {
@@ -1592,21 +617,18 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                // Create scores map for boards (index 0 is starting position)
                 val boardScores = mutableMapOf<Int, MoveScore>()
                 analyseScores.forEach { (moveIndex, score) ->
-                    // Board at moveIndex+1 is after move moveIndex
                     boardScores[moveIndex + 1] = score
                 }
 
-                // Export GIF with annotations
                 val moves = moveDetails.map { it.san }
                 val file = com.eval.export.GifExporter.exportAsGifWithAnnotations(
                     context = context,
                     boards = boards,
                     moves = moves,
                     scores = boardScores,
-                    frameDelay = 1000, // 1 second per frame
+                    frameDelay = 1000,
                     callback = object : com.eval.export.GifExporter.ProgressCallback {
                         override fun onProgress(current: Int, total: Int) {
                             _uiState.value = _uiState.value.copy(
@@ -1616,13 +638,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 )
 
-                // Hide progress dialog
                 _uiState.value = _uiState.value.copy(
                     showGifExportDialog = false,
                     gifExportProgress = null
                 )
 
-                // Share the GIF
                 val uri = androidx.core.content.FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.fileprovider",
@@ -1652,184 +672,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    // Live game following
-    private var liveGameJob: kotlinx.coroutines.Job? = null
-
-    /**
-     * Start following a live game.
-     */
-    fun startLiveFollow(gameId: String) {
-        // Cancel any existing live follow
-        stopLiveFollow()
-
-        _uiState.value = _uiState.value.copy(
-            isLiveGame = true,
-            liveGameId = gameId,
-            liveStreamConnected = false
-        )
-
-        liveGameJob = viewModelScope.launch {
-            repository.streamLiveGame(gameId).collect { event ->
-                when (event) {
-                    is com.eval.data.LiveGameEvent.Connected -> {
-                        _uiState.value = _uiState.value.copy(liveStreamConnected = true)
-                    }
-                    is com.eval.data.LiveGameEvent.Disconnected -> {
-                        _uiState.value = _uiState.value.copy(liveStreamConnected = false)
-                    }
-                    is com.eval.data.LiveGameEvent.GameInfo -> {
-                        // Initial game info received
-                    }
-                    is com.eval.data.LiveGameEvent.Move -> {
-                        // New move received
-                        handleLiveMove(event.data)
-                    }
-                    is com.eval.data.LiveGameEvent.GameEnd -> {
-                        // Game ended
-                        _uiState.value = _uiState.value.copy(
-                            isLiveGame = false,
-                            liveStreamConnected = false
-                        )
-                        // Update game status
-                        val currentGame = _uiState.value.game
-                        if (currentGame != null) {
-                            _uiState.value = _uiState.value.copy(
-                                game = currentGame.copy(
-                                    winner = event.winner,
-                                    status = event.status ?: "ended"
-                                )
-                            )
-                        }
-                    }
-                    is com.eval.data.LiveGameEvent.Error -> {
-                        // Handle error - could retry or notify user
-                        _uiState.value = _uiState.value.copy(
-                            errorMessage = "Live stream: ${event.message}"
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Handle a new move from the live stream.
-     */
-    private fun handleLiveMove(moveData: com.eval.data.StreamMoveData) {
-        val uciMove = moveData.lm ?: return
-        val currentMoves = _uiState.value.moves.toMutableList()
-        val currentMoveDetails = _uiState.value.moveDetails.toMutableList()
-
-        // Add the new UCI move to the moves list
-        currentMoves.add(uciMove)
-
-        // Parse the move to get SAN and other details
-        val board = _uiState.value.currentBoard.copy()
-        val from = uciMove.substring(0, 2)
-        val to = uciMove.substring(2, 4)
-        val fromSquare = com.eval.chess.Square.fromAlgebraic(from)
-        val toSquare = com.eval.chess.Square.fromAlgebraic(to)
-
-        if (fromSquare != null && toSquare != null) {
-            val piece = board.getPiece(fromSquare)
-            val isCapture = board.getPiece(toSquare) != null
-
-            // Make the move on the board
-            val promotion = if (uciMove.length > 4) {
-                when (uciMove[4]) {
-                    'q' -> com.eval.chess.PieceType.QUEEN
-                    'r' -> com.eval.chess.PieceType.ROOK
-                    'b' -> com.eval.chess.PieceType.BISHOP
-                    'n' -> com.eval.chess.PieceType.KNIGHT
-                    else -> null
-                }
-            } else null
-
-            board.makeMoveFromSquares(fromSquare, toSquare, promotion)
-
-            // Create move details
-            val pieceType = when (piece?.type) {
-                com.eval.chess.PieceType.KING -> "K"
-                com.eval.chess.PieceType.QUEEN -> "Q"
-                com.eval.chess.PieceType.ROOK -> "R"
-                com.eval.chess.PieceType.BISHOP -> "B"
-                com.eval.chess.PieceType.KNIGHT -> "N"
-                com.eval.chess.PieceType.PAWN -> "P"
-                else -> "P"
-            }
-
-            // Format clock time
-            val clockTime = if (currentMoves.size % 2 == 1) {
-                // White's move, show black's clock time after
-                moveData.bc?.let { formatClockSeconds(it) }
-            } else {
-                // Black's move, show white's clock time after
-                moveData.wc?.let { formatClockSeconds(it) }
-            }
-
-            val moveDetail = MoveDetails(
-                san = uciMove, // We'll use UCI since converting to SAN is complex
-                from = from,
-                to = to,
-                isCapture = isCapture,
-                pieceType = pieceType,
-                clockTime = clockTime
-            )
-            currentMoveDetails.add(moveDetail)
-
-            // Update state
-            val autoFollow = _uiState.value.autoFollowLive
-            val newMoveIndex = if (autoFollow) currentMoves.size - 1 else _uiState.value.currentMoveIndex
-
-            _uiState.value = _uiState.value.copy(
-                moves = currentMoves,
-                moveDetails = currentMoveDetails,
-                currentMoveIndex = newMoveIndex,
-                currentBoard = if (autoFollow) board else _uiState.value.currentBoard
-            )
-
-            // Play move sound
-            if (_uiState.value.generalSettings.moveSoundsEnabled && autoFollow) {
-                moveSoundPlayer.playMove(isCapture = isCapture, isCheck = false, isCastle = false)
-            }
-        }
-    }
-
-    private fun formatClockSeconds(seconds: Int): String {
-        val hours = seconds / 3600
-        val mins = (seconds % 3600) / 60
-        val secs = seconds % 60
-        return if (hours > 0) {
-            "%d:%02d:%02d".format(hours, mins, secs)
-        } else {
-            "%d:%02d".format(mins, secs)
-        }
-    }
-
-    /**
-     * Stop following a live game.
-     */
-    fun stopLiveFollow() {
-        liveGameJob?.cancel()
-        liveGameJob = null
-        _uiState.value = _uiState.value.copy(
-            isLiveGame = false,
-            liveGameId = null,
-            liveStreamConnected = false
-        )
-    }
-
-    /**
-     * Toggle auto-follow mode for live games.
-     */
-    fun toggleAutoFollowLive() {
-        _uiState.value = _uiState.value.copy(
-            autoFollowLive = !_uiState.value.autoFollowLive
-        )
-    }
-
+    // ===== SETTINGS =====
     fun showSettingsDialog() {
-        // Store current settings to detect changes when dialog closes
         settingsOnDialogOpen = SettingsSnapshot(
             previewStageSettings = _uiState.value.stockfishSettings.previewStage,
             analyseStageSettings = _uiState.value.stockfishSettings.analyseStage,
@@ -1841,7 +685,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun hideSettingsDialog() {
         _uiState.value = _uiState.value.copy(showSettingsDialog = false)
 
-        // Check what settings changed
         val originalSettings = settingsOnDialogOpen
         val currentPreviewStageSettings = _uiState.value.stockfishSettings.previewStage
         val currentAnalyseStageSettings = _uiState.value.stockfishSettings.analyseStage
@@ -1851,58 +694,42 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val analyseStageSettingsChanged = originalSettings?.analyseStageSettings != currentAnalyseStageSettings
         val manualStageSettingsChanged = originalSettings?.manualStageSettings != currentManualStageSettings
 
-        // Clear the snapshot
         settingsOnDialogOpen = null
 
-        // If no game loaded or no settings changed, nothing to do
         if (_uiState.value.game == null) return
         if (!previewStageSettingsChanged && !analyseStageSettingsChanged && !manualStageSettingsChanged) return
 
         viewModelScope.launch {
-            // Stop any ongoing analysis
-            autoAnalysisJob?.cancel()
-            stockfish.stop()
+            analysisOrchestrator.stop()
 
-            // Set stockfishReady to false while restarting
             _uiState.value = _uiState.value.copy(stockfishReady = false)
 
-            // Kill and restart Stockfish engine
             val ready = stockfish.restart()
 
-            // Verify Stockfish is truly ready by checking isReady flow
             if (ready) {
-                // Wait a moment for the engine to stabilize
                 kotlinx.coroutines.delay(200)
                 val confirmedReady = stockfish.isReady.value
                 _uiState.value = _uiState.value.copy(stockfishReady = confirmedReady)
 
-                if (!confirmedReady) {
-                    return@launch
-                }
+                if (!confirmedReady) return@launch
             } else {
                 _uiState.value = _uiState.value.copy(stockfishReady = false)
                 return@launch
             }
 
-            // Decide which mode to activate based on what changed
             if (previewStageSettingsChanged || analyseStageSettingsChanged) {
-                // Stockfish stage settings changed
-                // -> Restart analysis from Preview stage
                 _uiState.value = _uiState.value.copy(
                     currentStage = AnalysisStage.PREVIEW,
                     previewScores = emptyMap(),
                     analyseScores = emptyMap()
                 )
-                startAnalysis()
+                analysisOrchestrator.startAnalysis()
             } else if (manualStageSettingsChanged) {
-                // Only Manual stage settings changed
-                // -> If in Manual stage, just reconfigure; otherwise enter Manual stage
                 if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
-                    configureForManualStage()
-                    // Use full restart for proper Stockfish analysis
-                    restartAnalysisForExploringLine()
+                    analysisOrchestrator.configureForManualStage()
+                    analysisOrchestrator.restartAnalysisForExploringLine()
                 } else {
-                    enterManualStageAtCurrentPosition()
+                    analysisOrchestrator.enterManualStageAtCurrentPosition()
                 }
             }
         }
@@ -1926,57 +753,41 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateStockfishSettings(settings: StockfishSettings) {
         saveStockfishSettings(settings)
-        _uiState.value = _uiState.value.copy(
-            stockfishSettings = settings
-        )
-        // Apply new settings to Stockfish based on current stage
+        _uiState.value = _uiState.value.copy(stockfishSettings = settings)
         if (_uiState.value.stockfishReady) {
             when (_uiState.value.currentStage) {
-                AnalysisStage.PREVIEW -> configureForPreviewStage()
-                AnalysisStage.ANALYSE -> configureForAnalyseStage()
-                AnalysisStage.MANUAL -> configureForManualStage()
+                AnalysisStage.PREVIEW -> analysisOrchestrator.configureForPreviewStage()
+                AnalysisStage.ANALYSE -> analysisOrchestrator.configureForAnalyseStage()
+                AnalysisStage.MANUAL -> analysisOrchestrator.configureForManualStage()
             }
             if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
-                // Use full restart for proper Stockfish analysis
-                restartAnalysisForExploringLine()
+                analysisOrchestrator.restartAnalysisForExploringLine()
             }
         }
     }
 
     fun updateBoardLayoutSettings(settings: BoardLayoutSettings) {
         saveBoardLayoutSettings(settings)
-        _uiState.value = _uiState.value.copy(
-            boardLayoutSettings = settings
-        )
+        _uiState.value = _uiState.value.copy(boardLayoutSettings = settings)
     }
 
     fun updateGraphSettings(settings: GraphSettings) {
         saveGraphSettings(settings)
-        _uiState.value = _uiState.value.copy(
-            graphSettings = settings
-        )
+        _uiState.value = _uiState.value.copy(graphSettings = settings)
     }
 
     fun updateInterfaceVisibilitySettings(settings: InterfaceVisibilitySettings) {
         val currentSettings = _uiState.value.interfaceVisibility
 
-        // Check if Preview or Analyse stage visibility changed
         val previewChanged = currentSettings.previewStage != settings.previewStage
         val analyseChanged = currentSettings.analyseStage != settings.analyseStage
 
         saveInterfaceVisibilitySettings(settings)
-        _uiState.value = _uiState.value.copy(
-            interfaceVisibility = settings
-        )
+        _uiState.value = _uiState.value.copy(interfaceVisibility = settings)
 
-        // If Preview or Analyse stage visibility changed, restart from Preview stage
         if ((previewChanged || analyseChanged) && _uiState.value.game != null) {
-            // Cancel any ongoing analysis
-            autoAnalysisJob?.cancel()
-            manualAnalysisJob?.cancel()
-            stockfish.stop()
+            analysisOrchestrator.stop()
 
-            // Reset to Preview stage and restart analysis
             _uiState.value = _uiState.value.copy(
                 currentStage = AnalysisStage.PREVIEW,
                 previewScores = emptyMap(),
@@ -1984,13 +795,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 autoAnalysisIndex = -1
             )
 
-            // Restart analysis from Preview stage
             viewModelScope.launch {
                 val ready = stockfish.restart()
                 _uiState.value = _uiState.value.copy(stockfishReady = ready)
                 if (ready) {
                     stockfish.newGame()
-                    startAnalysis()
+                    analysisOrchestrator.startAnalysis()
                 }
             }
         }
@@ -2007,14 +817,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateAiSettings(settings: AiSettings) {
         saveAiSettings(settings)
-        _uiState.value = _uiState.value.copy(
-            aiSettings = settings
-        )
+        _uiState.value = _uiState.value.copy(aiSettings = settings)
     }
 
-    /**
-     * Request AI analysis for the current position using the specified AI service.
-     */
+    // ===== AI ANALYSIS =====
     fun requestAiAnalysis(service: AiService) {
         val apiKey = _uiState.value.aiSettings.getApiKey(service)
         if (apiKey.isBlank()) {
@@ -2049,7 +855,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 AiService.GROK -> aiSettings.grokPrompt
                 AiService.DEEPSEEK -> aiSettings.deepSeekPrompt
                 AiService.MISTRAL -> aiSettings.mistralPrompt
-                AiService.DUMMY -> ""  // Dummy doesn't use prompt
+                AiService.DUMMY -> ""
             }
             val result = aiAnalysisRepository.analyzePosition(
                 service = service,
@@ -2070,9 +876,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Dismiss the AI analysis dialog.
-     */
     fun dismissAiAnalysisDialog() {
         _uiState.value = _uiState.value.copy(
             showAiAnalysisDialog = false,
@@ -2081,791 +884,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    /**
-     * Show player info for the specified username.
-     * Determines the server from the current game context.
-     * If activeServer is null (e.g., PGN file), triggers a Google search instead.
-     */
-    fun showPlayerInfo(username: String) {
-        val server = _uiState.value.activeServer
-        if (server != null) {
-            showPlayerInfo(username, server)
-        } else {
-            // No server context (PGN file) - trigger Google search
-            _uiState.value = _uiState.value.copy(
-                googleSearchPlayerName = username
-            )
-        }
-    }
-
-    /**
-     * Clear the Google search state after it's been handled.
-     */
-    fun clearGoogleSearch() {
-        _uiState.value = _uiState.value.copy(
-            googleSearchPlayerName = null
-        )
-    }
-
-    /**
-     * Show player info for the specified username and server.
-     * If player is not found on the server (e.g., broadcast players), falls back to Google search.
-     */
-    fun showPlayerInfo(username: String, server: ChessServer) {
-        _uiState.value = _uiState.value.copy(
-            showPlayerInfoScreen = true,
-            playerInfoLoading = true,
-            playerInfo = null,
-            playerInfoError = null,
-            playerGames = emptyList(),
-            playerGamesLoading = true,
-            playerGamesPage = 0,
-            playerGamesHasMore = true
-        )
-
-        viewModelScope.launch {
-            // Fetch player info
-            val result = repository.getPlayerInfo(username, server)
-            when (result) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        playerInfoLoading = false,
-                        playerInfo = result.data,
-                        playerInfoError = null
-                    )
-                    // Fetch first batch of games (10)
-                    fetchPlayerGames(username, server, 10)
-                }
-                is Result.Error -> {
-                    // Player not found on server - fall back to Google search
-                    _uiState.value = _uiState.value.copy(
-                        showPlayerInfoScreen = false,
-                        playerInfoLoading = false,
-                        playerInfo = null,
-                        playerInfoError = null,
-                        googleSearchPlayerName = username
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Fetch games for the player info screen.
-     */
-    private suspend fun fetchPlayerGames(username: String, server: ChessServer, count: Int) {
-        val gamesResult = when (server) {
-            ChessServer.LICHESS -> repository.getLichessGames(username, count)
-            ChessServer.CHESS_COM -> repository.getChessComGames(username, count)
-        }
-        when (gamesResult) {
-            is Result.Success -> {
-                val fetchedGames = gamesResult.data
-                _uiState.value = _uiState.value.copy(
-                    playerGames = fetchedGames,
-                    playerGamesLoading = false,
-                    playerGamesHasMore = fetchedGames.size >= count
-                )
-            }
-            is Result.Error -> {
-                _uiState.value = _uiState.value.copy(
-                    playerGames = emptyList(),
-                    playerGamesLoading = false,
-                    playerGamesHasMore = false
-                )
-            }
-        }
-    }
-
-    /**
-     * Navigate to next page of player games.
-     * Fetches more games if needed.
-     */
-    fun nextPlayerGamesPage() {
-        val currentPage = _uiState.value.playerGamesPage
-        val pageSize = _uiState.value.playerGamesPageSize
-        val currentGames = _uiState.value.playerGames
-        val hasMore = _uiState.value.playerGamesHasMore
-        val playerInfo = _uiState.value.playerInfo ?: return
-
-        val nextPageStartIndex = (currentPage + 1) * pageSize
-
-        // Check if we need to fetch more games
-        if (nextPageStartIndex >= currentGames.size && hasMore) {
-            // Need to fetch more games
-            _uiState.value = _uiState.value.copy(playerGamesLoading = true)
-
-            viewModelScope.launch {
-                val newCount = currentGames.size + pageSize
-                val gamesResult = when (playerInfo.server) {
-                    ChessServer.LICHESS -> repository.getLichessGames(playerInfo.username, newCount)
-                    ChessServer.CHESS_COM -> repository.getChessComGames(playerInfo.username, newCount)
-                }
-                when (gamesResult) {
-                    is Result.Success -> {
-                        val fetchedGames = gamesResult.data
-                        val gotMoreGames = fetchedGames.size > currentGames.size
-                        _uiState.value = _uiState.value.copy(
-                            playerGames = fetchedGames,
-                            playerGamesLoading = false,
-                            playerGamesPage = if (gotMoreGames) currentPage + 1 else currentPage,
-                            playerGamesHasMore = fetchedGames.size >= newCount
-                        )
-                    }
-                    is Result.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            playerGamesLoading = false,
-                            playerGamesHasMore = false
-                        )
-                    }
-                }
-            }
-        } else if (nextPageStartIndex < currentGames.size) {
-            // We already have the games, just change page
-            _uiState.value = _uiState.value.copy(playerGamesPage = currentPage + 1)
-        }
-    }
-
-    /**
-     * Navigate to previous page of player games.
-     * No fetch needed since we keep the history.
-     */
-    fun previousPlayerGamesPage() {
-        val currentPage = _uiState.value.playerGamesPage
-        if (currentPage > 0) {
-            _uiState.value = _uiState.value.copy(playerGamesPage = currentPage - 1)
-        }
-    }
-
-    /**
-     * Select a game from the player info screen and start analysis.
-     */
-    fun selectGameFromPlayerInfo(game: LichessGame) {
-        val playerInfo = _uiState.value.playerInfo ?: return
-        val server = playerInfo.server
-
-        // Dismiss player info screen
-        _uiState.value = _uiState.value.copy(
-            showPlayerInfoScreen = false,
-            playerInfo = null,
-            playerGames = emptyList(),
-            playerGamesPage = 0,
-            playerGamesHasMore = true
-        )
-
-        // Load the game and start analysis
-        loadGame(game, server, playerInfo.username)
-    }
-
-    /**
-     * Dismiss the player info screen.
-     */
-    fun dismissPlayerInfo() {
-        _uiState.value = _uiState.value.copy(
-            showPlayerInfoScreen = false,
-            playerInfo = null,
-            playerInfoLoading = false,
-            playerInfoError = null
-        )
-    }
-
-    /**
-     * Show top rankings screen for a given chess server.
-     */
-    fun showTopRankings(server: ChessServer) {
-        _uiState.value = _uiState.value.copy(
-            showTopRankingsScreen = true,
-            topRankingsServer = server,
-            topRankingsLoading = true,
-            topRankingsError = null,
-            topRankings = emptyMap()
-        )
-
-        viewModelScope.launch {
-            val result = when (server) {
-                ChessServer.LICHESS -> repository.getLichessLeaderboard()
-                ChessServer.CHESS_COM -> repository.getChessComLeaderboard()
-            }
-
-            when (result) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        topRankingsLoading = false,
-                        topRankings = result.data,
-                        topRankingsError = null
-                    )
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        topRankingsLoading = false,
-                        topRankingsError = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Dismiss top rankings screen.
-     */
-    fun dismissTopRankings() {
-        _uiState.value = _uiState.value.copy(
-            showTopRankingsScreen = false,
-            topRankings = emptyMap(),
-            topRankingsLoading = false,
-            topRankingsError = null
-        )
-    }
-
-    /**
-     * Select a player from top rankings to show their info.
-     */
-    fun selectTopRankingPlayer(username: String, server: ChessServer) {
-        // First dismiss the top rankings screen
-        _uiState.value = _uiState.value.copy(
-            showTopRankingsScreen = false,
-            topRankings = emptyMap()
-        )
-        // Then show the player info
-        showPlayerInfo(username, server)
-    }
-
-    // ==================== TOURNAMENTS ====================
-
-    /**
-     * Show tournaments list for a chess server.
-     */
-    fun showTournaments(server: ChessServer) {
-        _uiState.value = _uiState.value.copy(
-            showTournamentsScreen = true,
-            tournamentsServer = server,
-            tournamentsLoading = true,
-            tournamentsError = null,
-            tournamentsList = emptyList(),
-            selectedTournament = null,
-            tournamentGames = emptyList()
-        )
-
-        viewModelScope.launch {
-            // Currently only Lichess tournaments are supported
-            if (server == ChessServer.LICHESS) {
-                when (val result = repository.getLichessTournaments()) {
-                    is Result.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            tournamentsLoading = false,
-                            tournamentsList = result.data
-                        )
-                    }
-                    is Result.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            tournamentsLoading = false,
-                            tournamentsError = result.message
-                        )
-                    }
-                }
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    tournamentsLoading = false,
-                    tournamentsError = "Chess.com tournaments not yet supported"
-                )
-            }
-        }
-    }
-
-    /**
-     * Select a tournament to view its games.
-     */
-    fun selectTournament(tournament: com.eval.data.TournamentInfo) {
-        _uiState.value = _uiState.value.copy(
-            selectedTournament = tournament,
-            tournamentGamesLoading = true,
-            tournamentGames = emptyList()
-        )
-
-        viewModelScope.launch {
-            when (val result = repository.getLichessTournamentGames(tournament.id)) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        tournamentGamesLoading = false,
-                        tournamentGames = result.data
-                    )
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        tournamentGamesLoading = false,
-                        tournamentsError = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Go back from tournament games to tournament list.
-     */
-    fun backToTournamentList() {
-        _uiState.value = _uiState.value.copy(
-            selectedTournament = null,
-            tournamentGames = emptyList()
-        )
-    }
-
-    /**
-     * Dismiss tournaments screen.
-     */
-    fun dismissTournaments() {
-        _uiState.value = _uiState.value.copy(
-            showTournamentsScreen = false,
-            tournamentsList = emptyList(),
-            selectedTournament = null,
-            tournamentGames = emptyList(),
-            tournamentsError = null
-        )
-    }
-
-    /**
-     * Select a game from tournament (white is active player).
-     */
-    fun selectTournamentGame(game: LichessGame) {
-        dismissTournaments()
-        // Set white as active player since we don't have a specific user
-        val whiteName = game.players.white.user?.name ?: "White"
-        loadGame(game, _uiState.value.tournamentsServer, whiteName)
-    }
-
-    // ==================== BROADCASTS ====================
-
-    /**
-     * Show broadcasts list (Lichess only).
-     */
-    fun showBroadcasts() {
-        _uiState.value = _uiState.value.copy(
-            showBroadcastsScreen = true,
-            broadcastsLoading = true,
-            broadcastsError = null,
-            broadcastsList = emptyList(),
-            selectedBroadcast = null,
-            broadcastGames = emptyList()
-        )
-
-        viewModelScope.launch {
-            when (val result = repository.getLichessBroadcasts()) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        broadcastsLoading = false,
-                        broadcastsList = result.data
-                    )
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        broadcastsLoading = false,
-                        broadcastsError = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Select a broadcast to view its rounds or games.
-     * If the broadcast has only 1 round, go directly to games.
-     * If it has multiple rounds, show round selection.
-     */
-    fun selectBroadcast(broadcast: com.eval.data.BroadcastInfo) {
-        if (broadcast.rounds.isEmpty()) {
-            _uiState.value = _uiState.value.copy(
-                broadcastsError = "No rounds available for this broadcast"
-            )
-            return
-        }
-
-        // If only one round, select it automatically
-        if (broadcast.rounds.size == 1) {
-            _uiState.value = _uiState.value.copy(
-                selectedBroadcast = broadcast
-            )
-            selectBroadcastRound(broadcast.rounds.first())
-            return
-        }
-
-        // Multiple rounds - show round selection
-        _uiState.value = _uiState.value.copy(
-            selectedBroadcast = broadcast,
-            selectedBroadcastRound = null,
-            broadcastGames = emptyList()
-        )
-    }
-
-    /**
-     * Select a round from a broadcast to view its games.
-     */
-    fun selectBroadcastRound(round: com.eval.data.BroadcastRoundInfo) {
-        val broadcast = _uiState.value.selectedBroadcast ?: return
-
-        _uiState.value = _uiState.value.copy(
-            selectedBroadcastRound = round,
-            broadcastGamesLoading = true,
-            broadcastGames = emptyList()
-        )
-
-        viewModelScope.launch {
-            when (val result = repository.getLichessBroadcastGames(broadcast.id, round.id)) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        broadcastGamesLoading = false,
-                        broadcastGames = result.data
-                    )
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        broadcastGamesLoading = false,
-                        broadcastsError = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Go back from broadcast games/rounds to appropriate level.
-     */
-    fun backToBroadcastList() {
-        val currentState = _uiState.value
-
-        // If viewing games, go back to rounds (if multiple) or broadcasts
-        if (currentState.selectedBroadcastRound != null) {
-            val broadcast = currentState.selectedBroadcast
-            if (broadcast != null && broadcast.rounds.size > 1) {
-                // Go back to round selection
-                _uiState.value = currentState.copy(
-                    selectedBroadcastRound = null,
-                    broadcastGames = emptyList()
-                )
-                return
-            }
-        }
-
-        // Go back to broadcast list
-        _uiState.value = currentState.copy(
-            selectedBroadcast = null,
-            selectedBroadcastRound = null,
-            broadcastGames = emptyList()
-        )
-    }
-
-    /**
-     * Dismiss broadcasts screen.
-     */
-    fun dismissBroadcasts() {
-        _uiState.value = _uiState.value.copy(
-            showBroadcastsScreen = false,
-            broadcastsList = emptyList(),
-            selectedBroadcast = null,
-            selectedBroadcastRound = null,
-            broadcastGames = emptyList(),
-            broadcastsError = null
-        )
-    }
-
-    /**
-     * Select a game from broadcast (white is active player).
-     */
-    fun selectBroadcastGame(game: LichessGame) {
-        dismissBroadcasts()
-        val whiteName = game.players.white.user?.name ?: "White"
-        loadGame(game, ChessServer.LICHESS, whiteName)
-    }
-
-    // ==================== PGN FILE ====================
-
-    /**
-     * Load games from PGN file content.
-     * Groups games by Event - if multiple events, navigates to PGN file screen.
-     * If single game, loads it directly.
-     * If single event with multiple games, navigates to PGN file screen.
-     */
-    fun loadGamesFromPgnContent(pgnContent: String, onMultipleEvents: ((Boolean) -> Unit)? = null) {
-        when (val result = repository.parseGamesFromPgnContent(pgnContent)) {
-            is Result.Success -> {
-                val games = result.data
-                if (games.size == 1) {
-                    // Single game - load directly
-                    selectPgnGame(games.first())
-                } else {
-                    // Group games by Event
-                    val gamesByEvent = games.groupBy { game ->
-                        game.pgn?.let { PgnParser.parseHeaders(it)["Event"] } ?: "Unknown Event"
-                    }
-
-                    // Store all games and navigate to PGN file screen
-                    // Note: Keep showRetrieveScreen = true so RetrieveScreen can navigate internally to PGN_FILE
-                    _uiState.value = _uiState.value.copy(
-                        showPgnEventSelection = true,
-                        pgnEvents = gamesByEvent.keys.toList().sorted(),
-                        pgnGamesByEvent = gamesByEvent,
-                        selectedPgnEvent = if (gamesByEvent.size == 1) gamesByEvent.keys.first() else null,
-                        pgnGamesForSelectedEvent = if (gamesByEvent.size == 1) games else emptyList()
-                    )
-                    onMultipleEvents?.invoke(true)
-                }
-            }
-            is Result.Error -> {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = result.message
-                )
-            }
-        }
-    }
-
-    /**
-     * Select an event from PGN file to show its games.
-     */
-    fun selectPgnEvent(event: String) {
-        val games = _uiState.value.pgnGamesByEvent[event] ?: return
-        _uiState.value = _uiState.value.copy(
-            selectedPgnEvent = event,
-            pgnGamesForSelectedEvent = games
-        )
-    }
-
-    /**
-     * Go back from PGN games to event list.
-     */
-    fun backToPgnEventList() {
-        _uiState.value = _uiState.value.copy(
-            selectedPgnEvent = null,
-            pgnGamesForSelectedEvent = emptyList()
-        )
-    }
-
-    /**
-     * Dismiss PGN event selection.
-     */
-    fun dismissPgnEventSelection() {
-        _uiState.value = _uiState.value.copy(
-            showPgnEventSelection = false,
-            pgnEvents = emptyList(),
-            pgnGamesByEvent = emptyMap(),
-            selectedPgnEvent = null,
-            pgnGamesForSelectedEvent = emptyList()
-        )
-    }
-
-    /**
-     * Select a game from PGN event screen.
-     */
-    fun selectPgnGameFromEvent(game: LichessGame) {
-        dismissPgnEventSelection()
-        val whiteName = game.players.white.user?.name ?: "White"
-        loadGame(game, null, whiteName)
-    }
-
-    /**
-     * Select a game from PGN file (white is active player).
-     */
-    fun selectPgnGame(game: LichessGame) {
-        _uiState.value = _uiState.value.copy(
-            showGameSelection = false,
-            showRetrieveScreen = false,
-            showPgnEventSelection = false,
-            pgnEvents = emptyList(),
-            pgnGamesByEvent = emptyMap()
-        )
-        val whiteName = game.players.white.user?.name ?: "White"
-        loadGame(game, null, whiteName)
-    }
-
-    // ==================== LICHESS TV ====================
-
-    /**
-     * Show Lichess TV channels.
-     */
-    fun showLichessTv() {
-        _uiState.value = _uiState.value.copy(
-            showTvScreen = true,
-            tvLoading = true,
-            tvError = null,
-            tvChannels = emptyList()
-        )
-
-        viewModelScope.launch {
-            try {
-                when (val result = repository.getLichessTvChannels()) {
-                    is Result.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            tvLoading = false,
-                            tvChannels = result.data
-                        )
-                    }
-                    is Result.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            tvLoading = false,
-                            tvError = result.message
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    tvLoading = false,
-                    tvError = "Exception: ${e.message}"
-                )
-            }
-        }
-    }
-
-    /**
-     * Select a TV channel game to watch.
-     */
-    fun selectTvGame(channel: com.eval.data.TvChannelInfo) {
-        _uiState.value = _uiState.value.copy(
-            tvLoading = true
-        )
-
-        viewModelScope.launch {
-            when (val result = repository.getLichessGame(channel.gameId)) {
-                is Result.Success -> {
-                    val game = result.data
-                    // Check if game has PGN (live games don't have PGN)
-                    if (game.pgn == null) {
-                        // Try streaming the game to get moves
-                        when (val streamResult = repository.streamLichessGame(channel.gameId)) {
-                            is Result.Success -> {
-                                dismissLichessTv()
-                                val streamedGame = streamResult.data
-                                val whiteName = streamedGame.players.white.user?.name ?: "White"
-                                loadGame(streamedGame, ChessServer.LICHESS, whiteName)
-                            }
-                            is Result.Error -> {
-                                _uiState.value = _uiState.value.copy(
-                                    tvLoading = false,
-                                    tvError = "Live game: ${streamResult.message}"
-                                )
-                            }
-                        }
-                        return@launch
-                    }
-                    dismissLichessTv()
-                    val whiteName = game.players.white.user?.name ?: "White"
-                    loadGame(game, ChessServer.LICHESS, whiteName)
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        tvLoading = false,
-                        tvError = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Dismiss Lichess TV screen.
-     */
-    fun dismissLichessTv() {
-        _uiState.value = _uiState.value.copy(
-            showTvScreen = false,
-            tvLoading = false,
-            tvChannels = emptyList(),
-            tvError = null
-        )
-    }
-
-    // ==================== CHESS.COM DAILY PUZZLE ====================
-
-    /**
-     * Show Chess.com daily puzzle.
-     */
-    fun showDailyPuzzle() {
-        _uiState.value = _uiState.value.copy(
-            showDailyPuzzleScreen = true,
-            dailyPuzzleLoading = true,
-            dailyPuzzle = null
-        )
-
-        viewModelScope.launch {
-            when (val result = repository.getChessComDailyPuzzle()) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        dailyPuzzleLoading = false,
-                        dailyPuzzle = result.data
-                    )
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        dailyPuzzleLoading = false,
-                        errorMessage = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Dismiss daily puzzle screen.
-     */
-    fun dismissDailyPuzzle() {
-        _uiState.value = _uiState.value.copy(
-            showDailyPuzzleScreen = false,
-            dailyPuzzle = null
-        )
-    }
-
-    // ==================== CHESS.COM STREAMERS ====================
-
-    /**
-     * Show Chess.com streamers.
-     */
-    fun showStreamers() {
-        _uiState.value = _uiState.value.copy(
-            showStreamersScreen = true,
-            streamersLoading = true,
-            streamersList = emptyList()
-        )
-
-        viewModelScope.launch {
-            when (val result = repository.getChessComStreamers()) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        streamersLoading = false,
-                        streamersList = result.data
-                    )
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        streamersLoading = false,
-                        errorMessage = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Select a streamer to view their games.
-     */
-    fun selectStreamer(streamer: com.eval.data.StreamerInfo) {
-        dismissStreamers()
-        showPlayerInfo(streamer.username, ChessServer.CHESS_COM)
-    }
-
-    /**
-     * Dismiss streamers screen.
-     */
-    fun dismissStreamers() {
-        _uiState.value = _uiState.value.copy(
-            showStreamersScreen = false,
-            streamersList = emptyList()
-        )
-    }
-
-    /**
-     * Fetch available Gemini models using the provided API key.
-     */
+    // ===== AI MODEL FETCHING =====
     fun fetchChatGptModels(apiKey: String) {
         if (apiKey.isBlank()) return
-
         _uiState.value = _uiState.value.copy(isLoadingChatGptModels = true)
-
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchChatGptModels(apiKey)
             _uiState.value = _uiState.value.copy(
@@ -2877,9 +899,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun fetchGeminiModels(apiKey: String) {
         if (apiKey.isBlank()) return
-
         _uiState.value = _uiState.value.copy(isLoadingGeminiModels = true)
-
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchGeminiModels(apiKey)
             _uiState.value = _uiState.value.copy(
@@ -2889,14 +909,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Fetch available Grok models using the provided API key.
-     */
     fun fetchGrokModels(apiKey: String) {
         if (apiKey.isBlank()) return
-
         _uiState.value = _uiState.value.copy(isLoadingGrokModels = true)
-
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchGrokModels(apiKey)
             _uiState.value = _uiState.value.copy(
@@ -2908,9 +923,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun fetchDeepSeekModels(apiKey: String) {
         if (apiKey.isBlank()) return
-
         _uiState.value = _uiState.value.copy(isLoadingDeepSeekModels = true)
-
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchDeepSeekModels(apiKey)
             _uiState.value = _uiState.value.copy(
@@ -2922,9 +935,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun fetchMistralModels(apiKey: String) {
         if (apiKey.isBlank()) return
-
         _uiState.value = _uiState.value.copy(isLoadingMistralModels = true)
-
         viewModelScope.launch {
             val models = aiAnalysisRepository.fetchMistralModels(apiKey)
             _uiState.value = _uiState.value.copy(
@@ -2934,693 +945,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Toggle full screen mode via long tap.
-     * Directly toggles the fullScreenMode setting.
-     */
+    // ===== MISC =====
+    fun cycleArrowMode() {
+        val currentSettings = _uiState.value.stockfishSettings
+        val currentMode = currentSettings.manualStage.arrowMode
+        val newMode = when (currentMode) {
+            ArrowMode.NONE -> ArrowMode.MAIN_LINE
+            ArrowMode.MAIN_LINE -> ArrowMode.MULTI_LINES
+            ArrowMode.MULTI_LINES -> ArrowMode.NONE
+        }
+        val newSettings = currentSettings.copy(
+            manualStage = currentSettings.manualStage.copy(arrowMode = newMode)
+        )
+        saveStockfishSettings(newSettings)
+        _uiState.value = _uiState.value.copy(stockfishSettings = newSettings)
+    }
+
     fun toggleFullScreen() {
         val currentSettings = _uiState.value.generalSettings
         val newSettings = currentSettings.copy(
             longTapForFullScreen = !currentSettings.longTapForFullScreen
         )
-        _uiState.value = _uiState.value.copy(
-            generalSettings = newSettings
-        )
-    }
-
-    private var manualAnalysisJob: Job? = null
-    private var currentAnalysisFen: String? = null  // Track which FEN is being analyzed
-    private var analysisRequestId: Long = 0  // Incremented for each new analysis request
-
-    /**
-     * Analyze the current position from UI state.
-     * Use analyzePosition(board) when you have the board directly to avoid race conditions.
-     */
-    private fun analyzeCurrentPosition() {
-        analyzePosition(_uiState.value.currentBoard)
-    }
-
-    /**
-     * Analyze a specific board position.
-     * This is the preferred method when you have the board directly (e.g., after navigation).
-     */
-    private fun analyzePosition(board: ChessBoard) {
-        if (!_uiState.value.analysisEnabled) return
-
-        // Cancel any previous manual analysis job
-        manualAnalysisJob?.cancel()
-
-        // Increment request ID to invalidate any pending results from old analyses
-        analysisRequestId++
-        val thisRequestId = analysisRequestId
-
-        // Track which position we're analyzing and clear old result
-        val fenToAnalyze = board.getFen()
-        currentAnalysisFen = fenToAnalyze
-        _uiState.value = _uiState.value.copy(analysisResult = null, analysisResultFen = null)
-
-        // Only run manual analysis in Manual stage
-        if (_uiState.value.currentStage != AnalysisStage.MANUAL) {
-            return
-        }
-
-        // In manual stage: ensure Stockfish card is shown - pass the FEN and request ID
-        manualAnalysisJob = viewModelScope.launch {
-            ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
-        }
-    }
-
-    /**
-     * Ensure Stockfish analysis is running and producing results in manual stage.
-     * If no results come back, restart Stockfish and try again.
-     * @param fen The FEN position to analyze (captured at call time to avoid race conditions)
-     * @param requestId The request ID to validate results against
-     */
-    private suspend fun ensureStockfishAnalysis(fen: String, requestId: Long) {
-        val maxRetries = 2
-        var attempt = 0
-
-        while (attempt < maxRetries) {
-            // Check if Stockfish is ready, restart if not
-            if (!_uiState.value.stockfishReady) {
-                val ready = stockfish.restart()
-                _uiState.value = _uiState.value.copy(stockfishReady = ready)
-                if (!ready) {
-                    attempt++
-                    continue
-                }
-                configureForManualStage()
-            }
-
-            // Start analysis with the FEN that was captured when this analysis was requested
-            val depth = _uiState.value.stockfishSettings.manualStage.depth
-            stockfish.analyze(fen, depth)
-
-            // Wait for results (up to 2 seconds)
-            var waitTime = 0
-            val maxWaitTime = 2000
-            val checkInterval = 50L
-
-            var gotFirstResult = false
-            while (true) {
-                delay(checkInterval)
-
-                // Check if a new analysis request was started - abort this one
-                if (analysisRequestId != requestId) {
-                    return // User navigated away, a new analysis will be started
-                }
-
-                // If we're no longer in manual stage, abort
-                if (_uiState.value.currentStage != AnalysisStage.MANUAL) {
-                    return
-                }
-
-                // Check if we got results directly from Stockfish
-                val result = stockfish.analysisResult.value
-                if (result != null) {
-                    // Double-check request ID before updating UI
-                    if (analysisRequestId == requestId) {
-                        _uiState.value = _uiState.value.copy(
-                            analysisResult = result,
-                            analysisResultFen = fen
-                        )
-                        gotFirstResult = true
-                    } else {
-                        return // Request changed while checking
-                    }
-                }
-
-                // If we haven't got any result after timeout, break to retry
-                if (!gotFirstResult) {
-                    waitTime += checkInterval.toInt()
-                    if (waitTime >= maxWaitTime) {
-                        break
-                    }
-                }
-            }
-
-            // No results after waiting - restart Stockfish and try again
-            android.util.Log.w("GameViewModel", "No Stockfish results after ${maxWaitTime}ms, restarting (attempt ${attempt + 1})")
-
-            stockfish.stop()
-            _uiState.value = _uiState.value.copy(stockfishReady = false)
-
-            val ready = stockfish.restart()
-            _uiState.value = _uiState.value.copy(stockfishReady = ready)
-
-            if (ready) {
-                configureForManualStage()
-            }
-
-            attempt++
-        }
-
-        // Failed to get Stockfish analysis after max retries
-    }
-
-    /**
-     * Build the list of move indices for analysis based on the current stage.
-     * Preview stage: Forward sequence (move 1 to end)
-     * Analyse stage: Backwards sequence (end to move 1), unless board is visible then forward
-     */
-    private fun buildMoveIndices(): List<Int> {
-        val moves = _uiState.value.moves
-        val showBoardInAnalyse = _uiState.value.interfaceVisibility.analyseStage.showBoard
-        return when (_uiState.value.currentStage) {
-            AnalysisStage.PREVIEW -> (0 until moves.size).toList()  // Forward
-            AnalysisStage.ANALYSE -> if (showBoardInAnalyse) {
-                (0 until moves.size).toList()  // Forward when board is visible
-            } else {
-                (moves.size - 1 downTo 0).toList()  // Backwards when board is hidden
-            }
-            AnalysisStage.MANUAL -> emptyList()  // No auto-analysis in manual stage
-        }
-    }
-
-    /**
-     * Start the three-stage analysis flow: Preview → Analyse → Manual.
-     * Each stage kills the current Stockfish process and starts a new one with appropriate settings.
-     */
-    private fun startAnalysis() {
-        if (!_uiState.value.stockfishReady) return
-
-        // Cancel any previous analysis
-        autoAnalysisJob?.cancel()
-
-        autoAnalysisJob = viewModelScope.launch {
-            try {
-                val moves = _uiState.value.moves
-                if (moves.isEmpty()) {
-                    android.util.Log.e("Analysis", "EXIT: moves list is empty")
-                    enterManualStageInternal(-1)
-                    return@launch
-                }
-
-                // Store expected board history size to detect if game was reloaded
-                val expectedBoardHistorySize = boardHistory.size
-                android.util.Log.d("Analysis", "START: moves=${moves.size}, boardHistory=$expectedBoardHistorySize")
-
-                // ===== PREVIEW STAGE =====
-                android.util.Log.d("Analysis", "Starting PREVIEW stage")
-
-                _uiState.value = _uiState.value.copy(
-                    currentStage = AnalysisStage.PREVIEW,
-                    previewScores = emptyMap(),
-                    analyseScores = emptyMap(),
-                    autoAnalysisCurrentScore = null,
-                    remainingAnalysisMoves = buildMoveIndices()
-                )
-
-                // Kill current Stockfish and start new one for Preview stage
-                stockfish.stop()
-                var ready = stockfish.restart()
-                _uiState.value = _uiState.value.copy(stockfishReady = ready)
-                if (!ready) {
-                    android.util.Log.e("Analysis", "Failed to start Stockfish for Preview stage")
-                    enterManualStageInternal(-1)
-                    return@launch
-                }
-
-                stockfish.newGame()
-                configureForPreviewStage()
-                delay(50)
-
-                val previewTimeMs = (_uiState.value.stockfishSettings.previewStage.secondsForMove * 1000).toInt()
-                val previewComplete = runStageAnalysis(
-                    stageName = "PREVIEW",
-                    timePerMoveMs = previewTimeMs,
-                    expectedBoardHistorySize = expectedBoardHistorySize,
-                    storeScore = { moveIndex, score ->
-                        _uiState.value = _uiState.value.copy(
-                            previewScores = _uiState.value.previewScores + (moveIndex to score),
-                            autoAnalysisCurrentScore = score
-                        )
-                    },
-                    configureEngine = { configureForPreviewStage() }
-                )
-
-                if (!previewComplete) {
-                    android.util.Log.d("Analysis", "Preview stage was interrupted or failed")
-                    return@launch
-                }
-
-                // ===== ANALYSE STAGE =====
-                android.util.Log.d("Analysis", "Starting ANALYSE stage")
-
-                _uiState.value = _uiState.value.copy(
-                    currentStage = AnalysisStage.ANALYSE,
-                    autoAnalysisCurrentScore = null,
-                    remainingAnalysisMoves = buildMoveIndices()
-                )
-
-                // Kill current Stockfish and start new one for Analyse stage
-                stockfish.stop()
-                ready = stockfish.restart()
-                _uiState.value = _uiState.value.copy(stockfishReady = ready)
-                if (!ready) {
-                    android.util.Log.e("Analysis", "Failed to start Stockfish for Analyse stage")
-                    enterManualStageInternal(findBiggestScoreChangeMove())
-                    return@launch
-                }
-
-                stockfish.newGame()
-                configureForAnalyseStage()
-                delay(50)
-
-                val analyseTimeMs = (_uiState.value.stockfishSettings.analyseStage.secondsForMove * 1000).toInt()
-                val analyseComplete = runStageAnalysis(
-                    stageName = "ANALYSE",
-                    timePerMoveMs = analyseTimeMs,
-                    expectedBoardHistorySize = expectedBoardHistorySize,
-                    storeScore = { moveIndex, score ->
-                        _uiState.value = _uiState.value.copy(
-                            analyseScores = _uiState.value.analyseScores + (moveIndex to score),
-                            autoAnalysisCurrentScore = score
-                        )
-                    },
-                    configureEngine = { configureForAnalyseStage() }
-                )
-
-                if (!analyseComplete) {
-                    android.util.Log.d("Analysis", "Analyse stage was interrupted")
-                    return@launch
-                }
-
-                // ===== MANUAL STAGE =====
-                android.util.Log.d("Analysis", "Analysis complete, entering MANUAL stage")
-
-                // Store the analysed game before entering manual stage
-                storeAnalysedGame()
-
-                val biggestChangeMoveIndex = findBiggestScoreChangeMove()
-                enterManualStageInternal(biggestChangeMoveIndex)
-
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e // Re-throw to properly cancel
-            } catch (e: Exception) {
-                android.util.Log.e("Analysis", "Error during analysis: ${e.message}")
-                // Enter manual stage on error
-                _uiState.value = _uiState.value.copy(
-                    currentStage = AnalysisStage.MANUAL,
-                    autoAnalysisIndex = -1
-                )
-            }
-        }
-    }
-
-    /**
-     * Run a single stage of analysis (Preview or Analyse).
-     * Returns true if completed successfully, false if interrupted or failed.
-     */
-    private suspend fun runStageAnalysis(
-        stageName: String,
-        timePerMoveMs: Int,
-        expectedBoardHistorySize: Int,
-        storeScore: (Int, MoveScore) -> Unit,
-        configureEngine: () -> Unit
-    ): Boolean {
-        val moveIndices = buildMoveIndices()
-        android.util.Log.d("Analysis", "$stageName: analyzing ${moveIndices.size} moves, time=${timePerMoveMs}ms")
-
-        val remainingMoves = moveIndices.toMutableList()
-        var analyzedCount = 0
-
-        for (moveIndex in moveIndices) {
-            // Check for cancellation
-            kotlinx.coroutines.yield()
-
-            // Check if board history was modified (game reloaded)
-            if (boardHistory.size != expectedBoardHistorySize) {
-                android.util.Log.e("Analysis", "$stageName EXIT: boardHistory changed")
-                return false
-            }
-
-            // Get the board position after this move
-            val board = boardHistory.getOrNull(moveIndex + 1) ?: continue
-
-            // Update remaining moves
-            remainingMoves.remove(moveIndex)
-
-            // Update UI state
-            _uiState.value = _uiState.value.copy(
-                autoAnalysisIndex = moveIndex,
-                currentBoard = board,
-                currentMoveIndex = moveIndex,
-                autoAnalysisCurrentScore = null,
-                analysisResult = null,
-                remainingAnalysisMoves = remainingMoves.toList()
-            )
-
-            val fen = board.getFen()
-
-            // Start analysis with time limit
-            stockfish.analyzeWithTime(fen, timePerMoveMs)
-
-            // Wait for completion
-            val completed = stockfish.waitForCompletion(timePerMoveMs.toLong() + 2000)
-            if (!completed) {
-                stockfish.stop()
-                delay(100)
-            }
-
-            // Check if engine crashed and restart if needed
-            if (!stockfish.isReady.value) {
-                android.util.Log.w("Analysis", "$stageName: Engine died at move $moveIndex, restarting...")
-                val restarted = stockfish.restart()
-                if (restarted) {
-                    stockfish.newGame()
-                    configureEngine()
-                    delay(100)
-
-                    // Retry the failed move
-                    stockfish.analyzeWithTime(fen, timePerMoveMs)
-                    val retryCompleted = stockfish.waitForCompletion(timePerMoveMs.toLong() + 2000)
-                    if (!retryCompleted) {
-                        stockfish.stop()
-                        delay(100)
-                    }
-                } else {
-                    android.util.Log.e("Analysis", "$stageName: Failed to restart engine")
-                    return false
-                }
-            }
-
-            // Check for cancellation after waiting
-            kotlinx.coroutines.yield()
-
-            // Check if board history was modified during wait
-            if (boardHistory.size != expectedBoardHistorySize) {
-                android.util.Log.e("Analysis", "$stageName EXIT after wait: boardHistory changed")
-                return false
-            }
-
-            // Get the current analysis result and store the score
-            val result = stockfish.analysisResult.value
-            if (result != null) {
-                val bestLine = result.bestLine
-                if (bestLine != null) {
-                    analyzedCount++
-                    // Score adjustment: Stockfish gives score from side-to-move's perspective
-                    // We want score from WHITE's perspective (positive = good for white)
-                    val isWhiteToMove = board.getTurn() == com.eval.chess.PieceColor.WHITE
-                    val adjustedScore = if (isWhiteToMove) bestLine.score else -bestLine.score
-                    val adjustedMateIn = if (isWhiteToMove) bestLine.mateIn else -bestLine.mateIn
-
-                    val score = MoveScore(
-                        score = adjustedScore,
-                        isMate = bestLine.isMate,
-                        mateIn = adjustedMateIn,
-                        depth = result.depth,
-                        nodes = result.nodes,
-                        nps = result.nps
-                    )
-                    storeScore(moveIndex, score)
-                }
-            }
-        }
-
-        android.util.Log.d("Analysis", "$stageName completed: analyzed=$analyzedCount out of ${moveIndices.size} moves")
-        return true
-    }
-
-    /**
-     * Find the move index with the biggest score change compared to the previous move.
-     * Uses analyse scores if available, otherwise preview scores.
-     */
-    private fun findBiggestScoreChangeMove(): Int {
-        val scores = _uiState.value.analyseScores.ifEmpty { _uiState.value.previewScores }
-        if (scores.size < 2) return 0
-
-        var maxChange = 0f
-        var maxChangeIndex = 0
-
-        val sortedIndices = scores.keys.sorted()
-        for (i in 1 until sortedIndices.size) {
-            val currentIndex = sortedIndices[i]
-            val prevIndex = sortedIndices[i - 1]
-            val currentScore = scores[currentIndex]?.score ?: continue
-            val prevScore = scores[prevIndex]?.score ?: continue
-
-            val change = kotlin.math.abs(currentScore - prevScore)
-            if (change > maxChange) {
-                maxChange = change
-                maxChangeIndex = currentIndex
-            }
-        }
-
-        return maxChangeIndex
-    }
-
-    /**
-     * Calculate move qualities based on evaluation changes.
-     * Compares each move's score with the previous move of the same color
-     * to determine if it was a blunder, mistake, good move, etc.
-     */
-    private fun calculateMoveQualities(): Map<Int, MoveQuality> {
-        val scores = _uiState.value.analyseScores.ifEmpty { _uiState.value.previewScores }
-        if (scores.isEmpty()) return emptyMap()
-
-        val qualities = mutableMapOf<Int, MoveQuality>()
-        val userPlayedBlack = _uiState.value.userPlayedBlack
-
-        for (moveIndex in scores.keys) {
-            // Compare with previous move of the SAME color (2 plies back)
-            val prevSameColorIndex = moveIndex - 2
-
-            if (prevSameColorIndex < 0) {
-                // First move of this color - consider it normal or book
-                qualities[moveIndex] = MoveQuality.NORMAL
-                continue
-            }
-
-            val currentScore = scores[moveIndex]?.score ?: continue
-            val prevScore = scores[prevSameColorIndex]?.score ?: continue
-
-            // Determine if this move was by the user
-            val isWhiteMove = moveIndex % 2 == 0
-            val isUserMove = if (userPlayedBlack) !isWhiteMove else isWhiteMove
-
-            // Calculate the evaluation change from the user's perspective
-            // Positive change = improvement for user, Negative = worsening
-            val change = if (userPlayedBlack) {
-                -(currentScore - prevScore)  // Invert for black's perspective
-            } else {
-                currentScore - prevScore
-            }
-
-            // Adjust based on whose move it is
-            val adjustedChange = if (isUserMove) change else -change
-
-            // Determine move quality
-            val quality = when {
-                adjustedChange <= -MoveQualityThresholds.BLUNDER -> MoveQuality.BLUNDER
-                adjustedChange <= -MoveQualityThresholds.MISTAKE -> MoveQuality.MISTAKE
-                adjustedChange <= -MoveQualityThresholds.DUBIOUS -> MoveQuality.DUBIOUS
-                adjustedChange >= MoveQualityThresholds.BRILLIANT -> MoveQuality.BRILLIANT
-                adjustedChange >= MoveQualityThresholds.GOOD -> MoveQuality.GOOD
-                else -> MoveQuality.NORMAL
-            }
-
-            qualities[moveIndex] = quality
-        }
-
-        return qualities
-    }
-
-    /**
-     * Internal function to enter Manual stage at a specific move.
-     * Kills current Stockfish and starts a new one configured for Manual stage.
-     */
-    private fun enterManualStageInternal(moveIndex: Int) {
-        // Calculate move qualities before entering manual stage
-        val moveQualities = calculateMoveQualities()
-
-        viewModelScope.launch {
-            // Stop any running analysis
-            autoAnalysisJob?.cancel()
-            stockfish.stop()
-
-            // Navigate to the specified move
-            val validIndex = moveIndex.coerceIn(-1, boardHistory.size - 2)
-            val board = boardHistory.getOrNull(validIndex + 1) ?: ChessBoard()
-
-            val fenToAnalyze = board.getFen()
-            currentAnalysisFen = fenToAnalyze
-            analysisRequestId++
-            val thisRequestId = analysisRequestId
-
-            _uiState.value = _uiState.value.copy(
-                currentStage = AnalysisStage.MANUAL,
-                autoAnalysisIndex = -1,
-                currentMoveIndex = validIndex,
-                currentBoard = board.copy(),
-                autoAnalysisCurrentScore = null,
-                remainingAnalysisMoves = emptyList(),
-                stockfishReady = false,
-                analysisResult = null,
-                analysisResultFen = null,
-                moveQualities = moveQualities
-            )
-
-            // Start new Stockfish process for Manual stage
-            val ready = stockfish.restart()
-            _uiState.value = _uiState.value.copy(stockfishReady = ready)
-
-            if (ready) {
-                delay(200)
-                stockfish.newGame()
-                delay(100)
-                configureForManualStage()
-                delay(100)
-                ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
-                // Fetch opening explorer data for initial position
-                fetchOpeningExplorer()
-            }
-        }
-    }
-
-    /**
-     * Enter Manual stage at the current position.
-     * Called when user interrupts Analyse stage by navigating.
-     */
-    private fun enterManualStageAtCurrentPosition() {
-        val currentIndex = _uiState.value.currentMoveIndex
-        enterManualStageInternal(currentIndex)
-    }
-
-    /**
-     * Enter Manual stage at the move with the biggest score change.
-     * Called when user clicks the stage indicator bar during Analyse stage.
-     */
-    fun enterManualStageAtBiggestChange() {
-        if (_uiState.value.currentStage != AnalysisStage.ANALYSE) return
-        val biggestChangeMoveIndex = findBiggestScoreChangeMove()
-        enterManualStageInternal(biggestChangeMoveIndex)
-    }
-
-    /**
-     * Enter Manual stage at a specific move index.
-     * Called when user clicks on the graph during Analyse stage.
-     */
-    fun enterManualStageAtMove(moveIndex: Int) {
-        if (_uiState.value.currentStage == AnalysisStage.PREVIEW) return  // Preview is not interruptible
-        enterManualStageInternal(moveIndex)
-    }
-
-    /**
-     * Make a manual move on the board (from user drag-and-drop).
-     * Only allowed during Manual stage.
-     */
-    fun makeManualMove(from: com.eval.chess.Square, to: com.eval.chess.Square) {
-        // Only allow moves during Manual stage
-        if (_uiState.value.currentStage != AnalysisStage.MANUAL) return
-
-        val currentBoard = _uiState.value.currentBoard
-
-        // Check if move is legal
-        if (!currentBoard.isLegalMove(from, to)) return
-
-        // Handle pawn promotion - default to queen for simplicity
-        val promotion = if (currentBoard.needsPromotion(from, to)) {
-            com.eval.chess.PieceType.QUEEN
-        } else null
-
-        // Make a copy of the board and execute the move
-        val newBoard = currentBoard.copy()
-        if (!newBoard.makeMoveFromSquares(from, to, promotion)) return
-
-        if (_uiState.value.isExploringLine) {
-            // Add the new board position to exploring line history
-            exploringLineHistory.add(newBoard.copy())
-            val newMoveIndex = _uiState.value.exploringLineMoveIndex + 1
-            val uciMove = from.toAlgebraic() + to.toAlgebraic() + (promotion?.let {
-                when (it) {
-                    com.eval.chess.PieceType.QUEEN -> "q"
-                    com.eval.chess.PieceType.ROOK -> "r"
-                    com.eval.chess.PieceType.BISHOP -> "b"
-                    com.eval.chess.PieceType.KNIGHT -> "n"
-                    else -> ""
-                }
-            } ?: "")
-
-            _uiState.value = _uiState.value.copy(
-                currentBoard = newBoard,
-                exploringLineMoves = _uiState.value.exploringLineMoves + uciMove,
-                exploringLineMoveIndex = newMoveIndex
-            )
-        } else {
-            // In main game: enter exploring line mode with this move
-            exploringLineHistory.clear()
-            exploringLineHistory.add(currentBoard.copy()) // Starting position
-            exploringLineHistory.add(newBoard.copy())     // After the move
-
-            val uciMove = from.toAlgebraic() + to.toAlgebraic() + (promotion?.let {
-                when (it) {
-                    com.eval.chess.PieceType.QUEEN -> "q"
-                    com.eval.chess.PieceType.ROOK -> "r"
-                    com.eval.chess.PieceType.BISHOP -> "b"
-                    com.eval.chess.PieceType.KNIGHT -> "n"
-                    else -> ""
-                }
-            } ?: "")
-
-            _uiState.value = _uiState.value.copy(
-                isExploringLine = true,
-                exploringLineMoves = listOf(uciMove),
-                exploringLineMoveIndex = 0,
-                savedGameMoveIndex = _uiState.value.currentMoveIndex,
-                currentBoard = newBoard
-            )
-        }
-
-        // Run Stockfish analysis on the new position - use full restart similar to navigation
-        restartAnalysisForExploringLine()
-    }
-
-    /**
-     * Restart Stockfish analysis for exploring line moves.
-     * Similar to restartAnalysisAtMove but uses the current board position.
-     */
-    private fun restartAnalysisForExploringLine() {
-        // Cancel any running analysis
-        manualAnalysisJob?.cancel()
-
-        viewModelScope.launch {
-            // Stop Stockfish completely
-            stockfish.stop()
-
-            // Increment request ID to invalidate any pending results
-            analysisRequestId++
-            val thisRequestId = analysisRequestId
-
-            // Get the current board (already set by makeManualMove)
-            val board = _uiState.value.currentBoard
-            val fenToAnalyze = board.getFen()
-            currentAnalysisFen = fenToAnalyze
-
-            // Clear analysis result but keep UI stable
-            _uiState.value = _uiState.value.copy(
-                analysisResultFen = null  // Mark as stale, but keep result for UI stability
-            )
-
-            // Small delay to ensure Stockfish has stopped
-            delay(50)
-
-            // Send new game command to clear Stockfish's internal state
-            stockfish.newGame()
-            delay(50)
-
-            // Start fresh analysis
-            if (_uiState.value.currentStage == AnalysisStage.MANUAL) {
-                ensureStockfishAnalysis(fenToAnalyze, thisRequestId)
-            }
-        }
+        _uiState.value = _uiState.value.copy(generalSettings = newSettings)
     }
 
     override fun onCleared() {
         super.onCleared()
-        autoAnalysisJob?.cancel()
-        manualAnalysisJob?.cancel()
+        analysisOrchestrator.autoAnalysisJob?.cancel()
+        analysisOrchestrator.manualAnalysisJob?.cancel()
+        openingExplorerJob?.cancel()
+        liveGameManager.cancel()
         stockfish.shutdown()
         moveSoundPlayer.release()
     }
