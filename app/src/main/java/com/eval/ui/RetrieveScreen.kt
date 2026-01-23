@@ -83,9 +83,15 @@ fun RetrieveScreen(
             onGameSelected = { game -> viewModel.selectGameFromPlayerInfo(game) },
             onAiReportsClick = {
                 uiState.playerInfo?.let { info ->
-                    val serverName = when (info.server) {
-                        com.eval.data.ChessServer.LICHESS -> "lichess.org"
-                        com.eval.data.ChessServer.CHESS_COM -> "chess.com"
+                    // If there's a profile error (e.g., "Profile not found"), use null for server
+                    // to trigger the "Other Player Prompt" instead of "Server Player Prompt"
+                    val serverName = if (uiState.playerInfoError != null) {
+                        null
+                    } else {
+                        when (info.server) {
+                            com.eval.data.ChessServer.LICHESS -> "lichess.org"
+                            com.eval.data.ChessServer.CHESS_COM -> "chess.com"
+                        }
                     }
                     viewModel.showPlayerAiReportsSelectionDialog(info.username, serverName, info)
                 }

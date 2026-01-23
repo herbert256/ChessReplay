@@ -52,7 +52,25 @@ const val DEFAULT_SERVER_PLAYER_PROMPT = """What do you know about user @PLAYER@
 /**
  * Default prompt template for other player analysis.
  */
-const val DEFAULT_OTHER_PLAYER_PROMPT = """Please give a report about chess player @PLAYER@. What is the good and the bad about this player? Is there any gossip on the internet?"""
+const val DEFAULT_OTHER_PLAYER_PROMPT = """You are a professional chess journalist. Write a profile of the chess player @PLAYER@ (1000 words) for a serious publication.
+
+Rules: Do not invent facts, quotes, games, ratings, titles, events, or personal details. If info is missing or uncertain, say so and label it 'unverified' or 'unknown.' If web access exists, verify key facts via reputable sources (e.g., FIDE, national federation, major chess media) and list sources at the end.
+
+Must cover (with subheadings):
+
+Career timeline + key results + rating/title context (only if verified)
+
+Playing style: openings, strengths/weaknesses, psychology—grounded in evidence
+
+2–3 signature games (human explanation; minimal notation; no engine-dump)
+
+Rivalries/peers and place in today's chess landscape
+
+Off-the-board work (coaching/streaming/writing/sponsors/controversies—verified only)
+
+Current form (last 12 months) and realistic outlook
+
+End with a tight conclusion"""
 
 /**
  * Enum for model source - API (fetched from provider) or Manual (user-maintained list)
