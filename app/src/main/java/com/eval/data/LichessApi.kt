@@ -99,6 +99,122 @@ data class LichessLeaderboardPlayer(
     val perfs: Map<String, LichessPerf>?
 )
 
+/**
+ * Lichess tournament data
+ */
+data class LichessTournament(
+    val id: String,
+    val fullName: String?,
+    val name: String?,
+    val createdBy: String?,
+    val clock: LichessTournamentClock?,
+    val minutes: Int?,
+    val nbPlayers: Int?,
+    val status: Int?,  // 10=created, 20=started, 30=finished
+    val startsAt: Long?,
+    val finishesAt: Long?,
+    val variant: LichessVariant?,
+    val rated: Boolean?,
+    val perf: LichessTournamentPerf?,
+    val secondsToStart: Int?,
+    val secondsToFinish: Int?
+)
+
+data class LichessTournamentClock(
+    val limit: Int?,
+    val increment: Int?
+)
+
+data class LichessVariant(
+    val key: String?,
+    val short: String?,
+    val name: String?
+)
+
+data class LichessTournamentPerf(
+    val key: String?,
+    val name: String?,
+    val icon: String?
+)
+
+data class LichessTournamentList(
+    val created: List<LichessTournament>?,
+    val started: List<LichessTournament>?,
+    val finished: List<LichessTournament>?
+)
+
+/**
+ * Lichess broadcast data
+ */
+data class LichessBroadcast(
+    val tour: LichessBroadcastTour?,
+    val rounds: List<LichessBroadcastRound>?
+)
+
+data class LichessBroadcastTour(
+    val id: String?,
+    val name: String?,
+    val slug: String?,
+    val description: String?,
+    val createdAt: Long?,
+    val tier: Int?
+)
+
+data class LichessBroadcastRound(
+    val id: String?,
+    val name: String?,
+    val slug: String?,
+    val createdAt: Long?,
+    val startsAt: Long?,
+    val ongoing: Boolean?,
+    val finished: Boolean?,
+    val url: String?
+)
+
+data class LichessBroadcastPage(
+    val currentPage: Int?,
+    val maxPerPage: Int?,
+    val currentPageResults: List<LichessBroadcast>?,
+    val nbResults: Int?,
+    val previousPage: Int?,
+    val nextPage: Int?,
+    val nbPages: Int?
+)
+
+/**
+ * Lichess TV channels
+ */
+data class LichessTvChannels(
+    val bot: LichessTvGame?,
+    val blitz: LichessTvGame?,
+    val racingKings: LichessTvGame?,
+    val ultraBullet: LichessTvGame?,
+    val bullet: LichessTvGame?,
+    val classical: LichessTvGame?,
+    val threeCheck: LichessTvGame?,
+    val antichess: LichessTvGame?,
+    val computer: LichessTvGame?,
+    val horde: LichessTvGame?,
+    val rapid: LichessTvGame?,
+    val atomic: LichessTvGame?,
+    val crazyhouse: LichessTvGame?,
+    val chess960: LichessTvGame?,
+    val kingOfTheHill: LichessTvGame?,
+    val topRated: LichessTvGame?
+)
+
+data class LichessTvGame(
+    val user: LichessTvUser?,
+    val rating: Int?,
+    val gameId: String?
+)
+
+data class LichessTvUser(
+    val id: String?,
+    val name: String?,
+    val title: String?
+)
+
 interface LichessApi {
     @GET("api/user/{username}")
     suspend fun getUser(
@@ -116,6 +232,42 @@ interface LichessApi {
 
     @GET("api/player")
     suspend fun getLeaderboard(): Response<LichessLeaderboard>
+
+    // Tournament endpoints
+    @GET("api/tournament")
+    suspend fun getTournaments(): Response<LichessTournamentList>
+
+    @GET("api/tournament/{id}/games")
+    @Headers("Accept: application/x-ndjson")
+    suspend fun getTournamentGames(
+        @Path("id") tournamentId: String,
+        @Query("max") max: Int = 50,
+        @Query("pgnInJson") pgnInJson: Boolean = true,
+        @Query("clocks") clocks: Boolean = true
+    ): Response<String>
+
+    // Broadcast endpoints
+    @GET("api/broadcast?nb=20")
+    suspend fun getBroadcasts(): Response<LichessBroadcastPage>
+
+    @GET("api/broadcast/{broadcastTournamentId}/{broadcastRoundId}")
+    @Headers("Accept: application/x-ndjson")
+    suspend fun getBroadcastRoundPgn(
+        @Path("broadcastTournamentId") tournamentId: String,
+        @Path("broadcastRoundId") roundId: String
+    ): Response<String>
+
+    // TV endpoints
+    @GET("api/tv/channels")
+    suspend fun getTvChannels(): Response<LichessTvChannels>
+
+    @GET("api/game/{gameId}")
+    @Headers("Accept: application/json")
+    suspend fun getGame(
+        @Path("gameId") gameId: String,
+        @Query("pgnInJson") pgnInJson: Boolean = true,
+        @Query("clocks") clocks: Boolean = true
+    ): Response<String>
 
     companion object {
         private const val BASE_URL = "https://lichess.org/"

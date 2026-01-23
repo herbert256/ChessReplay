@@ -34,7 +34,12 @@ private enum class RetrieveSubScreen {
     LICHESS,
     CHESS_COM,
     TOP_RANKINGS_LICHESS,
-    TOP_RANKINGS_CHESS_COM
+    TOP_RANKINGS_CHESS_COM,
+    TOURNAMENTS_LICHESS,
+    BROADCASTS,
+    LICHESS_TV,
+    DAILY_PUZZLE,
+    STREAMERS
 }
 
 /**
@@ -78,8 +83,10 @@ fun RetrieveScreen(
         when (currentScreen) {
             RetrieveSubScreen.MAIN -> onBack()
             RetrieveSubScreen.LICHESS, RetrieveSubScreen.CHESS_COM -> currentScreen = RetrieveSubScreen.MAIN
-            RetrieveSubScreen.TOP_RANKINGS_LICHESS -> currentScreen = RetrieveSubScreen.LICHESS
-            RetrieveSubScreen.TOP_RANKINGS_CHESS_COM -> currentScreen = RetrieveSubScreen.CHESS_COM
+            RetrieveSubScreen.TOP_RANKINGS_LICHESS, RetrieveSubScreen.TOURNAMENTS_LICHESS,
+            RetrieveSubScreen.BROADCASTS, RetrieveSubScreen.LICHESS_TV -> currentScreen = RetrieveSubScreen.LICHESS
+            RetrieveSubScreen.TOP_RANKINGS_CHESS_COM, RetrieveSubScreen.DAILY_PUZZLE,
+            RetrieveSubScreen.STREAMERS -> currentScreen = RetrieveSubScreen.CHESS_COM
         }
     }
 
@@ -99,6 +106,18 @@ fun RetrieveScreen(
                 viewModel.showTopRankings(ChessServer.LICHESS)
                 previousScreen = RetrieveSubScreen.TOP_RANKINGS_LICHESS
                 currentScreen = RetrieveSubScreen.TOP_RANKINGS_LICHESS
+            },
+            onTournamentsClick = {
+                viewModel.showTournaments(ChessServer.LICHESS)
+                currentScreen = RetrieveSubScreen.TOURNAMENTS_LICHESS
+            },
+            onBroadcastsClick = {
+                viewModel.showBroadcasts()
+                currentScreen = RetrieveSubScreen.BROADCASTS
+            },
+            onTvClick = {
+                viewModel.showLichessTv()
+                currentScreen = RetrieveSubScreen.LICHESS_TV
             }
         )
         RetrieveSubScreen.CHESS_COM -> ChessComRetrieveScreen(
@@ -109,6 +128,14 @@ fun RetrieveScreen(
                 viewModel.showTopRankings(ChessServer.CHESS_COM)
                 previousScreen = RetrieveSubScreen.TOP_RANKINGS_CHESS_COM
                 currentScreen = RetrieveSubScreen.TOP_RANKINGS_CHESS_COM
+            },
+            onDailyPuzzleClick = {
+                viewModel.showDailyPuzzle()
+                currentScreen = RetrieveSubScreen.DAILY_PUZZLE
+            },
+            onStreamersClick = {
+                viewModel.showStreamers()
+                currentScreen = RetrieveSubScreen.STREAMERS
             }
         )
         RetrieveSubScreen.TOP_RANKINGS_LICHESS -> TopRankingsScreen(
@@ -129,6 +156,46 @@ fun RetrieveScreen(
             onPlayerClick = { player ->
                 previousScreen = RetrieveSubScreen.TOP_RANKINGS_CHESS_COM
                 viewModel.selectTopRankingPlayer(player.username, ChessServer.CHESS_COM)
+            }
+        )
+        RetrieveSubScreen.TOURNAMENTS_LICHESS -> TournamentsScreen(
+            viewModel = viewModel,
+            uiState = uiState,
+            onBack = {
+                viewModel.dismissTournaments()
+                currentScreen = RetrieveSubScreen.LICHESS
+            }
+        )
+        RetrieveSubScreen.BROADCASTS -> BroadcastsScreen(
+            viewModel = viewModel,
+            uiState = uiState,
+            onBack = {
+                viewModel.dismissBroadcasts()
+                currentScreen = RetrieveSubScreen.LICHESS
+            }
+        )
+        RetrieveSubScreen.LICHESS_TV -> LichessTvScreen(
+            viewModel = viewModel,
+            uiState = uiState,
+            onBack = {
+                viewModel.dismissLichessTv()
+                currentScreen = RetrieveSubScreen.LICHESS
+            }
+        )
+        RetrieveSubScreen.DAILY_PUZZLE -> DailyPuzzleScreen(
+            viewModel = viewModel,
+            uiState = uiState,
+            onBack = {
+                viewModel.dismissDailyPuzzle()
+                currentScreen = RetrieveSubScreen.CHESS_COM
+            }
+        )
+        RetrieveSubScreen.STREAMERS -> StreamersScreen(
+            viewModel = viewModel,
+            uiState = uiState,
+            onBack = {
+                viewModel.dismissStreamers()
+                currentScreen = RetrieveSubScreen.CHESS_COM
             }
         )
     }
@@ -316,7 +383,10 @@ private fun LichessRetrieveScreen(
     viewModel: GameViewModel,
     uiState: GameUiState,
     onBack: () -> Unit,
-    onTopRankingsClick: () -> Unit
+    onTopRankingsClick: () -> Unit,
+    onTournamentsClick: () -> Unit,
+    onBroadcastsClick: () -> Unit,
+    onTvClick: () -> Unit
 ) {
     var username by remember { mutableStateOf(viewModel.savedLichessUsername) }
     val focusManager = LocalFocusManager.current
@@ -429,6 +499,48 @@ private fun LichessRetrieveScreen(
                 )
             }
 
+            // Tournaments button
+            OutlinedButton(
+                onClick = onTournamentsClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF629924)
+                )
+            ) {
+                Text(
+                    text = "Current tournaments",
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            // Broadcasts button
+            OutlinedButton(
+                onClick = onBroadcastsClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF629924)
+                )
+            ) {
+                Text(
+                    text = "Broadcasts (official events)",
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            // Lichess TV button
+            OutlinedButton(
+                onClick = onTvClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF629924)
+                )
+            ) {
+                Text(
+                    text = "Lichess TV",
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
             // Loading indicator
             if (uiState.isLoading) {
                 Box(
@@ -459,7 +571,9 @@ private fun ChessComRetrieveScreen(
     viewModel: GameViewModel,
     uiState: GameUiState,
     onBack: () -> Unit,
-    onTopRankingsClick: () -> Unit
+    onTopRankingsClick: () -> Unit,
+    onDailyPuzzleClick: () -> Unit,
+    onStreamersClick: () -> Unit
 ) {
     var username by remember { mutableStateOf(viewModel.savedChessComUsername) }
     val focusManager = LocalFocusManager.current
@@ -568,6 +682,34 @@ private fun ChessComRetrieveScreen(
             ) {
                 Text(
                     text = "Select from top rankings",
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            // Daily puzzle button
+            OutlinedButton(
+                onClick = onDailyPuzzleClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF769656)
+                )
+            ) {
+                Text(
+                    text = "Daily puzzle",
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            // Streamers button
+            OutlinedButton(
+                onClick = onStreamersClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF769656)
+                )
+            ) {
+                Text(
+                    text = "Streamers",
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
@@ -801,6 +943,798 @@ private fun FormatSection(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+// ==================== TOURNAMENTS SCREEN ====================
+
+/**
+ * Tournaments screen for Lichess.
+ */
+@Composable
+private fun TournamentsScreen(
+    viewModel: GameViewModel,
+    uiState: GameUiState,
+    onBack: () -> Unit
+) {
+    val serverColor = Color(0xFF629924)
+
+    BackHandler {
+        if (uiState.selectedTournament != null) {
+            viewModel.backToTournamentList()
+        } else {
+            onBack()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = {
+                if (uiState.selectedTournament != null) {
+                    viewModel.backToTournamentList()
+                } else {
+                    onBack()
+                }
+            }) {
+                Text("< Back", color = Color.White)
+            }
+            Text(
+                text = if (uiState.selectedTournament != null) "Tournament Games" else "Tournaments",
+                style = MaterialTheme.typography.titleLarge,
+                color = serverColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (uiState.selectedTournament != null) {
+            Text(
+                text = uiState.selectedTournament.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFAAAAAA),
+                modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
+            )
+        } else {
+            Text(
+                text = "lichess.org",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFAAAAAA),
+                modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
+            )
+        }
+
+        // Content
+        when {
+            uiState.tournamentsLoading || uiState.tournamentGamesLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = serverColor)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = if (uiState.tournamentGamesLoading) "Loading games..." else "Loading tournaments...",
+                            color = Color(0xFFAAAAAA)
+                        )
+                    }
+                }
+            }
+            uiState.tournamentsError != null -> {
+                Text(
+                    text = uiState.tournamentsError,
+                    color = Color(0xFFFF5252),
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            uiState.selectedTournament != null -> {
+                // Show tournament games
+                if (uiState.tournamentGames.isEmpty()) {
+                    Text(
+                        text = "No games found in this tournament",
+                        color = Color(0xFFAAAAAA),
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(uiState.tournamentGames) { game ->
+                            TournamentGameRow(
+                                game = game,
+                                onClick = { viewModel.selectTournamentGame(game) }
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                // Show tournament list
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.tournamentsList) { tournament ->
+                        TournamentRow(
+                            tournament = tournament,
+                            serverColor = serverColor,
+                            onClick = { viewModel.selectTournament(tournament) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TournamentRow(
+    tournament: com.eval.data.TournamentInfo,
+    serverColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = tournament.name,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = tournament.status,
+                    color = when (tournament.status) {
+                        "In Progress" -> Color(0xFF00E676)
+                        "Starting Soon" -> Color(0xFFFFD700)
+                        else -> Color(0xFFAAAAAA)
+                    },
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = tournament.timeControl,
+                    color = serverColor,
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = "${tournament.playerCount} players",
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TournamentGameRow(
+    game: com.eval.data.LichessGame,
+    onClick: () -> Unit
+) {
+    val whiteName = game.players.white.user?.name ?: "White"
+    val blackName = game.players.black.user?.name ?: "Black"
+    val result = when (game.winner) {
+        "white" -> "1-0"
+        "black" -> "0-1"
+        null -> if (game.status == "started") "*" else "½-½"
+        else -> "?"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .background(Color(0xFF2A2A2A))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = whiteName,
+            color = Color.White,
+            fontSize = 14.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = result,
+            color = Color(0xFFAAAAAA),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+        Text(
+            text = blackName,
+            color = Color.White,
+            fontSize = 14.sp,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+// ==================== BROADCASTS SCREEN ====================
+
+/**
+ * Broadcasts screen for Lichess official events.
+ */
+@Composable
+private fun BroadcastsScreen(
+    viewModel: GameViewModel,
+    uiState: GameUiState,
+    onBack: () -> Unit
+) {
+    val serverColor = Color(0xFF629924)
+
+    BackHandler {
+        if (uiState.selectedBroadcast != null) {
+            viewModel.backToBroadcastList()
+        } else {
+            onBack()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = {
+                if (uiState.selectedBroadcast != null) {
+                    viewModel.backToBroadcastList()
+                } else {
+                    onBack()
+                }
+            }) {
+                Text("< Back", color = Color.White)
+            }
+            Text(
+                text = if (uiState.selectedBroadcast != null) "Broadcast Games" else "Broadcasts",
+                style = MaterialTheme.typography.titleLarge,
+                color = serverColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (uiState.selectedBroadcast != null) {
+            Text(
+                text = uiState.selectedBroadcast.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFAAAAAA),
+                modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
+            )
+        } else {
+            Text(
+                text = "Official events from lichess.org",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFAAAAAA),
+                modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
+            )
+        }
+
+        // Content
+        when {
+            uiState.broadcastsLoading || uiState.broadcastGamesLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = serverColor)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = if (uiState.broadcastGamesLoading) "Loading games..." else "Loading broadcasts...",
+                            color = Color(0xFFAAAAAA)
+                        )
+                    }
+                }
+            }
+            uiState.broadcastsError != null -> {
+                Text(
+                    text = uiState.broadcastsError,
+                    color = Color(0xFFFF5252),
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            uiState.selectedBroadcast != null -> {
+                // Show broadcast games
+                if (uiState.broadcastGames.isEmpty()) {
+                    Text(
+                        text = "No games found in this broadcast",
+                        color = Color(0xFFAAAAAA),
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(uiState.broadcastGames) { game ->
+                            TournamentGameRow(
+                                game = game,
+                                onClick = { viewModel.selectBroadcastGame(game) }
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                // Show broadcast list
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.broadcastsList) { broadcast ->
+                        BroadcastRow(
+                            broadcast = broadcast,
+                            serverColor = serverColor,
+                            onClick = { viewModel.selectBroadcast(broadcast) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BroadcastRow(
+    broadcast: com.eval.data.BroadcastInfo,
+    serverColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = broadcast.name,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
+                )
+                if (broadcast.ongoing) {
+                    Text(
+                        text = "LIVE",
+                        color = Color(0xFFFF5252),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            broadcast.roundName?.let { roundName ->
+                Text(
+                    text = roundName,
+                    color = serverColor,
+                    fontSize = 12.sp
+                )
+            }
+            broadcast.description?.let { desc ->
+                if (desc.isNotBlank()) {
+                    Text(
+                        text = desc.take(100) + if (desc.length > 100) "..." else "",
+                        color = Color(0xFFAAAAAA),
+                        fontSize = 12.sp,
+                        maxLines = 2
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ==================== LICHESS TV SCREEN ====================
+
+/**
+ * Lichess TV screen showing current top games.
+ */
+@Composable
+private fun LichessTvScreen(
+    viewModel: GameViewModel,
+    uiState: GameUiState,
+    onBack: () -> Unit
+) {
+    val serverColor = Color(0xFF629924)
+
+    BackHandler { onBack() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBack) {
+                Text("< Back", color = Color.White)
+            }
+            Text(
+                text = "Lichess TV",
+                style = MaterialTheme.typography.titleLarge,
+                color = serverColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Text(
+            text = "Current top games",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFAAAAAA),
+            modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
+        )
+
+        // Content
+        when {
+            uiState.tvLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = serverColor)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading TV channels...",
+                            color = Color(0xFFAAAAAA)
+                        )
+                    }
+                }
+            }
+            uiState.tvError != null -> {
+                Text(
+                    text = uiState.tvError,
+                    color = Color(0xFFFF5252),
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            else -> {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.tvChannels) { channel ->
+                        TvChannelRow(
+                            channel = channel,
+                            serverColor = serverColor,
+                            onClick = { viewModel.selectTvGame(channel) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvChannelRow(
+    channel: com.eval.data.TvChannelInfo,
+    serverColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = channel.channelName,
+                    fontWeight = FontWeight.Bold,
+                    color = serverColor,
+                    fontSize = 16.sp
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    channel.playerTitle?.let { title ->
+                        Text(
+                            text = title,
+                            color = Color(0xFFE6A800),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = channel.playerName,
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+            channel.rating?.let { rating ->
+                Text(
+                    text = rating.toString(),
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+// ==================== DAILY PUZZLE SCREEN ====================
+
+/**
+ * Chess.com daily puzzle screen.
+ */
+@Composable
+private fun DailyPuzzleScreen(
+    viewModel: GameViewModel,
+    uiState: GameUiState,
+    onBack: () -> Unit
+) {
+    val serverColor = Color(0xFF769656)
+
+    BackHandler { onBack() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBack) {
+                Text("< Back", color = Color.White)
+            }
+            Text(
+                text = "Daily Puzzle",
+                style = MaterialTheme.typography.titleLarge,
+                color = serverColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Text(
+            text = "chess.com",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFAAAAAA),
+            modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
+        )
+
+        // Content
+        when {
+            uiState.dailyPuzzleLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = serverColor)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading puzzle...",
+                            color = Color(0xFFAAAAAA)
+                        )
+                    }
+                }
+            }
+            uiState.dailyPuzzle != null -> {
+                val puzzle = uiState.dailyPuzzle
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = puzzle.title,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "FEN: ${puzzle.fen}",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Note: Puzzles cannot be loaded as games. Visit chess.com to solve this puzzle.",
+                            color = Color(0xFFFFD700),
+                            fontSize = 14.sp
+                        )
+                        puzzle.url?.let { url ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = url,
+                                color = serverColor,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                Text(
+                    text = "Failed to load puzzle",
+                    color = Color(0xFFAAAAAA),
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
+    }
+}
+
+// ==================== STREAMERS SCREEN ====================
+
+/**
+ * Chess.com streamers screen.
+ */
+@Composable
+private fun StreamersScreen(
+    viewModel: GameViewModel,
+    uiState: GameUiState,
+    onBack: () -> Unit
+) {
+    val serverColor = Color(0xFF769656)
+
+    BackHandler { onBack() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBack) {
+                Text("< Back", color = Color.White)
+            }
+            Text(
+                text = "Streamers",
+                style = MaterialTheme.typography.titleLarge,
+                color = serverColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Text(
+            text = "chess.com streamers",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFAAAAAA),
+            modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
+        )
+
+        // Content
+        when {
+            uiState.streamersLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = serverColor)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading streamers...",
+                            color = Color(0xFFAAAAAA)
+                        )
+                    }
+                }
+            }
+            uiState.streamersList.isEmpty() -> {
+                Text(
+                    text = "No streamers found",
+                    color = Color(0xFFAAAAAA),
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            else -> {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.streamersList) { streamer ->
+                        StreamerRow(
+                            streamer = streamer,
+                            serverColor = serverColor,
+                            onClick = { viewModel.selectStreamer(streamer) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StreamerRow(
+    streamer: com.eval.data.StreamerInfo,
+    serverColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = streamer.username,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontSize = 16.sp
+                )
+                streamer.twitchUrl?.let {
+                    Text(
+                        text = "Twitch",
+                        color = Color(0xFF9146FF),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            if (streamer.isLive) {
+                Text(
+                    text = "LIVE",
+                    color = Color(0xFFFF5252),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

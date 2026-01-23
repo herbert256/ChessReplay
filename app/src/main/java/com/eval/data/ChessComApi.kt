@@ -154,6 +154,101 @@ data class ChessComTrendRank(
     val delta: Int?
 )
 
+/**
+ * Chess.com daily puzzle
+ */
+data class ChessComDailyPuzzle(
+    val title: String?,
+    val url: String?,
+    val publish_time: Long?,
+    val fen: String?,
+    val pgn: String?,
+    val image: String?
+)
+
+/**
+ * Chess.com streamers
+ */
+data class ChessComStreamers(
+    val streamers: List<ChessComStreamer>?
+)
+
+data class ChessComStreamer(
+    val username: String?,
+    val avatar: String?,
+    val twitch_url: String?,
+    val url: String?,
+    val is_live: Boolean?,
+    val is_community_streamer: Boolean?
+)
+
+/**
+ * Chess.com club data
+ */
+data class ChessComClubMatches(
+    val finished: List<ChessComClubMatch>?,
+    val in_progress: List<ChessComClubMatch>?,
+    val registered: List<ChessComClubMatch>?
+)
+
+data class ChessComClubMatch(
+    val name: String?,
+    @com.google.gson.annotations.SerializedName("@id")
+    val id: String?,
+    val opponent: String?,
+    val result: String?,
+    val start_time: Long?,
+    val time_class: String?
+)
+
+data class ChessComMatchDetails(
+    val name: String?,
+    val url: String?,
+    val start_time: Long?,
+    val end_time: Long?,
+    val status: String?,
+    val boards: Int?,
+    val settings: ChessComMatchSettings?,
+    val teams: ChessComMatchTeams?
+)
+
+data class ChessComMatchSettings(
+    val time_class: String?,
+    val time_control: String?,
+    val rules: String?
+)
+
+data class ChessComMatchTeams(
+    val team1: ChessComMatchTeam?,
+    val team2: ChessComMatchTeam?
+)
+
+data class ChessComMatchTeam(
+    val name: String?,
+    val url: String?,
+    val score: Float?,
+    val result: String?,
+    val players: List<ChessComMatchPlayer>?
+)
+
+data class ChessComMatchPlayer(
+    val username: String?,
+    val board: String?,
+    val rating: Int?,
+    val played_as_white: String?,
+    val played_as_black: String?
+)
+
+data class ChessComMatchBoard(
+    val board_scores: ChessComBoardScores?,
+    val games: List<ChessComGame>?
+)
+
+data class ChessComBoardScores(
+    val player1: Float?,
+    val player2: Float?
+)
+
 interface ChessComApi {
     @GET("pub/player/{username}")
     suspend fun getUser(
@@ -179,6 +274,34 @@ interface ChessComApi {
 
     @GET("pub/leaderboards")
     suspend fun getLeaderboards(): Response<ChessComLeaderboards>
+
+    // Daily puzzle
+    @GET("pub/puzzle")
+    suspend fun getDailyPuzzle(): Response<ChessComDailyPuzzle>
+
+    @GET("pub/puzzle/random")
+    suspend fun getRandomPuzzle(): Response<ChessComDailyPuzzle>
+
+    // Streamers
+    @GET("pub/streamers")
+    suspend fun getStreamers(): Response<ChessComStreamers>
+
+    // Club endpoints
+    @GET("pub/club/{urlId}/matches")
+    suspend fun getClubMatches(
+        @Path("urlId") clubUrlId: String
+    ): Response<ChessComClubMatches>
+
+    @GET("pub/match/{matchId}")
+    suspend fun getMatch(
+        @Path("matchId") matchId: String
+    ): Response<ChessComMatchDetails>
+
+    @GET("pub/match/{matchId}/{boardNum}")
+    suspend fun getMatchBoard(
+        @Path("matchId") matchId: String,
+        @Path("boardNum") boardNum: Int
+    ): Response<ChessComMatchBoard>
 
     companion object {
         private const val BASE_URL = "https://api.chess.com/"

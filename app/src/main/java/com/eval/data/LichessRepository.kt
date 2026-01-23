@@ -488,7 +488,419 @@ class ChessRepository(
             Result.Error(e.message ?: "Unknown error occurred")
         }
     }
+
+    /**
+     * Get Lichess current tournaments
+     */
+    suspend fun getLichessTournaments(): Result<List<TournamentInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val response = lichessApi.getTournaments()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch Lichess tournaments")
+            }
+
+            val tournamentList = response.body() ?: return@withContext Result.Error("No tournament data received")
+
+            val result = mutableListOf<TournamentInfo>()
+
+            // Add started tournaments first (most relevant)
+            tournamentList.started?.forEach { t ->
+                result.add(TournamentInfo(
+                    id = t.id,
+                    name = t.fullName ?: t.name ?: "Unknown",
+                    status = "In Progress",
+                    playerCount = t.nbPlayers ?: 0,
+                    startsAt = t.startsAt,
+                    variant = t.variant?.name ?: "Standard",
+                    timeControl = formatTimeControl(t.clock?.limit, t.clock?.increment),
+                    server = ChessServer.LICHESS
+                ))
+            }
+
+            // Add created (upcoming) tournaments
+            tournamentList.created?.take(10)?.forEach { t ->
+                result.add(TournamentInfo(
+                    id = t.id,
+                    name = t.fullName ?: t.name ?: "Unknown",
+                    status = "Starting Soon",
+                    playerCount = t.nbPlayers ?: 0,
+                    startsAt = t.startsAt,
+                    variant = t.variant?.name ?: "Standard",
+                    timeControl = formatTimeControl(t.clock?.limit, t.clock?.increment),
+                    server = ChessServer.LICHESS
+                ))
+            }
+
+            // Add recently finished tournaments
+            tournamentList.finished?.take(10)?.forEach { t ->
+                result.add(TournamentInfo(
+                    id = t.id,
+                    name = t.fullName ?: t.name ?: "Unknown",
+                    status = "Finished",
+                    playerCount = t.nbPlayers ?: 0,
+                    startsAt = t.startsAt,
+                    variant = t.variant?.name ?: "Standard",
+                    timeControl = formatTimeControl(t.clock?.limit, t.clock?.increment),
+                    server = ChessServer.LICHESS
+                ))
+            }
+
+            Result.Success(result)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    private fun formatTimeControl(limitSeconds: Int?, increment: Int?): String {
+        if (limitSeconds == null) return "Unknown"
+        val minutes = limitSeconds / 60
+        return if (increment != null && increment > 0) {
+            "$minutes+$increment"
+        } else {
+            "$minutes min"
+        }
+    }
+
+    /**
+     * Get games from a Lichess tournament
+     */
+    suspend fun getLichessTournamentGames(tournamentId: String): Result<List<LichessGame>> = withContext(Dispatchers.IO) {
+        try {
+            val response = lichessApi.getTournamentGames(tournamentId)
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch tournament games")
+            }
+
+            val body = response.body()
+            if (body.isNullOrBlank()) {
+                return@withContext Result.Error("No games found in this tournament")
+            }
+
+            // Parse NDJSON
+            val games = body.lines()
+                .filter { it.isNotBlank() }
+                .mapNotNull { line ->
+                    try {
+                        gson.fromJson(line, LichessGame::class.java)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+            if (games.isEmpty()) {
+                return@withContext Result.Error("No games found in this tournament")
+            }
+
+            Result.Success(games)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    /**
+     * Get Lichess current broadcasts (official events)
+     */
+    suspend fun getLichessBroadcasts(): Result<List<BroadcastInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val response = lichessApi.getBroadcasts()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch Lichess broadcasts")
+            }
+
+            val broadcastPage = response.body() ?: return@withContext Result.Error("No broadcast data received")
+
+            val result = broadcastPage.currentPageResults?.mapNotNull { broadcast ->
+                val tour = broadcast.tour ?: return@mapNotNull null
+                val latestRound = broadcast.rounds?.firstOrNull { it.ongoing == true }
+                    ?: broadcast.rounds?.firstOrNull()
+
+                BroadcastInfo(
+                    id = tour.id ?: return@mapNotNull null,
+                    name = tour.name ?: "Unknown",
+                    description = tour.description,
+                    roundId = latestRound?.id,
+                    roundName = latestRound?.name,
+                    ongoing = latestRound?.ongoing == true,
+                    startsAt = latestRound?.startsAt,
+                    server = ChessServer.LICHESS
+                )
+            } ?: emptyList()
+
+            Result.Success(result)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    /**
+     * Get games from a Lichess broadcast round
+     */
+    suspend fun getLichessBroadcastGames(tournamentId: String, roundId: String): Result<List<LichessGame>> = withContext(Dispatchers.IO) {
+        try {
+            val response = lichessApi.getBroadcastRoundPgn(tournamentId, roundId)
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch broadcast games")
+            }
+
+            val body = response.body()
+            if (body.isNullOrBlank()) {
+                return@withContext Result.Error("No games found in this broadcast")
+            }
+
+            // Parse NDJSON - each line contains game data
+            val games = body.lines()
+                .filter { it.isNotBlank() }
+                .mapNotNull { line ->
+                    try {
+                        val gameData = gson.fromJson(line, BroadcastGameData::class.java)
+                        convertBroadcastGameToLichessFormat(gameData)
+                    } catch (e: Exception) {
+                        android.util.Log.e("ChessRepository", "Error parsing broadcast game: ${e.message}")
+                        null
+                    }
+                }
+
+            if (games.isEmpty()) {
+                return@withContext Result.Error("No games found in this broadcast")
+            }
+
+            Result.Success(games)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    private fun convertBroadcastGameToLichessFormat(gameData: BroadcastGameData): LichessGame? {
+        val pgn = gameData.pgn ?: return null
+
+        // Parse player names from PGN tags if available
+        val whiteName = extractPgnTag(pgn, "White") ?: "White"
+        val blackName = extractPgnTag(pgn, "Black") ?: "Black"
+        val result = extractPgnTag(pgn, "Result")
+
+        val winner = when (result) {
+            "1-0" -> "white"
+            "0-1" -> "black"
+            else -> null
+        }
+
+        return LichessGame(
+            id = gameData.id ?: java.util.UUID.randomUUID().toString(),
+            rated = false,
+            variant = "standard",
+            speed = "classical",
+            perf = "classical",
+            status = if (result == "*") "started" else "ended",
+            winner = winner,
+            players = Players(
+                white = Player(
+                    user = User(name = whiteName, id = whiteName.lowercase()),
+                    rating = extractPgnTag(pgn, "WhiteElo")?.toIntOrNull(),
+                    aiLevel = null
+                ),
+                black = Player(
+                    user = User(name = blackName, id = blackName.lowercase()),
+                    rating = extractPgnTag(pgn, "BlackElo")?.toIntOrNull(),
+                    aiLevel = null
+                )
+            ),
+            pgn = pgn,
+            moves = null,
+            clock = null,
+            createdAt = null,
+            lastMoveAt = null
+        )
+    }
+
+    private fun extractPgnTag(pgn: String, tagName: String): String? {
+        val regex = """\[$tagName\s+"([^"]+)"\]""".toRegex()
+        return regex.find(pgn)?.groupValues?.get(1)
+    }
+
+    /**
+     * Get Lichess TV channels (current top games)
+     */
+    suspend fun getLichessTvChannels(): Result<List<TvChannelInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val response = lichessApi.getTvChannels()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch Lichess TV channels")
+            }
+
+            val channels = response.body() ?: return@withContext Result.Error("No TV data received")
+
+            val result = mutableListOf<TvChannelInfo>()
+
+            channels.topRated?.let { game ->
+                if (game.gameId != null) {
+                    result.add(TvChannelInfo(
+                        channelName = "Top Rated",
+                        gameId = game.gameId,
+                        playerName = game.user?.name ?: "Unknown",
+                        playerTitle = game.user?.title,
+                        rating = game.rating,
+                        server = ChessServer.LICHESS
+                    ))
+                }
+            }
+            channels.bullet?.let { game ->
+                if (game.gameId != null) {
+                    result.add(TvChannelInfo(
+                        channelName = "Bullet",
+                        gameId = game.gameId,
+                        playerName = game.user?.name ?: "Unknown",
+                        playerTitle = game.user?.title,
+                        rating = game.rating,
+                        server = ChessServer.LICHESS
+                    ))
+                }
+            }
+            channels.blitz?.let { game ->
+                if (game.gameId != null) {
+                    result.add(TvChannelInfo(
+                        channelName = "Blitz",
+                        gameId = game.gameId,
+                        playerName = game.user?.name ?: "Unknown",
+                        playerTitle = game.user?.title,
+                        rating = game.rating,
+                        server = ChessServer.LICHESS
+                    ))
+                }
+            }
+            channels.rapid?.let { game ->
+                if (game.gameId != null) {
+                    result.add(TvChannelInfo(
+                        channelName = "Rapid",
+                        gameId = game.gameId,
+                        playerName = game.user?.name ?: "Unknown",
+                        playerTitle = game.user?.title,
+                        rating = game.rating,
+                        server = ChessServer.LICHESS
+                    ))
+                }
+            }
+            channels.classical?.let { game ->
+                if (game.gameId != null) {
+                    result.add(TvChannelInfo(
+                        channelName = "Classical",
+                        gameId = game.gameId,
+                        playerName = game.user?.name ?: "Unknown",
+                        playerTitle = game.user?.title,
+                        rating = game.rating,
+                        server = ChessServer.LICHESS
+                    ))
+                }
+            }
+            channels.chess960?.let { game ->
+                if (game.gameId != null) {
+                    result.add(TvChannelInfo(
+                        channelName = "Chess960",
+                        gameId = game.gameId,
+                        playerName = game.user?.name ?: "Unknown",
+                        playerTitle = game.user?.title,
+                        rating = game.rating,
+                        server = ChessServer.LICHESS
+                    ))
+                }
+            }
+
+            Result.Success(result)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    /**
+     * Get a single Lichess game by ID
+     */
+    suspend fun getLichessGame(gameId: String): Result<LichessGame> = withContext(Dispatchers.IO) {
+        try {
+            val response = lichessApi.getGame(gameId)
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch game")
+            }
+
+            val body = response.body()
+            if (body.isNullOrBlank()) {
+                return@withContext Result.Error("No game data received")
+            }
+
+            val game = gson.fromJson(body, LichessGame::class.java)
+            Result.Success(game)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    /**
+     * Get Chess.com daily puzzle
+     */
+    suspend fun getChessComDailyPuzzle(): Result<PuzzleInfo> = withContext(Dispatchers.IO) {
+        try {
+            val response = chessComApi.getDailyPuzzle()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch daily puzzle")
+            }
+
+            val puzzle = response.body() ?: return@withContext Result.Error("No puzzle data received")
+
+            Result.Success(PuzzleInfo(
+                title = puzzle.title ?: "Daily Puzzle",
+                fen = puzzle.fen ?: "",
+                pgn = puzzle.pgn,
+                url = puzzle.url,
+                publishTime = puzzle.publish_time,
+                server = ChessServer.CHESS_COM
+            ))
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    /**
+     * Get Chess.com streamers
+     */
+    suspend fun getChessComStreamers(): Result<List<StreamerInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val response = chessComApi.getStreamers()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch streamers")
+            }
+
+            val streamersData = response.body() ?: return@withContext Result.Error("No streamer data received")
+
+            val result = streamersData.streamers?.map { s ->
+                StreamerInfo(
+                    username = s.username ?: "Unknown",
+                    isLive = s.is_live == true,
+                    twitchUrl = s.twitch_url,
+                    profileUrl = s.url,
+                    server = ChessServer.CHESS_COM
+                )
+            } ?: emptyList()
+
+            Result.Success(result)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
 }
+
+/**
+ * Broadcast game data from Lichess API
+ */
+data class BroadcastGameData(
+    val id: String?,
+    val pgn: String?
+)
 
 /**
  * Unified leaderboard player from either Lichess or Chess.com
@@ -497,5 +909,68 @@ data class LeaderboardPlayer(
     val username: String,
     val title: String?,
     val rating: Int?,
+    val server: ChessServer
+)
+
+/**
+ * Tournament info from either Lichess or Chess.com
+ */
+data class TournamentInfo(
+    val id: String,
+    val name: String,
+    val status: String,
+    val playerCount: Int,
+    val startsAt: Long?,
+    val variant: String,
+    val timeControl: String,
+    val server: ChessServer
+)
+
+/**
+ * Broadcast info from Lichess
+ */
+data class BroadcastInfo(
+    val id: String,
+    val name: String,
+    val description: String?,
+    val roundId: String?,
+    val roundName: String?,
+    val ongoing: Boolean,
+    val startsAt: Long?,
+    val server: ChessServer
+)
+
+/**
+ * TV channel info from Lichess
+ */
+data class TvChannelInfo(
+    val channelName: String,
+    val gameId: String,
+    val playerName: String,
+    val playerTitle: String?,
+    val rating: Int?,
+    val server: ChessServer
+)
+
+/**
+ * Puzzle info from Chess.com
+ */
+data class PuzzleInfo(
+    val title: String,
+    val fen: String,
+    val pgn: String?,
+    val url: String?,
+    val publishTime: Long?,
+    val server: ChessServer
+)
+
+/**
+ * Streamer info from Chess.com
+ */
+data class StreamerInfo(
+    val username: String,
+    val isLive: Boolean,
+    val twitchUrl: String?,
+    val profileUrl: String?,
     val server: ChessServer
 )

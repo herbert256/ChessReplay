@@ -1844,6 +1844,365 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         showPlayerInfo(username, server)
     }
 
+    // ==================== TOURNAMENTS ====================
+
+    /**
+     * Show tournaments list for a chess server.
+     */
+    fun showTournaments(server: ChessServer) {
+        _uiState.value = _uiState.value.copy(
+            showTournamentsScreen = true,
+            tournamentsServer = server,
+            tournamentsLoading = true,
+            tournamentsError = null,
+            tournamentsList = emptyList(),
+            selectedTournament = null,
+            tournamentGames = emptyList()
+        )
+
+        viewModelScope.launch {
+            // Currently only Lichess tournaments are supported
+            if (server == ChessServer.LICHESS) {
+                when (val result = repository.getLichessTournaments()) {
+                    is Result.Success -> {
+                        _uiState.value = _uiState.value.copy(
+                            tournamentsLoading = false,
+                            tournamentsList = result.data
+                        )
+                    }
+                    is Result.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            tournamentsLoading = false,
+                            tournamentsError = result.message
+                        )
+                    }
+                }
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    tournamentsLoading = false,
+                    tournamentsError = "Chess.com tournaments not yet supported"
+                )
+            }
+        }
+    }
+
+    /**
+     * Select a tournament to view its games.
+     */
+    fun selectTournament(tournament: com.eval.data.TournamentInfo) {
+        _uiState.value = _uiState.value.copy(
+            selectedTournament = tournament,
+            tournamentGamesLoading = true,
+            tournamentGames = emptyList()
+        )
+
+        viewModelScope.launch {
+            when (val result = repository.getLichessTournamentGames(tournament.id)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        tournamentGamesLoading = false,
+                        tournamentGames = result.data
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        tournamentGamesLoading = false,
+                        tournamentsError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Go back from tournament games to tournament list.
+     */
+    fun backToTournamentList() {
+        _uiState.value = _uiState.value.copy(
+            selectedTournament = null,
+            tournamentGames = emptyList()
+        )
+    }
+
+    /**
+     * Dismiss tournaments screen.
+     */
+    fun dismissTournaments() {
+        _uiState.value = _uiState.value.copy(
+            showTournamentsScreen = false,
+            tournamentsList = emptyList(),
+            selectedTournament = null,
+            tournamentGames = emptyList(),
+            tournamentsError = null
+        )
+    }
+
+    /**
+     * Select a game from tournament (white is active player).
+     */
+    fun selectTournamentGame(game: LichessGame) {
+        dismissTournaments()
+        // Set white as active player since we don't have a specific user
+        val whiteName = game.players.white.user?.name ?: "White"
+        loadGame(game, _uiState.value.tournamentsServer, whiteName)
+    }
+
+    // ==================== BROADCASTS ====================
+
+    /**
+     * Show broadcasts list (Lichess only).
+     */
+    fun showBroadcasts() {
+        _uiState.value = _uiState.value.copy(
+            showBroadcastsScreen = true,
+            broadcastsLoading = true,
+            broadcastsError = null,
+            broadcastsList = emptyList(),
+            selectedBroadcast = null,
+            broadcastGames = emptyList()
+        )
+
+        viewModelScope.launch {
+            when (val result = repository.getLichessBroadcasts()) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        broadcastsLoading = false,
+                        broadcastsList = result.data
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        broadcastsLoading = false,
+                        broadcastsError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Select a broadcast to view its games.
+     */
+    fun selectBroadcast(broadcast: com.eval.data.BroadcastInfo) {
+        if (broadcast.roundId == null) {
+            _uiState.value = _uiState.value.copy(
+                broadcastsError = "No round available for this broadcast"
+            )
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(
+            selectedBroadcast = broadcast,
+            broadcastGamesLoading = true,
+            broadcastGames = emptyList()
+        )
+
+        viewModelScope.launch {
+            when (val result = repository.getLichessBroadcastGames(broadcast.id, broadcast.roundId)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        broadcastGamesLoading = false,
+                        broadcastGames = result.data
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        broadcastGamesLoading = false,
+                        broadcastsError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Go back from broadcast games to broadcast list.
+     */
+    fun backToBroadcastList() {
+        _uiState.value = _uiState.value.copy(
+            selectedBroadcast = null,
+            broadcastGames = emptyList()
+        )
+    }
+
+    /**
+     * Dismiss broadcasts screen.
+     */
+    fun dismissBroadcasts() {
+        _uiState.value = _uiState.value.copy(
+            showBroadcastsScreen = false,
+            broadcastsList = emptyList(),
+            selectedBroadcast = null,
+            broadcastGames = emptyList(),
+            broadcastsError = null
+        )
+    }
+
+    /**
+     * Select a game from broadcast (white is active player).
+     */
+    fun selectBroadcastGame(game: LichessGame) {
+        dismissBroadcasts()
+        val whiteName = game.players.white.user?.name ?: "White"
+        loadGame(game, ChessServer.LICHESS, whiteName)
+    }
+
+    // ==================== LICHESS TV ====================
+
+    /**
+     * Show Lichess TV channels.
+     */
+    fun showLichessTv() {
+        _uiState.value = _uiState.value.copy(
+            showTvScreen = true,
+            tvLoading = true,
+            tvError = null,
+            tvChannels = emptyList()
+        )
+
+        viewModelScope.launch {
+            when (val result = repository.getLichessTvChannels()) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        tvLoading = false,
+                        tvChannels = result.data
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        tvLoading = false,
+                        tvError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Select a TV channel game to watch.
+     */
+    fun selectTvGame(channel: com.eval.data.TvChannelInfo) {
+        _uiState.value = _uiState.value.copy(
+            tvLoading = true
+        )
+
+        viewModelScope.launch {
+            when (val result = repository.getLichessGame(channel.gameId)) {
+                is Result.Success -> {
+                    dismissLichessTv()
+                    val game = result.data
+                    val whiteName = game.players.white.user?.name ?: "White"
+                    loadGame(game, ChessServer.LICHESS, whiteName)
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        tvLoading = false,
+                        tvError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Dismiss Lichess TV screen.
+     */
+    fun dismissLichessTv() {
+        _uiState.value = _uiState.value.copy(
+            showTvScreen = false,
+            tvChannels = emptyList(),
+            tvError = null
+        )
+    }
+
+    // ==================== CHESS.COM DAILY PUZZLE ====================
+
+    /**
+     * Show Chess.com daily puzzle.
+     */
+    fun showDailyPuzzle() {
+        _uiState.value = _uiState.value.copy(
+            showDailyPuzzleScreen = true,
+            dailyPuzzleLoading = true,
+            dailyPuzzle = null
+        )
+
+        viewModelScope.launch {
+            when (val result = repository.getChessComDailyPuzzle()) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        dailyPuzzleLoading = false,
+                        dailyPuzzle = result.data
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        dailyPuzzleLoading = false,
+                        errorMessage = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Dismiss daily puzzle screen.
+     */
+    fun dismissDailyPuzzle() {
+        _uiState.value = _uiState.value.copy(
+            showDailyPuzzleScreen = false,
+            dailyPuzzle = null
+        )
+    }
+
+    // ==================== CHESS.COM STREAMERS ====================
+
+    /**
+     * Show Chess.com streamers.
+     */
+    fun showStreamers() {
+        _uiState.value = _uiState.value.copy(
+            showStreamersScreen = true,
+            streamersLoading = true,
+            streamersList = emptyList()
+        )
+
+        viewModelScope.launch {
+            when (val result = repository.getChessComStreamers()) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        streamersLoading = false,
+                        streamersList = result.data
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        streamersLoading = false,
+                        errorMessage = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Select a streamer to view their games.
+     */
+    fun selectStreamer(streamer: com.eval.data.StreamerInfo) {
+        dismissStreamers()
+        showPlayerInfo(streamer.username, ChessServer.CHESS_COM)
+    }
+
+    /**
+     * Dismiss streamers screen.
+     */
+    fun dismissStreamers() {
+        _uiState.value = _uiState.value.copy(
+            showStreamersScreen = false,
+            streamersList = emptyList()
+        )
+    }
+
     /**
      * Fetch available Gemini models using the provided API key.
      */

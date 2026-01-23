@@ -3,6 +3,11 @@ package com.eval.ui
 import com.eval.chess.ChessBoard
 import com.eval.data.AiAnalysisResponse
 import com.eval.data.ChessServer
+import com.eval.data.TournamentInfo
+import com.eval.data.BroadcastInfo
+import com.eval.data.TvChannelInfo
+import com.eval.data.PuzzleInfo
+import com.eval.data.StreamerInfo
 import com.eval.data.LichessGame
 import com.eval.data.PlayerInfo
 import com.eval.stockfish.AnalysisResult
@@ -320,5 +325,35 @@ data class GameUiState(
     val topRankingsServer: ChessServer = ChessServer.LICHESS,
     val topRankingsLoading: Boolean = false,
     val topRankingsError: String? = null,
-    val topRankings: Map<String, List<com.eval.data.LeaderboardPlayer>> = emptyMap()
+    val topRankings: Map<String, List<com.eval.data.LeaderboardPlayer>> = emptyMap(),
+    // Tournaments screen
+    val showTournamentsScreen: Boolean = false,
+    val tournamentsServer: ChessServer = ChessServer.LICHESS,
+    val tournamentsLoading: Boolean = false,
+    val tournamentsError: String? = null,
+    val tournamentsList: List<TournamentInfo> = emptyList(),
+    val selectedTournament: TournamentInfo? = null,
+    val tournamentGames: List<LichessGame> = emptyList(),
+    val tournamentGamesLoading: Boolean = false,
+    // Broadcasts screen (Lichess only)
+    val showBroadcastsScreen: Boolean = false,
+    val broadcastsLoading: Boolean = false,
+    val broadcastsError: String? = null,
+    val broadcastsList: List<BroadcastInfo> = emptyList(),
+    val selectedBroadcast: BroadcastInfo? = null,
+    val broadcastGames: List<LichessGame> = emptyList(),
+    val broadcastGamesLoading: Boolean = false,
+    // TV screen (Lichess only)
+    val showTvScreen: Boolean = false,
+    val tvLoading: Boolean = false,
+    val tvError: String? = null,
+    val tvChannels: List<TvChannelInfo> = emptyList(),
+    // Daily puzzle (Chess.com)
+    val showDailyPuzzleScreen: Boolean = false,
+    val dailyPuzzleLoading: Boolean = false,
+    val dailyPuzzle: PuzzleInfo? = null,
+    // Streamers (Chess.com)
+    val showStreamersScreen: Boolean = false,
+    val streamersLoading: Boolean = false,
+    val streamersList: List<StreamerInfo> = emptyList()
 )
