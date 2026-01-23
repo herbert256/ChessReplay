@@ -106,6 +106,54 @@ data class ChessComPlayer(
     val uuid: String?
 )
 
+/**
+ * Chess.com leaderboard data
+ */
+data class ChessComLeaderboards(
+    val daily: List<ChessComLeaderboardPlayer>?,
+    val daily960: List<ChessComLeaderboardPlayer>?,
+    val live_rapid: List<ChessComLeaderboardPlayer>?,
+    val live_blitz: List<ChessComLeaderboardPlayer>?,
+    val live_bullet: List<ChessComLeaderboardPlayer>?,
+    val live_bughouse: List<ChessComLeaderboardPlayer>?,
+    val live_blitz960: List<ChessComLeaderboardPlayer>?,
+    val live_threecheck: List<ChessComLeaderboardPlayer>?,
+    val live_crazyhouse: List<ChessComLeaderboardPlayer>?,
+    val live_kingofthehill: List<ChessComLeaderboardPlayer>?,
+    val tactics: List<ChessComLeaderboardPlayer>?,
+    val rush: List<ChessComLeaderboardPlayer>?,
+    val battle: List<ChessComLeaderboardPlayer>?
+)
+
+data class ChessComLeaderboardPlayer(
+    val player_id: Int?,
+    val url: String?,
+    val username: String?,
+    val score: Int?,
+    val rank: Int?,
+    val country: String?,
+    val title: String?,
+    val name: String?,
+    val status: String?,
+    val avatar: String?,
+    val trend_score: ChessComTrendScore?,
+    val trend_rank: ChessComTrendRank?,
+    val flair_code: String?,
+    val win_count: Int?,
+    val loss_count: Int?,
+    val draw_count: Int?
+)
+
+data class ChessComTrendScore(
+    val direction: Int?,
+    val delta: Int?
+)
+
+data class ChessComTrendRank(
+    val direction: Int?,
+    val delta: Int?
+)
+
 interface ChessComApi {
     @GET("pub/player/{username}")
     suspend fun getUser(
@@ -128,6 +176,9 @@ interface ChessComApi {
         @Path("year") year: Int,
         @Path("month") month: String
     ): Response<ChessComGamesResponse>
+
+    @GET("pub/leaderboards")
+    suspend fun getLeaderboards(): Response<ChessComLeaderboards>
 
     companion object {
         private const val BASE_URL = "https://api.chess.com/"

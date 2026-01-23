@@ -362,4 +362,140 @@ class ChessRepository(
             ChessServer.CHESS_COM -> getChessComPlayerInfo(username)
         }
     }
+
+    /**
+     * Get Lichess leaderboard (top players for each format)
+     */
+    suspend fun getLichessLeaderboard(): Result<Map<String, List<LeaderboardPlayer>>> = withContext(Dispatchers.IO) {
+        try {
+            val response = lichessApi.getLeaderboard()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch Lichess leaderboard")
+            }
+
+            val leaderboard = response.body() ?: return@withContext Result.Error("No leaderboard data received")
+
+            val result = mutableMapOf<String, List<LeaderboardPlayer>>()
+
+            // Convert each category to LeaderboardPlayer list
+            leaderboard.bullet?.let { players ->
+                result["Bullet"] = players.take(10).map { p ->
+                    LeaderboardPlayer(
+                        username = p.username,
+                        title = p.title,
+                        rating = p.perfs?.get("bullet")?.rating,
+                        server = ChessServer.LICHESS
+                    )
+                }
+            }
+            leaderboard.blitz?.let { players ->
+                result["Blitz"] = players.take(10).map { p ->
+                    LeaderboardPlayer(
+                        username = p.username,
+                        title = p.title,
+                        rating = p.perfs?.get("blitz")?.rating,
+                        server = ChessServer.LICHESS
+                    )
+                }
+            }
+            leaderboard.rapid?.let { players ->
+                result["Rapid"] = players.take(10).map { p ->
+                    LeaderboardPlayer(
+                        username = p.username,
+                        title = p.title,
+                        rating = p.perfs?.get("rapid")?.rating,
+                        server = ChessServer.LICHESS
+                    )
+                }
+            }
+            leaderboard.classical?.let { players ->
+                result["Classical"] = players.take(10).map { p ->
+                    LeaderboardPlayer(
+                        username = p.username,
+                        title = p.title,
+                        rating = p.perfs?.get("classical")?.rating,
+                        server = ChessServer.LICHESS
+                    )
+                }
+            }
+
+            Result.Success(result)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    /**
+     * Get Chess.com leaderboard (top players for each format)
+     */
+    suspend fun getChessComLeaderboard(): Result<Map<String, List<LeaderboardPlayer>>> = withContext(Dispatchers.IO) {
+        try {
+            val response = chessComApi.getLeaderboards()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.Error("Failed to fetch Chess.com leaderboard")
+            }
+
+            val leaderboards = response.body() ?: return@withContext Result.Error("No leaderboard data received")
+
+            val result = mutableMapOf<String, List<LeaderboardPlayer>>()
+
+            // Convert each category to LeaderboardPlayer list
+            leaderboards.live_bullet?.let { players ->
+                result["Bullet"] = players.take(10).map { p ->
+                    LeaderboardPlayer(
+                        username = p.username ?: "",
+                        title = p.title,
+                        rating = p.score,
+                        server = ChessServer.CHESS_COM
+                    )
+                }
+            }
+            leaderboards.live_blitz?.let { players ->
+                result["Blitz"] = players.take(10).map { p ->
+                    LeaderboardPlayer(
+                        username = p.username ?: "",
+                        title = p.title,
+                        rating = p.score,
+                        server = ChessServer.CHESS_COM
+                    )
+                }
+            }
+            leaderboards.live_rapid?.let { players ->
+                result["Rapid"] = players.take(10).map { p ->
+                    LeaderboardPlayer(
+                        username = p.username ?: "",
+                        title = p.title,
+                        rating = p.score,
+                        server = ChessServer.CHESS_COM
+                    )
+                }
+            }
+            leaderboards.daily?.let { players ->
+                result["Daily"] = players.take(10).map { p ->
+                    LeaderboardPlayer(
+                        username = p.username ?: "",
+                        title = p.title,
+                        rating = p.score,
+                        server = ChessServer.CHESS_COM
+                    )
+                }
+            }
+
+            Result.Success(result)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Unknown error occurred")
+        }
+    }
 }
+
+/**
+ * Unified leaderboard player from either Lichess or Chess.com
+ */
+data class LeaderboardPlayer(
+    val username: String,
+    val title: String?,
+    val rating: Int?,
+    val server: ChessServer
+)

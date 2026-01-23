@@ -272,6 +272,11 @@ data class GameUiState(
     val showSelectedRetrieveGames: Boolean = false,
     val selectedRetrieveEntry: RetrievedGamesEntry? = null,
     val selectedRetrieveGames: List<LichessGame> = emptyList(),
+    // Game selection pagination
+    val gameSelectionPage: Int = 0,
+    val gameSelectionPageSize: Int = 10,
+    val gameSelectionLoading: Boolean = false,
+    val gameSelectionHasMore: Boolean = true,
     // Analysed games
     val hasAnalysedGames: Boolean = false,
     val showAnalysedGamesSelection: Boolean = false,
@@ -309,4 +314,10 @@ data class GameUiState(
     val playerGamesPage: Int = 0,
     val playerGamesPageSize: Int = 10,
     val playerGamesHasMore: Boolean = true,  // Whether there might be more games to fetch
+    // Top rankings screen
+    val showTopRankingsScreen: Boolean = false,
+    val topRankingsServer: ChessServer = ChessServer.LICHESS,
+    val topRankingsLoading: Boolean = false,
+    val topRankingsError: String? = null,
+    val topRankings: Map<String, List<com.eval.data.LeaderboardPlayer>> = emptyMap()
 )

@@ -72,6 +72,33 @@ data class LichessPlayTime(
     val tv: Long?
 )
 
+/**
+ * Lichess leaderboard data
+ */
+data class LichessLeaderboard(
+    val bullet: List<LichessLeaderboardPlayer>?,
+    val blitz: List<LichessLeaderboardPlayer>?,
+    val rapid: List<LichessLeaderboardPlayer>?,
+    val classical: List<LichessLeaderboardPlayer>?,
+    val ultraBullet: List<LichessLeaderboardPlayer>?,
+    val chess960: List<LichessLeaderboardPlayer>?,
+    val crazyhouse: List<LichessLeaderboardPlayer>?,
+    val antichess: List<LichessLeaderboardPlayer>?,
+    val atomic: List<LichessLeaderboardPlayer>?,
+    val horde: List<LichessLeaderboardPlayer>?,
+    val kingOfTheHill: List<LichessLeaderboardPlayer>?,
+    val racingKings: List<LichessLeaderboardPlayer>?,
+    val threeCheck: List<LichessLeaderboardPlayer>?
+)
+
+data class LichessLeaderboardPlayer(
+    val id: String,
+    val username: String,
+    val title: String?,
+    val online: Boolean?,
+    val perfs: Map<String, LichessPerf>?
+)
+
 interface LichessApi {
     @GET("api/user/{username}")
     suspend fun getUser(
@@ -86,6 +113,9 @@ interface LichessApi {
         @Query("pgnInJson") pgnInJson: Boolean = true,
         @Query("clocks") clocks: Boolean = true
     ): Response<String>
+
+    @GET("api/player")
+    suspend fun getLeaderboard(): Response<LichessLeaderboard>
 
     companion object {
         private const val BASE_URL = "https://lichess.org/"

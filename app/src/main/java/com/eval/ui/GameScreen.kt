@@ -1,5 +1,6 @@
 package com.eval.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -291,6 +292,12 @@ fun GameScreen(
         SelectedRetrieveGamesScreen(
             entry = selectedRetrieveEntry,
             games = uiState.selectedRetrieveGames,
+            currentPage = uiState.gameSelectionPage,
+            pageSize = uiState.gameSelectionPageSize,
+            isLoading = uiState.gameSelectionLoading,
+            hasMoreGames = uiState.gameSelectionHasMore,
+            onNextPage = { viewModel.nextGameSelectionPage() },
+            onPreviousPage = { viewModel.previousGameSelectionPage() },
             onSelectGame = { viewModel.selectGameFromRetrieve(it) },
             onDismiss = { viewModel.dismissSelectedRetrieveGames() }
         )
@@ -677,6 +684,9 @@ fun AiAnalysisScreen(
     val prefs = context.getSharedPreferences(SettingsPreferences.PREFS_NAME, android.content.Context.MODE_PRIVATE)
     var savedEmail by remember { mutableStateOf(prefs.getString(SettingsPreferences.KEY_AI_REPORT_EMAIL, "") ?: "") }
 
+    // Handle back navigation
+    BackHandler { onDismiss() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -927,6 +937,9 @@ fun PlayerInfoScreen(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // Handle back navigation
+    BackHandler { onDismiss() }
 
     Column(
         modifier = Modifier
@@ -1238,7 +1251,8 @@ fun PlayerInfoScreen(
                             color = Color.White
                         )
 
-                        if (gamesLoading) {
+                        // Only show full loading indicator on initial load (when games is empty)
+                        if (gamesLoading && games.isEmpty()) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1257,7 +1271,7 @@ fun PlayerInfoScreen(
                                     fontSize = 14.sp
                                 )
                             }
-                        } else if (games.isEmpty()) {
+                        } else if (games.isEmpty() && !gamesLoading) {
                             Text(
                                 text = "No games found",
                                 color = Color(0xFFAAAAAA),

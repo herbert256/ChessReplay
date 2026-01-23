@@ -462,7 +462,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(chessComMaxGames = validMax)
     }
 
-    fun fetchGames(server: ChessServer, username: String, maxGames: Int) {
+    fun fetchGames(server: ChessServer, username: String) {
         // Save the username for next time
         when (server) {
             ChessServer.LICHESS -> settingsPrefs.saveLichessUsername(username)
@@ -475,18 +475,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         // Cancel any ongoing auto-analysis
         autoAnalysisJob?.cancel()
 
+        val pageSize = _uiState.value.gameSelectionPageSize
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isLoading = true,
                 errorMessage = null,
                 game = null,
                 gameList = emptyList(),
-                showGameSelection = false
+                showGameSelection = false,
+                gameSelectionPage = 0,
+                gameSelectionLoading = false,
+                gameSelectionHasMore = true
             )
 
             val result = when (server) {
-                ChessServer.LICHESS -> repository.getLichessGames(username, maxGames)
-                ChessServer.CHESS_COM -> repository.getChessComGames(username, maxGames)
+                ChessServer.LICHESS -> repository.getLichessGames(username, pageSize)
+                ChessServer.CHESS_COM -> repository.getChessComGames(username, pageSize)
             }
 
             when (result) {
@@ -503,7 +508,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                             gameList = games,
                             showGameSelection = false,
                             gameSelectionUsername = username,
-                            gameSelectionServer = server
+                            gameSelectionServer = server,
+                            gameSelectionHasMore = false
                         )
                         loadGame(games.first(), server, username)
                     } else {
@@ -514,17 +520,82 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                             showRetrieveScreen = false,
                             showSelectedRetrieveGames = true,
                             selectedRetrieveEntry = entry,
-                            selectedRetrieveGames = games
+                            selectedRetrieveGames = games,
+                            gameSelectionPage = 0,
+                            gameSelectionHasMore = games.size >= pageSize
                         )
                     }
                 }
                 is Result.Error -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = result.message
+                        errorMessage = result.message,
+                        gameSelectionHasMore = false
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Go to next page of game selection, fetching more if needed.
+     */
+    fun nextGameSelectionPage() {
+        val currentPage = _uiState.value.gameSelectionPage
+        val pageSize = _uiState.value.gameSelectionPageSize
+        val currentGames = _uiState.value.selectedRetrieveGames
+        val hasMore = _uiState.value.gameSelectionHasMore
+        val entry = _uiState.value.selectedRetrieveEntry ?: return
+
+        val nextPageStartIndex = (currentPage + 1) * pageSize
+
+        // Check if we need to fetch more games
+        if (nextPageStartIndex >= currentGames.size && hasMore) {
+            // Need to fetch more games
+            _uiState.value = _uiState.value.copy(gameSelectionLoading = true)
+
+            viewModelScope.launch {
+                val newCount = currentGames.size + pageSize
+                val gamesResult = when (entry.server) {
+                    ChessServer.LICHESS -> repository.getLichessGames(entry.accountName, newCount)
+                    ChessServer.CHESS_COM -> repository.getChessComGames(entry.accountName, newCount)
+                }
+                when (gamesResult) {
+                    is Result.Success -> {
+                        val fetchedGames = gamesResult.data
+                        val gotMoreGames = fetchedGames.size > currentGames.size
+                        // Update stored games
+                        if (fetchedGames.isNotEmpty()) {
+                            storeRetrievedGames(fetchedGames, entry.accountName, entry.server)
+                        }
+                        _uiState.value = _uiState.value.copy(
+                            selectedRetrieveGames = fetchedGames,
+                            gameSelectionLoading = false,
+                            gameSelectionPage = if (gotMoreGames) currentPage + 1 else currentPage,
+                            gameSelectionHasMore = fetchedGames.size >= newCount
+                        )
+                    }
+                    is Result.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            gameSelectionLoading = false,
+                            gameSelectionHasMore = false
+                        )
+                    }
+                }
+            }
+        } else if (nextPageStartIndex < currentGames.size) {
+            // We already have the games, just change page
+            _uiState.value = _uiState.value.copy(gameSelectionPage = currentPage + 1)
+        }
+    }
+
+    /**
+     * Go to previous page of game selection.
+     */
+    fun previousGameSelectionPage() {
+        val currentPage = _uiState.value.gameSelectionPage
+        if (currentPage > 0) {
+            _uiState.value = _uiState.value.copy(gameSelectionPage = currentPage - 1)
         }
     }
 
@@ -1545,7 +1616,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun showPlayerInfo(username: String) {
         val server = _uiState.value.activeServer ?: ChessServer.LICHESS
+        showPlayerInfo(username, server)
+    }
 
+    /**
+     * Show player info for the specified username and server.
+     */
+    fun showPlayerInfo(username: String, server: ChessServer) {
         _uiState.value = _uiState.value.copy(
             showPlayerInfoScreen = true,
             playerInfoLoading = true,
@@ -1699,6 +1776,67 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             playerInfoLoading = false,
             playerInfoError = null
         )
+    }
+
+    /**
+     * Show top rankings screen for a given chess server.
+     */
+    fun showTopRankings(server: ChessServer) {
+        _uiState.value = _uiState.value.copy(
+            showTopRankingsScreen = true,
+            topRankingsServer = server,
+            topRankingsLoading = true,
+            topRankingsError = null,
+            topRankings = emptyMap()
+        )
+
+        viewModelScope.launch {
+            val result = when (server) {
+                ChessServer.LICHESS -> repository.getLichessLeaderboard()
+                ChessServer.CHESS_COM -> repository.getChessComLeaderboard()
+            }
+
+            when (result) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        topRankingsLoading = false,
+                        topRankings = result.data,
+                        topRankingsError = null
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        topRankingsLoading = false,
+                        topRankingsError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Dismiss top rankings screen.
+     */
+    fun dismissTopRankings() {
+        _uiState.value = _uiState.value.copy(
+            showTopRankingsScreen = false,
+            topRankings = emptyMap(),
+            topRankingsLoading = false,
+            topRankingsError = null
+        )
+    }
+
+    /**
+     * Select a player from top rankings to show their info.
+     */
+    fun selectTopRankingPlayer(username: String, server: ChessServer) {
+        // First dismiss the top rankings screen
+        _uiState.value = _uiState.value.copy(
+            showTopRankingsScreen = false,
+            topRankings = emptyMap()
+        )
+        // Then show the player info
+        showPlayerInfo(username, server)
     }
 
     /**

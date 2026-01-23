@@ -1,5 +1,6 @@
 package com.eval.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,6 +30,9 @@ fun GameSelectionScreen(
     onDismiss: () -> Unit
 ) {
     val serverName = if (server == ChessServer.LICHESS) "Lichess" else "Chess.com"
+
+    // Handle back navigation
+    BackHandler { onDismiss() }
 
     Column(
         modifier = Modifier
@@ -182,6 +186,9 @@ fun AnalysedGamesScreen(
     onSelectGame: (AnalysedGame) -> Unit,
     onDismiss: () -> Unit
 ) {
+    // Handle back navigation
+    BackHandler { onDismiss() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -327,6 +334,9 @@ fun PreviousRetrievesScreen(
     onSelectRetrieve: (RetrievedGamesEntry) -> Unit,
     onDismiss: () -> Unit
 ) {
+    // Handle back navigation
+    BackHandler { onDismiss() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -431,10 +441,29 @@ private fun RetrieveListItem(
 fun SelectedRetrieveGamesScreen(
     entry: RetrievedGamesEntry,
     games: List<LichessGame>,
+    currentPage: Int,
+    pageSize: Int,
+    isLoading: Boolean,
+    hasMoreGames: Boolean,
+    onNextPage: () -> Unit,
+    onPreviousPage: () -> Unit,
     onSelectGame: (LichessGame) -> Unit,
     onDismiss: () -> Unit
 ) {
     val serverName = if (entry.server == ChessServer.LICHESS) "lichess.org" else "chess.com"
+    val serverColor = if (entry.server == ChessServer.LICHESS) Color(0xFF629924) else Color(0xFF769656)
+
+    // Handle back navigation
+    BackHandler { onDismiss() }
+
+    // Calculate current page games
+    val startIndex = currentPage * pageSize
+    val endIndex = minOf(startIndex + pageSize, games.size)
+    val currentGames = if (games.isNotEmpty() && startIndex < games.size) {
+        games.subList(startIndex, endIndex)
+    } else {
+        emptyList()
+    }
 
     Column(
         modifier = Modifier
@@ -457,16 +486,94 @@ fun SelectedRetrieveGamesScreen(
                 .fillMaxWidth(),
             contentAlignment = Alignment.TopCenter
         ) {
-            LazyColumn(
-                modifier = Modifier.widthIn(max = 400.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            Column(
+                modifier = Modifier.widthIn(max = 400.dp)
             ) {
-                items(games) { game ->
-                    RetrieveGameListItem(
-                        game = game,
-                        accountName = entry.accountName,
-                        onClick = { onSelectGame(game) }
-                    )
+                // Games list
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(currentGames) { game ->
+                        RetrieveGameListItem(
+                            game = game,
+                            accountName = entry.accountName,
+                            onClick = { onSelectGame(game) }
+                        )
+                    }
+                }
+
+                // Pagination controls
+                val nextPageStartIndex = (currentPage + 1) * pageSize
+                val canGoNext = nextPageStartIndex < games.size || hasMoreGames
+                val showPagination = games.size > pageSize || hasMoreGames || currentPage > 0
+
+                if (showPagination) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Previous button
+                        if (currentPage > 0) {
+                            TextButton(onClick = onPreviousPage) {
+                                Text(
+                                    text = "← Previous $pageSize",
+                                    color = serverColor,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.width(1.dp))
+                        }
+
+                        // Page indicator
+                        Text(
+                            text = "Page ${currentPage + 1}",
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
+
+                        // Next button
+                        if (canGoNext) {
+                            TextButton(
+                                onClick = onNextPage,
+                                enabled = !isLoading
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = serverColor,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Next $pageSize →",
+                                        color = serverColor,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.width(1.dp))
+                        }
+                    }
+
+                    // Show count info
+                    if (games.isNotEmpty()) {
+                        Text(
+                            text = if (hasMoreGames) {
+                                "Showing ${startIndex + 1}-$endIndex (${games.size} loaded)"
+                            } else {
+                                "Showing ${startIndex + 1}-$endIndex of ${games.size} games"
+                            },
+                            color = Color(0xFFCCCCCC),
+                            fontSize = 11.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         }
