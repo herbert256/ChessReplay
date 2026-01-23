@@ -1507,6 +1507,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 AiService.GROK -> aiSettings.grokPrompt
                 AiService.DEEPSEEK -> aiSettings.deepSeekPrompt
                 AiService.MISTRAL -> aiSettings.mistralPrompt
+                AiService.DUMMY -> ""  // Dummy doesn't use prompt
             }
             val result = aiAnalysisRepository.analyzePosition(
                 service = service,

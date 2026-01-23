@@ -76,6 +76,7 @@ class AiAnalysisRepository {
                 AiService.GROK -> analyzeWithGrok(apiKey, finalPrompt, grokModel)
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(apiKey, finalPrompt, deepSeekModel)
                 AiService.MISTRAL -> analyzeWithMistral(apiKey, finalPrompt, mistralModel)
+                AiService.DUMMY -> analyzeWithDummy()
             }
         } catch (e: Exception) {
             AiAnalysisResponse(
@@ -230,6 +231,10 @@ class AiAnalysisRepository {
         } else {
             AiAnalysisResponse(AiService.MISTRAL, null, "API error: ${response.code()} ${response.message()}")
         }
+    }
+
+    private fun analyzeWithDummy(): AiAnalysisResponse {
+        return AiAnalysisResponse(AiService.DUMMY, "Hi, greetings from AI", null)
     }
 
     /**

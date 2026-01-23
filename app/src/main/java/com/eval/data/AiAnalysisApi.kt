@@ -21,7 +21,8 @@ enum class AiService(val displayName: String, val baseUrl: String) {
     GEMINI("Gemini", "https://generativelanguage.googleapis.com/"),
     GROK("Grok", "https://api.x.ai/"),
     DEEPSEEK("DeepSeek", "https://api.deepseek.com/"),
-    MISTRAL("Mistral", "https://api.mistral.ai/")
+    MISTRAL("Mistral", "https://api.mistral.ai/"),
+    DUMMY("Dummy", "")
 }
 
 // OpenAI / ChatGPT models

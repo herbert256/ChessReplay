@@ -58,7 +58,8 @@ data class AiSettings(
     val deepSeekPrompt: String = DEFAULT_AI_PROMPT,
     val mistralApiKey: String = "",
     val mistralModel: String = "mistral-small-latest",
-    val mistralPrompt: String = DEFAULT_AI_PROMPT
+    val mistralPrompt: String = DEFAULT_AI_PROMPT,
+    val dummyEnabled: Boolean = false
 ) {
     fun getApiKey(service: AiService): String {
         return when (service) {
@@ -68,6 +69,7 @@ data class AiSettings(
             AiService.GROK -> grokApiKey
             AiService.DEEPSEEK -> deepSeekApiKey
             AiService.MISTRAL -> mistralApiKey
+            AiService.DUMMY -> if (dummyEnabled) "enabled" else ""
         }
     }
 
@@ -77,7 +79,8 @@ data class AiSettings(
                 geminiApiKey.isNotBlank() ||
                 grokApiKey.isNotBlank() ||
                 deepSeekApiKey.isNotBlank() ||
-                mistralApiKey.isNotBlank()
+                mistralApiKey.isNotBlank() ||
+                dummyEnabled
     }
 
     fun getConfiguredServices(): List<AiService> {
@@ -227,6 +230,16 @@ fun AiSettingsScreen(
             isConfigured = aiSettings.mistralApiKey.isNotBlank(),
             selectedModel = if (aiSettings.mistralApiKey.isNotBlank()) aiSettings.mistralModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_MISTRAL) }
+        )
+
+        // Dummy (for testing)
+        AiServiceNavigationCard(
+            title = "Dummy",
+            subtitle = "For testing",
+            accentColor = Color(0xFF888888),
+            isConfigured = aiSettings.dummyEnabled,
+            selectedModel = if (aiSettings.dummyEnabled) "Test mode" else null,
+            onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -857,6 +870,131 @@ fun MistralSettingsScreen(
                     onSave(aiSettings.copy(mistralPrompt = DEFAULT_AI_PROMPT))
                 }
             )
+        }
+    }
+}
+
+/**
+ * Dummy settings screen (for testing without real API calls).
+ */
+@Composable
+fun DummySettingsScreen(
+    aiSettings: AiSettings,
+    onBackToAiSettings: () -> Unit,
+    onBackToGame: () -> Unit,
+    onSave: (AiSettings) -> Unit
+) {
+    var enabled by remember { mutableStateOf(aiSettings.dummyEnabled) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Title with color indicator
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .background(Color(0xFF888888), shape = MaterialTheme.shapes.small)
+            )
+            Column {
+                Text(
+                    text = "Dummy",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = "For testing",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFAAAAAA)
+                )
+            }
+        }
+
+        // Back buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onBackToAiSettings) {
+                Text("< AI Settings")
+            }
+            OutlinedButton(onClick = onBackToGame) {
+                Text("< Back to game")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Enable/disable card
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Test Mode",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Enable Dummy AI", color = Color.White)
+                        Text(
+                            text = "Returns a test response without making API calls",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFAAAAAA)
+                        )
+                    }
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = {
+                            enabled = it
+                            onSave(aiSettings.copy(dummyEnabled = it))
+                        }
+                    )
+                }
+
+                if (enabled) {
+                    Text(
+                        text = "Response: \"Hi, greetings from AI\"",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF00E676)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Bottom back buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onBackToAiSettings) {
+                Text("< AI Settings")
+            }
+            OutlinedButton(onClick = onBackToGame) {
+                Text("< Back to game")
+            }
         }
     }
 }

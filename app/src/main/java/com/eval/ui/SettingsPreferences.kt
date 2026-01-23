@@ -296,7 +296,8 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             deepSeekPrompt = prefs.getString(KEY_AI_DEEPSEEK_PROMPT, DEFAULT_AI_PROMPT) ?: DEFAULT_AI_PROMPT,
             mistralApiKey = prefs.getString(KEY_AI_MISTRAL_API_KEY, "") ?: "",
             mistralModel = prefs.getString(KEY_AI_MISTRAL_MODEL, "mistral-small-latest") ?: "mistral-small-latest",
-            mistralPrompt = prefs.getString(KEY_AI_MISTRAL_PROMPT, DEFAULT_AI_PROMPT) ?: DEFAULT_AI_PROMPT
+            mistralPrompt = prefs.getString(KEY_AI_MISTRAL_PROMPT, DEFAULT_AI_PROMPT) ?: DEFAULT_AI_PROMPT,
+            dummyEnabled = prefs.getBoolean(KEY_AI_DUMMY_ENABLED, false)
         )
     }
 
@@ -321,6 +322,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             .putString(KEY_AI_MISTRAL_API_KEY, settings.mistralApiKey)
             .putString(KEY_AI_MISTRAL_MODEL, settings.mistralModel)
             .putString(KEY_AI_MISTRAL_PROMPT, settings.mistralPrompt)
+            .putBoolean(KEY_AI_DUMMY_ENABLED, settings.dummyEnabled)
             .apply()
     }
 
@@ -478,6 +480,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_MISTRAL_API_KEY = "ai_mistral_api_key"
         private const val KEY_AI_MISTRAL_MODEL = "ai_mistral_model"
         private const val KEY_AI_MISTRAL_PROMPT = "ai_mistral_prompt"
+        private const val KEY_AI_DUMMY_ENABLED = "ai_dummy_enabled"
 
         // AI report email
         const val KEY_AI_REPORT_EMAIL = "ai_report_email"
