@@ -337,19 +337,24 @@ fun AiSettingsScreen(
 
 /**
  * Data class for AI service configuration in JSON export/import.
+ * Version 2 adds serverPlayerPrompt and otherPlayerPrompt.
  */
 private data class AiServiceConfig(
     val name: String,
     val apiKey: String,
     val model: String,
-    val prompt: String
+    val prompt: String,  // Game prompt (kept for backwards compatibility)
+    val gamePrompt: String? = null,  // Same as prompt, explicit name for v2
+    val serverPlayerPrompt: String? = null,
+    val otherPlayerPrompt: String? = null
 )
 
 /**
  * Data class for the complete AI configuration export.
+ * Version 2 includes all 3 prompt types per service.
  */
 private data class AiConfigExport(
-    val version: Int = 1,
+    val version: Int = 2,
     val services: List<AiServiceConfig>,
     val dummyEnabled: Boolean
 )
@@ -365,7 +370,10 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
             name = "ChatGPT",
             apiKey = aiSettings.chatGptApiKey,
             model = aiSettings.chatGptModel,
-            prompt = aiSettings.chatGptPrompt
+            prompt = aiSettings.chatGptPrompt,
+            gamePrompt = aiSettings.chatGptPrompt,
+            serverPlayerPrompt = aiSettings.chatGptServerPlayerPrompt,
+            otherPlayerPrompt = aiSettings.chatGptOtherPlayerPrompt
         ))
     }
 
@@ -374,7 +382,10 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
             name = "Claude",
             apiKey = aiSettings.claudeApiKey,
             model = aiSettings.claudeModel,
-            prompt = aiSettings.claudePrompt
+            prompt = aiSettings.claudePrompt,
+            gamePrompt = aiSettings.claudePrompt,
+            serverPlayerPrompt = aiSettings.claudeServerPlayerPrompt,
+            otherPlayerPrompt = aiSettings.claudeOtherPlayerPrompt
         ))
     }
 
@@ -383,7 +394,10 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
             name = "Gemini",
             apiKey = aiSettings.geminiApiKey,
             model = aiSettings.geminiModel,
-            prompt = aiSettings.geminiPrompt
+            prompt = aiSettings.geminiPrompt,
+            gamePrompt = aiSettings.geminiPrompt,
+            serverPlayerPrompt = aiSettings.geminiServerPlayerPrompt,
+            otherPlayerPrompt = aiSettings.geminiOtherPlayerPrompt
         ))
     }
 
@@ -392,7 +406,10 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
             name = "Grok",
             apiKey = aiSettings.grokApiKey,
             model = aiSettings.grokModel,
-            prompt = aiSettings.grokPrompt
+            prompt = aiSettings.grokPrompt,
+            gamePrompt = aiSettings.grokPrompt,
+            serverPlayerPrompt = aiSettings.grokServerPlayerPrompt,
+            otherPlayerPrompt = aiSettings.grokOtherPlayerPrompt
         ))
     }
 
@@ -401,7 +418,10 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
             name = "DeepSeek",
             apiKey = aiSettings.deepSeekApiKey,
             model = aiSettings.deepSeekModel,
-            prompt = aiSettings.deepSeekPrompt
+            prompt = aiSettings.deepSeekPrompt,
+            gamePrompt = aiSettings.deepSeekPrompt,
+            serverPlayerPrompt = aiSettings.deepSeekServerPlayerPrompt,
+            otherPlayerPrompt = aiSettings.deepSeekOtherPlayerPrompt
         ))
     }
 
@@ -410,7 +430,10 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
             name = "Mistral",
             apiKey = aiSettings.mistralApiKey,
             model = aiSettings.mistralModel,
-            prompt = aiSettings.mistralPrompt
+            prompt = aiSettings.mistralPrompt,
+            gamePrompt = aiSettings.mistralPrompt,
+            serverPlayerPrompt = aiSettings.mistralServerPlayerPrompt,
+            otherPlayerPrompt = aiSettings.mistralOtherPlayerPrompt
         ))
     }
 
@@ -454,36 +477,54 @@ private fun importAiConfigFromClipboard(context: Context): AiSettings? {
         var settings = AiSettings()
 
         export.services.forEach { service ->
+            // Use gamePrompt if available (v2), otherwise fall back to prompt (v1)
+            val gamePrompt = service.gamePrompt ?: service.prompt
+            // For v1 imports, use defaults for new prompt types
+            val serverPlayerPrompt = service.serverPlayerPrompt ?: DEFAULT_SERVER_PLAYER_PROMPT
+            val otherPlayerPrompt = service.otherPlayerPrompt ?: DEFAULT_OTHER_PLAYER_PROMPT
+
             settings = when (service.name) {
                 "ChatGPT" -> settings.copy(
                     chatGptApiKey = service.apiKey,
                     chatGptModel = service.model,
-                    chatGptPrompt = service.prompt
+                    chatGptPrompt = gamePrompt,
+                    chatGptServerPlayerPrompt = serverPlayerPrompt,
+                    chatGptOtherPlayerPrompt = otherPlayerPrompt
                 )
                 "Claude" -> settings.copy(
                     claudeApiKey = service.apiKey,
                     claudeModel = service.model,
-                    claudePrompt = service.prompt
+                    claudePrompt = gamePrompt,
+                    claudeServerPlayerPrompt = serverPlayerPrompt,
+                    claudeOtherPlayerPrompt = otherPlayerPrompt
                 )
                 "Gemini" -> settings.copy(
                     geminiApiKey = service.apiKey,
                     geminiModel = service.model,
-                    geminiPrompt = service.prompt
+                    geminiPrompt = gamePrompt,
+                    geminiServerPlayerPrompt = serverPlayerPrompt,
+                    geminiOtherPlayerPrompt = otherPlayerPrompt
                 )
                 "Grok" -> settings.copy(
                     grokApiKey = service.apiKey,
                     grokModel = service.model,
-                    grokPrompt = service.prompt
+                    grokPrompt = gamePrompt,
+                    grokServerPlayerPrompt = serverPlayerPrompt,
+                    grokOtherPlayerPrompt = otherPlayerPrompt
                 )
                 "DeepSeek" -> settings.copy(
                     deepSeekApiKey = service.apiKey,
                     deepSeekModel = service.model,
-                    deepSeekPrompt = service.prompt
+                    deepSeekPrompt = gamePrompt,
+                    deepSeekServerPlayerPrompt = serverPlayerPrompt,
+                    deepSeekOtherPlayerPrompt = otherPlayerPrompt
                 )
                 "Mistral" -> settings.copy(
                     mistralApiKey = service.apiKey,
                     mistralModel = service.model,
-                    mistralPrompt = service.prompt
+                    mistralPrompt = gamePrompt,
+                    mistralServerPlayerPrompt = serverPlayerPrompt,
+                    mistralOtherPlayerPrompt = otherPlayerPrompt
                 )
                 else -> settings
             }
