@@ -294,7 +294,6 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
 
     fun loadAiSettings(): AiSettings {
         return AiSettings(
-            showAiLogos = prefs.getBoolean(KEY_AI_SHOW_LOGOS, true),
             chatGptApiKey = prefs.getString(KEY_AI_CHATGPT_API_KEY, "") ?: "",
             chatGptModel = prefs.getString(KEY_AI_CHATGPT_MODEL, "gpt-4o-mini") ?: "gpt-4o-mini",
             chatGptPrompt = prefs.getString(KEY_AI_CHATGPT_PROMPT, DEFAULT_AI_PROMPT) ?: DEFAULT_AI_PROMPT,
@@ -319,7 +318,6 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
 
     fun saveAiSettings(settings: AiSettings) {
         prefs.edit()
-            .putBoolean(KEY_AI_SHOW_LOGOS, settings.showAiLogos)
             .putString(KEY_AI_CHATGPT_API_KEY, settings.chatGptApiKey)
             .putString(KEY_AI_CHATGPT_MODEL, settings.chatGptModel)
             .putString(KEY_AI_CHATGPT_PROMPT, settings.chatGptPrompt)
@@ -482,7 +480,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_MOVE_SOUNDS_ENABLED = "move_sounds_enabled"
 
         // AI Analysis settings
-        private const val KEY_AI_SHOW_LOGOS = "ai_show_logos"
+        private const val KEY_AI_REPORT_PROVIDERS = "ai_report_providers"
         private const val KEY_AI_CHATGPT_API_KEY = "ai_chatgpt_api_key"
         private const val KEY_AI_CHATGPT_MODEL = "ai_chatgpt_model"
         private const val KEY_AI_CLAUDE_API_KEY = "ai_claude_api_key"
@@ -537,5 +535,24 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         val trimmed = history.take(MAX_FEN_HISTORY)
         val json = gson.toJson(trimmed)
         prefs.edit().putString(KEY_FEN_HISTORY, json).apply()
+    }
+
+    // ============================================================================
+    // AI Report Providers Selection
+    // ============================================================================
+
+    fun loadAiReportProviders(): Set<String> {
+        val json = prefs.getString(KEY_AI_REPORT_PROVIDERS, null) ?: return emptySet()
+        return try {
+            val type = object : com.google.gson.reflect.TypeToken<Set<String>>() {}.type
+            gson.fromJson(json, type) ?: emptySet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+    }
+
+    fun saveAiReportProviders(providers: Set<String>) {
+        val json = gson.toJson(providers)
+        prefs.edit().putString(KEY_AI_REPORT_PROVIDERS, json).apply()
     }
 }

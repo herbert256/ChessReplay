@@ -485,10 +485,6 @@ fun GameContent(
         // Player bar handling based on playerBarMode
         val topIsBlack = !uiState.flippedBoard
 
-        // Calculate left padding for player bars when AI logos are visible
-        val showAiLogos = uiState.currentStage == AnalysisStage.MANUAL && uiState.aiSettings.showAiLogos
-        val playerBarStartPadding = if (showAiLogos) 32.dp else 0.dp
-
         // Show combined bar at TOP if mode is TOP
         if (showPlayersBarsFromVisibility && playerBarMode == PlayerBarMode.TOP) {
             CombinedPlayerBar(
@@ -499,7 +495,7 @@ fun GameContent(
                 isWhiteTurn = isWhiteTurn,
                 showRedBorder = showRedBorderForPlayerToMove,
                 onPlayerClick = { playerName -> viewModel.showPlayerInfo(playerName) },
-                modifier = Modifier.padding(start = playerBarStartPadding)
+                modifier = Modifier
             )
         }
 
@@ -514,7 +510,7 @@ fun GameContent(
                 gameResult = if (topIsBlack) blackResult else whiteResult,
                 showRedBorder = showRedBorderForPlayerToMove,
                 onPlayerClick = { playerName -> viewModel.showPlayerInfo(playerName) },
-                modifier = Modifier.padding(start = playerBarStartPadding)
+                modifier = Modifier
             )
         }
 
@@ -629,15 +625,6 @@ fun GameContent(
                 .fillMaxWidth()
                 .height(IntrinsicSize.Max)
         ) {
-            // AI logos column on the left (only in Manual stage when enabled)
-            if (uiState.currentStage == AnalysisStage.MANUAL && uiState.aiSettings.showAiLogos) {
-                AiLogosColumn(
-                    aiSettings = uiState.aiSettings,
-                    onAiSelected = { service -> viewModel.requestAiAnalysis(service) },
-                    modifier = Modifier.fillMaxHeight()
-                )
-            }
-
             // Left evaluation bar
             if (showEvalBar && evalBarPosition == EvalBarPosition.LEFT) {
                 EvaluationBar(
@@ -692,7 +679,7 @@ fun GameContent(
                 gameResult = if (topIsBlack) whiteResult else blackResult,
                 showRedBorder = showRedBorderForPlayerToMove,
                 onPlayerClick = { playerName -> viewModel.showPlayerInfo(playerName) },
-                modifier = Modifier.padding(start = playerBarStartPadding)
+                modifier = Modifier
             )
         }
 
@@ -706,7 +693,7 @@ fun GameContent(
                 isWhiteTurn = isWhiteTurn,
                 showRedBorder = showRedBorderForPlayerToMove,
                 onPlayerClick = { playerName -> viewModel.showPlayerInfo(playerName) },
-                modifier = Modifier.padding(start = playerBarStartPadding)
+                modifier = Modifier
             )
         }
     }
@@ -739,10 +726,7 @@ fun GameContent(
             }
 
             // Left part: Navigation buttons with fixed positions (slots maintain size even when hidden)
-            // Add padding when AI logos are shown to align with the board
-            val navButtonsPadding = if (uiState.currentStage == AnalysisStage.MANUAL && uiState.aiSettings.showAiLogos) 32.dp else 0.dp
             Row(
-                modifier = Modifier.padding(start = navButtonsPadding),
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1524,100 +1508,6 @@ private fun formatNps(nps: Long): String {
         nps >= 1_000_000 -> "%.1fM nps".format(nps / 1_000_000.0)
         nps >= 1_000 -> "%.1fK nps".format(nps / 1_000.0)
         else -> "$nps nps"
-    }
-}
-
-/**
- * Column of AI service logos displayed to the left of the chess board.
- * Only shows logos for services that have API keys configured.
- * Clicking a logo triggers AI analysis for the current position.
- */
-@Composable
-fun AiLogosColumn(
-    aiSettings: AiSettings,
-    onAiSelected: (AiService) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Only show services with configured API keys, or all if showing all logos
-    val servicesToShow = if (aiSettings.hasAnyApiKey()) {
-        aiSettings.getConfiguredServices()
-    } else {
-        // Show all with placeholder appearance when no keys configured
-        AiService.entries.toList()
-    }
-
-    Column(
-        modifier = modifier
-            .padding(end = 4.dp)
-            .fillMaxHeight(),
-        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Display logos from top to bottom: ChatGPT, Claude, Gemini, Grok, DeepSeek
-        servicesToShow.forEach { service ->
-            val hasApiKey = aiSettings.getApiKey(service).isNotBlank()
-            AiServiceLogo(
-                service = service,
-                hasApiKey = hasApiKey,
-                onClick = { onAiSelected(service) }
-            )
-        }
-    }
-}
-
-/**
- * Individual AI service logo with click handler.
- */
-@Composable
-private fun AiServiceLogo(
-    service: AiService,
-    hasApiKey: Boolean,
-    onClick: () -> Unit
-) {
-    val logoSize = 28.dp
-    val alpha = if (hasApiKey) 1f else 0.4f
-
-    // Use colored circles as placeholders - replace with actual logos when available
-    val backgroundColor = when (service) {
-        AiService.CHATGPT -> Color(0xFF10A37F)  // OpenAI green
-        AiService.CLAUDE -> Color(0xFFD97757)   // Anthropic orange/coral
-        AiService.GEMINI -> Color(0xFF4285F4)   // Google blue
-        AiService.GROK -> Color(0xFF000000)     // X/Twitter black
-        AiService.DEEPSEEK -> Color(0xFF0066FF) // DeepSeek blue
-        AiService.MISTRAL -> Color(0xFFFF7000)  // Mistral orange
-        AiService.DUMMY -> Color(0xFF888888)    // Gray for testing
-    }
-
-    val textColor = when (service) {
-        AiService.GROK -> Color.White
-        else -> Color.White
-    }
-
-    // First letter of service name as placeholder
-    val letter = when (service) {
-        AiService.CHATGPT -> "G"
-        AiService.CLAUDE -> "C"
-        AiService.GEMINI -> "G"
-        AiService.GROK -> "X"
-        AiService.DEEPSEEK -> "D"
-        AiService.MISTRAL -> "M"
-        AiService.DUMMY -> "?"
-    }
-
-    Box(
-        modifier = Modifier
-            .size(logoSize)
-            .clip(CircleShape)
-            .background(backgroundColor.copy(alpha = alpha))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = letter,
-            color = textColor.copy(alpha = alpha),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
-        )
     }
 }
 

@@ -3,7 +3,9 @@ package com.eval.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -209,9 +211,21 @@ fun GameScreen(
             onExportPgn = { viewModel.exportAnnotatedPgn(context) },
             onCopyPgn = { viewModel.copyPgnToClipboard(context) },
             onExportGif = { viewModel.exportAsGif(context) },
-            onGenerateAiReports = { viewModel.generateAiReports() },
-            hasConfiguredAiServices = uiState.aiSettings.getConfiguredServices().any { it != com.eval.data.AiService.DUMMY },
+            onGenerateAiReports = { viewModel.showAiReportsSelectionDialog() },
             onDismiss = { viewModel.hideSharePositionDialog() }
+        )
+    }
+
+    // Show AI Reports provider selection dialog
+    if (uiState.showAiReportsSelectionDialog) {
+        AiReportsSelectionDialog(
+            aiSettings = uiState.aiSettings,
+            savedProviders = viewModel.loadAiReportProviders(),
+            onGenerate = { selectedProviders ->
+                viewModel.saveAiReportProviders(selectedProviders.map { it.name }.toSet())
+                viewModel.generateAiReports(selectedProviders)
+            },
+            onDismiss = { viewModel.dismissAiReportsSelectionDialog() }
         )
     }
 
@@ -2824,7 +2838,6 @@ fun SharePositionDialog(
     onCopyPgn: () -> Unit,
     onExportGif: () -> Unit,
     onGenerateAiReports: () -> Unit,
-    hasConfiguredAiServices: Boolean,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -2926,20 +2939,18 @@ fun SharePositionDialog(
                     Text("Export as Animated GIF")
                 }
 
-                if (hasConfiguredAiServices) {
-                    // AI Reports button
-                    Button(
-                        onClick = {
-                            onGenerateAiReports()
-                            onDismiss()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6B8E23)
-                        )
-                    ) {
-                        Text("Generate AI Reports")
-                    }
+                // AI Reports button - always visible, selection dialog will show available providers
+                Button(
+                    onClick = {
+                        onGenerateAiReports()
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6B8E23)
+                    )
+                ) {
+                    Text("Generate AI Reports")
                 }
             }
         },
@@ -2950,4 +2961,173 @@ fun SharePositionDialog(
             }
         }
     )
+}
+
+/**
+ * Dialog for selecting which AI providers to include in the report.
+ */
+@Composable
+private fun AiReportsSelectionDialog(
+    aiSettings: AiSettings,
+    savedProviders: Set<String>,
+    onGenerate: (Set<com.eval.data.AiService>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // Initialize selected providers from saved preferences, or default to all configured services
+    val allServices = com.eval.data.AiService.entries.toList()
+    val initialSelection = if (savedProviders.isNotEmpty()) {
+        allServices.filter { savedProviders.contains(it.name) }.toSet()
+    } else {
+        // Default: select all configured services
+        aiSettings.getConfiguredServices().toSet()
+    }
+
+    var selectedProviders by remember { mutableStateOf(initialSelection) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Select AI Providers",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Choose which AI services to include in the report:",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                allServices.forEach { service ->
+                    val hasApiKey = aiSettings.getApiKey(service).isNotBlank()
+                    val isSelected = selectedProviders.contains(service)
+                    val canSelect = hasApiKey || service == com.eval.data.AiService.DUMMY
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSelected && canSelect) Color(0xFF2D4A2D) else Color(0xFF2D2D2D)
+                            )
+                            .clickable(enabled = canSelect) {
+                                selectedProviders = if (isSelected) {
+                                    selectedProviders - service
+                                } else {
+                                    selectedProviders + service
+                                }
+                            }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Service logo/indicator
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(getAiServiceColor(service).copy(alpha = if (canSelect) 1f else 0.4f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = getAiServiceLetter(service),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = service.displayName,
+                                    color = if (canSelect) Color.White else Color.Gray,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                if (!canSelect) {
+                                    Text(
+                                        text = "No API key configured",
+                                        color = Color(0xFF888888),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { checked ->
+                                if (canSelect) {
+                                    selectedProviders = if (checked) {
+                                        selectedProviders + service
+                                    } else {
+                                        selectedProviders - service
+                                    }
+                                }
+                            },
+                            enabled = canSelect,
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color(0xFF4CAF50),
+                                uncheckedColor = Color.Gray
+                            )
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (selectedProviders.isNotEmpty()) {
+                        onGenerate(selectedProviders)
+                    }
+                },
+                enabled = selectedProviders.any { aiSettings.getApiKey(it).isNotBlank() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50)
+                )
+            ) {
+                Text("Generate Report")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+private fun getAiServiceColor(service: com.eval.data.AiService): Color {
+    return when (service) {
+        com.eval.data.AiService.CHATGPT -> Color(0xFF10A37F)
+        com.eval.data.AiService.CLAUDE -> Color(0xFFD97757)
+        com.eval.data.AiService.GEMINI -> Color(0xFF4285F4)
+        com.eval.data.AiService.GROK -> Color(0xFF000000)
+        com.eval.data.AiService.DEEPSEEK -> Color(0xFF0066FF)
+        com.eval.data.AiService.MISTRAL -> Color(0xFFFF7000)
+        com.eval.data.AiService.DUMMY -> Color(0xFF888888)
+    }
+}
+
+private fun getAiServiceLetter(service: com.eval.data.AiService): String {
+    return when (service) {
+        com.eval.data.AiService.CHATGPT -> "G"
+        com.eval.data.AiService.CLAUDE -> "C"
+        com.eval.data.AiService.GEMINI -> "G"
+        com.eval.data.AiService.GROK -> "X"
+        com.eval.data.AiService.DEEPSEEK -> "D"
+        com.eval.data.AiService.MISTRAL -> "M"
+        com.eval.data.AiService.DUMMY -> "?"
+    }
 }

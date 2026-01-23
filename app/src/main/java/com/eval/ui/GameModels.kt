@@ -416,6 +416,7 @@ data class GameUiState(
     val autoFollowLive: Boolean = true,
     val liveStreamConnected: Boolean = false,
     // AI Reports export state
+    val showAiReportsSelectionDialog: Boolean = false,
     val showAiReportsDialog: Boolean = false,
     val aiReportsProgress: Int = 0,  // Number of completed calls
     val aiReportsTotal: Int = 0,     // Total number of calls to make

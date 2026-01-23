@@ -40,7 +40,6 @@ No need to use an chess engine to look for tactical opportunities, Stockfish is 
 Keep your analysis concise but insightful, suitable for a chess player looking to understand the position better."""
 
 data class AiSettings(
-    val showAiLogos: Boolean = true,
     val chatGptApiKey: String = "",
     val chatGptModel: String = "gpt-4o-mini",
     val chatGptPrompt: String = DEFAULT_AI_PROMPT,
@@ -99,7 +98,6 @@ fun AiSettingsScreen(
     onNavigate: (SettingsSubScreen) -> Unit,
     onSave: (AiSettings) -> Unit
 ) {
-    var showAiLogos by remember { mutableStateOf(aiSettings.showAiLogos) }
     var showExportDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -121,48 +119,6 @@ fun AiSettingsScreen(
         SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
 
         Spacer(modifier = Modifier.height(4.dp))
-
-        // Display settings card
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Display",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Show AI logos", color = Color.White)
-                        Text(
-                            text = "Display AI service logos next to the board",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFAAAAAA)
-                        )
-                    }
-                    Switch(
-                        checked = showAiLogos,
-                        onCheckedChange = {
-                            showAiLogos = it
-                            onSave(aiSettings.copy(showAiLogos = it))
-                        }
-                    )
-                }
-            }
-        }
 
         Text(
             text = "AI Services",

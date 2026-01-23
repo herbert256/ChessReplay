@@ -1045,16 +1045,34 @@ ${opening.moves} *
     }
 
     // ===== AI REPORTS (MULTI-SERVICE) =====
-    fun generateAiReports() {
+
+    fun showAiReportsSelectionDialog() {
+        _uiState.value = _uiState.value.copy(showAiReportsSelectionDialog = true)
+    }
+
+    fun dismissAiReportsSelectionDialog() {
+        _uiState.value = _uiState.value.copy(showAiReportsSelectionDialog = false)
+    }
+
+    fun loadAiReportProviders(): Set<String> {
+        return settingsPrefs.loadAiReportProviders()
+    }
+
+    fun saveAiReportProviders(providers: Set<String>) {
+        settingsPrefs.saveAiReportProviders(providers)
+    }
+
+    fun generateAiReports(selectedProviders: Set<AiService>) {
         val aiSettings = _uiState.value.aiSettings
-        // Get all configured services except DUMMY
-        val servicesToCall = AiService.entries.filter { service ->
-            service != AiService.DUMMY && aiSettings.getApiKey(service).isNotBlank()
+
+        // Filter to only selected providers that have API keys configured
+        val servicesToCall = selectedProviders.filter { service ->
+            aiSettings.getApiKey(service).isNotBlank()
         }
 
         if (servicesToCall.isEmpty()) {
             _uiState.value = _uiState.value.copy(
-                errorMessage = "No AI services configured. Please add API keys in Settings > AI Analysis."
+                errorMessage = "No AI services selected or configured. Please add API keys in Settings > AI Analysis."
             )
             return
         }
@@ -1062,6 +1080,7 @@ ${opening.moves} *
         val fen = _uiState.value.currentBoard.getFen()
 
         _uiState.value = _uiState.value.copy(
+            showAiReportsSelectionDialog = false,
             showAiReportsDialog = true,
             aiReportsProgress = 0,
             aiReportsTotal = servicesToCall.size,
