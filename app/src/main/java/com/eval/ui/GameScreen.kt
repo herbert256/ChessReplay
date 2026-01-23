@@ -168,6 +168,8 @@ fun GameScreen(
             isLoadingDeepSeekModels = uiState.isLoadingDeepSeekModels,
             availableMistralModels = uiState.availableMistralModels,
             isLoadingMistralModels = uiState.isLoadingMistralModels,
+            availablePerplexityModels = uiState.availablePerplexityModels,
+            isLoadingPerplexityModels = uiState.isLoadingPerplexityModels,
             onBack = { viewModel.hideSettingsDialog() },
             onSaveStockfish = { viewModel.updateStockfishSettings(it) },
             onSaveBoardLayout = { viewModel.updateBoardLayoutSettings(it) },
@@ -180,7 +182,8 @@ fun GameScreen(
             onFetchGeminiModels = { viewModel.fetchGeminiModels(it) },
             onFetchGrokModels = { viewModel.fetchGrokModels(it) },
             onFetchDeepSeekModels = { viewModel.fetchDeepSeekModels(it) },
-            onFetchMistralModels = { viewModel.fetchMistralModels(it) }
+            onFetchMistralModels = { viewModel.fetchMistralModels(it) },
+            onFetchPerplexityModels = { viewModel.fetchPerplexityModels(it) }
         )
         return
     }
@@ -247,6 +250,7 @@ fun GameScreen(
             availableGrokModels = uiState.availableGrokModels,
             availableDeepSeekModels = uiState.availableDeepSeekModels,
             availableMistralModels = uiState.availableMistralModels,
+            availablePerplexityModels = uiState.availablePerplexityModels,
             onModelChange = { service, model ->
                 viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
             },
@@ -394,6 +398,7 @@ fun GameScreen(
             availableGrokModels = uiState.availableGrokModels,
             availableDeepSeekModels = uiState.availableDeepSeekModels,
             availableMistralModels = uiState.availableMistralModels,
+            availablePerplexityModels = uiState.availablePerplexityModels,
             onModelChange = { service, model ->
                 viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
             },
@@ -3912,6 +3917,7 @@ private fun AiReportsSelectionDialog(
     availableGrokModels: List<String>,
     availableDeepSeekModels: List<String>,
     availableMistralModels: List<String>,
+    availablePerplexityModels: List<String>,
     onModelChange: (com.eval.data.AiService, String) -> Unit,
     onGenerate: (Set<com.eval.data.AiService>) -> Unit,
     onDismiss: () -> Unit,
@@ -3972,6 +3978,7 @@ private fun AiReportsSelectionDialog(
                         com.eval.data.AiService.GROK -> availableGrokModels
                         com.eval.data.AiService.DEEPSEEK -> availableDeepSeekModels
                         com.eval.data.AiService.MISTRAL -> availableMistralModels
+                        com.eval.data.AiService.PERPLEXITY -> availablePerplexityModels
                         com.eval.data.AiService.DUMMY -> emptyList()
                     }
 
@@ -4148,6 +4155,7 @@ private fun getAiServiceColor(service: com.eval.data.AiService): Color {
         com.eval.data.AiService.GROK -> Color(0xFF000000)
         com.eval.data.AiService.DEEPSEEK -> Color(0xFF0066FF)
         com.eval.data.AiService.MISTRAL -> Color(0xFFFF7000)
+        com.eval.data.AiService.PERPLEXITY -> Color(0xFF20B2AA)
         com.eval.data.AiService.DUMMY -> Color(0xFF888888)
     }
 }
@@ -4160,6 +4168,7 @@ private fun getAiServiceLetter(service: com.eval.data.AiService): String {
         com.eval.data.AiService.GROK -> "X"
         com.eval.data.AiService.DEEPSEEK -> "D"
         com.eval.data.AiService.MISTRAL -> "M"
+        com.eval.data.AiService.PERPLEXITY -> "P"
         com.eval.data.AiService.DUMMY -> "?"
     }
 }

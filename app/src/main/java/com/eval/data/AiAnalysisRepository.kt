@@ -36,6 +36,7 @@ class AiAnalysisRepository {
     private val grokApi = AiApiFactory.createGrokApi()
     private val deepSeekApi = AiApiFactory.createDeepSeekApi()
     private val mistralApi = AiApiFactory.createMistralApi()
+    private val perplexityApi = AiApiFactory.createPerplexityApi()
 
     /**
      * Builds the chess analysis prompt by replacing @FEN@ placeholder with actual FEN.
@@ -82,7 +83,8 @@ class AiAnalysisRepository {
         geminiModel: String = "gemini-2.0-flash",
         grokModel: String = "grok-3-mini",
         deepSeekModel: String = "deepseek-chat",
-        mistralModel: String = "mistral-small-latest"
+        mistralModel: String = "mistral-small-latest",
+        perplexityModel: String = "llama-3.1-sonar-small-128k-online"
     ): AiAnalysisResponse = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
             return@withContext AiAnalysisResponse(
@@ -102,6 +104,7 @@ class AiAnalysisRepository {
                 AiService.GROK -> analyzeWithGrok(apiKey, finalPrompt, grokModel)
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(apiKey, finalPrompt, deepSeekModel)
                 AiService.MISTRAL -> analyzeWithMistral(apiKey, finalPrompt, mistralModel)
+                AiService.PERPLEXITY -> analyzeWithPerplexity(apiKey, finalPrompt, perplexityModel)
                 AiService.DUMMY -> analyzeWithDummy()
             }
         }
@@ -156,7 +159,8 @@ class AiAnalysisRepository {
         geminiModel: String = "gemini-2.0-flash",
         grokModel: String = "grok-3-mini",
         deepSeekModel: String = "deepseek-chat",
-        mistralModel: String = "mistral-small-latest"
+        mistralModel: String = "mistral-small-latest",
+        perplexityModel: String = "llama-3.1-sonar-small-128k-online"
     ): AiAnalysisResponse = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
             return@withContext AiAnalysisResponse(
@@ -176,6 +180,7 @@ class AiAnalysisRepository {
                 AiService.GROK -> analyzeWithGrok(apiKey, finalPrompt, grokModel)
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(apiKey, finalPrompt, deepSeekModel)
                 AiService.MISTRAL -> analyzeWithMistral(apiKey, finalPrompt, mistralModel)
+                AiService.PERPLEXITY -> analyzeWithPerplexity(apiKey, finalPrompt, perplexityModel)
                 AiService.DUMMY -> analyzeWithDummy()
             }
         }
@@ -388,6 +393,36 @@ class AiAnalysisRepository {
         }
     }
 
+    private suspend fun analyzeWithPerplexity(apiKey: String, prompt: String, model: String): AiAnalysisResponse {
+        val request = PerplexityRequest(
+            model = model,
+            messages = listOf(OpenAiMessage(role = "user", content = prompt))
+        )
+        val response = perplexityApi.createChatCompletion(
+            authorization = "Bearer $apiKey",
+            request = request
+        )
+
+        return if (response.isSuccessful) {
+            val body = response.body()
+            val content = body?.choices?.firstOrNull()?.message?.content
+            val usage = body?.usage?.let {
+                TokenUsage(
+                    inputTokens = it.prompt_tokens ?: 0,
+                    outputTokens = it.completion_tokens ?: 0
+                )
+            }
+            if (content != null) {
+                AiAnalysisResponse(AiService.PERPLEXITY, content, null, usage)
+            } else {
+                val errorMsg = body?.error?.message ?: "No response content"
+                AiAnalysisResponse(AiService.PERPLEXITY, null, errorMsg)
+            }
+        } else {
+            AiAnalysisResponse(AiService.PERPLEXITY, null, "API error: ${response.code()} ${response.message()}")
+        }
+    }
+
     private fun analyzeWithDummy(): AiAnalysisResponse {
         return AiAnalysisResponse(AiService.DUMMY, "Hi, greetings from AI", null, TokenUsage(10, 5))
     }
@@ -503,6 +538,28 @@ class AiAnalysisRepository {
             }
         } catch (e: Exception) {
             android.util.Log.e("MistralAPI", "Error fetching models: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch available Perplexity models.
+     */
+    suspend fun fetchPerplexityModels(apiKey: String): List<String> = withContext(Dispatchers.IO) {
+        try {
+            val response = perplexityApi.listModels("Bearer $apiKey")
+            if (response.isSuccessful) {
+                val models = response.body()?.data ?: emptyList()
+                models
+                    .mapNotNull { it.id }
+                    .filter { it.contains("sonar") || it.contains("llama") }
+                    .sorted()
+            } else {
+                android.util.Log.e("PerplexityAPI", "Failed to fetch models: ${response.code()}")
+                emptyList()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PerplexityAPI", "Error fetching models: ${e.message}")
             emptyList()
         }
     }

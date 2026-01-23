@@ -354,6 +354,9 @@ data class GameUiState(
     // Mistral model selection
     val availableMistralModels: List<String> = emptyList(),
     val isLoadingMistralModels: Boolean = false,
+    // Perplexity model selection
+    val availablePerplexityModels: List<String> = emptyList(),
+    val isLoadingPerplexityModels: Boolean = false,
     // Player info screen
     val showPlayerInfoScreen: Boolean = false,
     val playerInfo: PlayerInfo? = null,

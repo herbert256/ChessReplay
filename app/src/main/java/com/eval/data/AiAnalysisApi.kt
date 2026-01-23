@@ -22,6 +22,7 @@ enum class AiService(val displayName: String, val baseUrl: String) {
     GROK("Grok", "https://api.x.ai/"),
     DEEPSEEK("DeepSeek", "https://api.deepseek.com/"),
     MISTRAL("Mistral", "https://api.mistral.ai/"),
+    PERPLEXITY("Perplexity", "https://api.perplexity.ai/"),
     DUMMY("Dummy", "")
 }
 
@@ -150,6 +151,13 @@ data class MistralRequest(
     val max_tokens: Int = 1024
 )
 
+// Perplexity models (uses OpenAI-compatible format)
+data class PerplexityRequest(
+    val model: String = "llama-3.1-sonar-small-128k-online",
+    val messages: List<OpenAiMessage>,
+    val max_tokens: Int = 1024
+)
+
 /**
  * Retrofit interface for OpenAI / ChatGPT API.
  */
@@ -265,6 +273,22 @@ interface MistralApi {
 }
 
 /**
+ * Retrofit interface for Perplexity API (OpenAI-compatible).
+ */
+interface PerplexityApi {
+    @POST("chat/completions")
+    suspend fun createChatCompletion(
+        @Header("Authorization") authorization: String,
+        @Body request: PerplexityRequest
+    ): Response<OpenAiResponse>
+
+    @retrofit2.http.GET("models")
+    suspend fun listModels(
+        @Header("Authorization") authorization: String
+    ): Response<OpenAiModelsResponse>
+}
+
+/**
  * Factory for creating API instances.
  */
 object AiApiFactory {
@@ -310,6 +334,10 @@ object AiApiFactory {
 
     fun createMistralApi(): MistralApi {
         return getRetrofit(AiService.MISTRAL.baseUrl).create(MistralApi::class.java)
+    }
+
+    fun createPerplexityApi(): PerplexityApi {
+        return getRetrofit(AiService.PERPLEXITY.baseUrl).create(PerplexityApi::class.java)
     }
 
 }

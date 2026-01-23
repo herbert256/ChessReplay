@@ -328,6 +328,11 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             mistralPrompt = prefs.getString(KEY_AI_MISTRAL_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
             mistralServerPlayerPrompt = prefs.getString(KEY_AI_MISTRAL_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
             mistralOtherPlayerPrompt = prefs.getString(KEY_AI_MISTRAL_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            perplexityApiKey = prefs.getString(KEY_AI_PERPLEXITY_API_KEY, "") ?: "",
+            perplexityModel = prefs.getString(KEY_AI_PERPLEXITY_MODEL, "llama-3.1-sonar-small-128k-online") ?: "llama-3.1-sonar-small-128k-online",
+            perplexityPrompt = prefs.getString(KEY_AI_PERPLEXITY_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
+            perplexityServerPlayerPrompt = prefs.getString(KEY_AI_PERPLEXITY_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
+            perplexityOtherPlayerPrompt = prefs.getString(KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
             dummyEnabled = prefs.getBoolean(KEY_AI_DUMMY_ENABLED, false)
         )
     }
@@ -364,6 +369,11 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             .putString(KEY_AI_MISTRAL_PROMPT, settings.mistralPrompt)
             .putString(KEY_AI_MISTRAL_SERVER_PLAYER_PROMPT, settings.mistralServerPlayerPrompt)
             .putString(KEY_AI_MISTRAL_OTHER_PLAYER_PROMPT, settings.mistralOtherPlayerPrompt)
+            .putString(KEY_AI_PERPLEXITY_API_KEY, settings.perplexityApiKey)
+            .putString(KEY_AI_PERPLEXITY_MODEL, settings.perplexityModel)
+            .putString(KEY_AI_PERPLEXITY_PROMPT, settings.perplexityPrompt)
+            .putString(KEY_AI_PERPLEXITY_SERVER_PLAYER_PROMPT, settings.perplexityServerPlayerPrompt)
+            .putString(KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT, settings.perplexityOtherPlayerPrompt)
             .putBoolean(KEY_AI_DUMMY_ENABLED, settings.dummyEnabled)
             .apply()
     }
@@ -531,6 +541,9 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_MISTRAL_API_KEY = "ai_mistral_api_key"
         private const val KEY_AI_MISTRAL_MODEL = "ai_mistral_model"
         private const val KEY_AI_MISTRAL_PROMPT = "ai_mistral_prompt"
+        private const val KEY_AI_PERPLEXITY_API_KEY = "ai_perplexity_api_key"
+        private const val KEY_AI_PERPLEXITY_MODEL = "ai_perplexity_model"
+        private const val KEY_AI_PERPLEXITY_PROMPT = "ai_perplexity_prompt"
         private const val KEY_AI_DUMMY_ENABLED = "ai_dummy_enabled"
 
         // AI prompts - Server player prompts
@@ -540,6 +553,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_GROK_SERVER_PLAYER_PROMPT = "ai_grok_server_player_prompt"
         private const val KEY_AI_DEEPSEEK_SERVER_PLAYER_PROMPT = "ai_deepseek_server_player_prompt"
         private const val KEY_AI_MISTRAL_SERVER_PLAYER_PROMPT = "ai_mistral_server_player_prompt"
+        private const val KEY_AI_PERPLEXITY_SERVER_PLAYER_PROMPT = "ai_perplexity_server_player_prompt"
 
         // AI prompts - Other player prompts
         private const val KEY_AI_CHATGPT_OTHER_PLAYER_PROMPT = "ai_chatgpt_other_player_prompt"
@@ -548,6 +562,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_GROK_OTHER_PLAYER_PROMPT = "ai_grok_other_player_prompt"
         private const val KEY_AI_DEEPSEEK_OTHER_PLAYER_PROMPT = "ai_deepseek_other_player_prompt"
         private const val KEY_AI_MISTRAL_OTHER_PLAYER_PROMPT = "ai_mistral_other_player_prompt"
+        private const val KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT = "ai_perplexity_other_player_prompt"
 
         // AI report email
         const val KEY_AI_REPORT_EMAIL = "ai_report_email"
@@ -558,6 +573,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_CACHED_GROK_MODELS = "cached_grok_models"
         private const val KEY_CACHED_DEEPSEEK_MODELS = "cached_deepseek_models"
         private const val KEY_CACHED_MISTRAL_MODELS = "cached_mistral_models"
+        private const val KEY_CACHED_PERPLEXITY_MODELS = "cached_perplexity_models"
 
         // FEN history
         private const val KEY_FEN_HISTORY = "fen_history"
@@ -686,5 +702,20 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
     fun saveCachedMistralModels(models: List<String>) {
         val json = gson.toJson(models)
         prefs.edit().putString(KEY_CACHED_MISTRAL_MODELS, json).apply()
+    }
+
+    fun loadCachedPerplexityModels(): List<String> {
+        val json = prefs.getString(KEY_CACHED_PERPLEXITY_MODELS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveCachedPerplexityModels(models: List<String>) {
+        val json = gson.toJson(models)
+        prefs.edit().putString(KEY_CACHED_PERPLEXITY_MODELS, json).apply()
     }
 }

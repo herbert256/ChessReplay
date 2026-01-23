@@ -85,6 +85,11 @@ data class AiSettings(
     val mistralPrompt: String = DEFAULT_GAME_PROMPT,
     val mistralServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
     val mistralOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val perplexityApiKey: String = "",
+    val perplexityModel: String = "llama-3.1-sonar-small-128k-online",
+    val perplexityPrompt: String = DEFAULT_GAME_PROMPT,
+    val perplexityServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
+    val perplexityOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
     val dummyEnabled: Boolean = false
 ) {
     fun getApiKey(service: AiService): String {
@@ -95,6 +100,7 @@ data class AiSettings(
             AiService.GROK -> grokApiKey
             AiService.DEEPSEEK -> deepSeekApiKey
             AiService.MISTRAL -> mistralApiKey
+            AiService.PERPLEXITY -> perplexityApiKey
             AiService.DUMMY -> if (dummyEnabled) "enabled" else ""
         }
     }
@@ -107,6 +113,7 @@ data class AiSettings(
             AiService.GROK -> grokModel
             AiService.DEEPSEEK -> deepSeekModel
             AiService.MISTRAL -> mistralModel
+            AiService.PERPLEXITY -> perplexityModel
             AiService.DUMMY -> ""
         }
     }
@@ -121,6 +128,7 @@ data class AiSettings(
             AiService.GROK -> grokPrompt
             AiService.DEEPSEEK -> deepSeekPrompt
             AiService.MISTRAL -> mistralPrompt
+            AiService.PERPLEXITY -> perplexityPrompt
             AiService.DUMMY -> ""
         }
     }
@@ -133,6 +141,7 @@ data class AiSettings(
             AiService.GROK -> grokServerPlayerPrompt
             AiService.DEEPSEEK -> deepSeekServerPlayerPrompt
             AiService.MISTRAL -> mistralServerPlayerPrompt
+            AiService.PERPLEXITY -> perplexityServerPlayerPrompt
             AiService.DUMMY -> ""
         }
     }
@@ -145,6 +154,7 @@ data class AiSettings(
             AiService.GROK -> grokOtherPlayerPrompt
             AiService.DEEPSEEK -> deepSeekOtherPlayerPrompt
             AiService.MISTRAL -> mistralOtherPlayerPrompt
+            AiService.PERPLEXITY -> perplexityOtherPlayerPrompt
             AiService.DUMMY -> ""
         }
     }
@@ -157,6 +167,7 @@ data class AiSettings(
             AiService.GROK -> copy(grokModel = model)
             AiService.DEEPSEEK -> copy(deepSeekModel = model)
             AiService.MISTRAL -> copy(mistralModel = model)
+            AiService.PERPLEXITY -> copy(perplexityModel = model)
             AiService.DUMMY -> this
         }
     }
@@ -168,6 +179,7 @@ data class AiSettings(
                 grokApiKey.isNotBlank() ||
                 deepSeekApiKey.isNotBlank() ||
                 mistralApiKey.isNotBlank() ||
+                perplexityApiKey.isNotBlank() ||
                 dummyEnabled
     }
 
@@ -275,6 +287,16 @@ fun AiSettingsScreen(
             isConfigured = aiSettings.mistralApiKey.isNotBlank(),
             selectedModel = if (aiSettings.mistralApiKey.isNotBlank()) aiSettings.mistralModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_MISTRAL) }
+        )
+
+        // Perplexity
+        AiServiceNavigationCard(
+            title = "Perplexity",
+            subtitle = "Perplexity AI",
+            accentColor = Color(0xFF20B2AA),
+            isConfigured = aiSettings.perplexityApiKey.isNotBlank(),
+            selectedModel = if (aiSettings.perplexityApiKey.isNotBlank()) aiSettings.perplexityModel else null,
+            onClick = { onNavigate(SettingsSubScreen.AI_PERPLEXITY) }
         )
 
         // Dummy (for testing)
@@ -437,6 +459,18 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
         ))
     }
 
+    if (aiSettings.perplexityApiKey.isNotBlank()) {
+        services.add(AiServiceConfig(
+            name = "Perplexity",
+            apiKey = aiSettings.perplexityApiKey,
+            model = aiSettings.perplexityModel,
+            prompt = aiSettings.perplexityPrompt,
+            gamePrompt = aiSettings.perplexityPrompt,
+            serverPlayerPrompt = aiSettings.perplexityServerPlayerPrompt,
+            otherPlayerPrompt = aiSettings.perplexityOtherPlayerPrompt
+        ))
+    }
+
     val export = AiConfigExport(
         services = services,
         dummyEnabled = aiSettings.dummyEnabled
@@ -525,6 +559,13 @@ private fun importAiConfigFromClipboard(context: Context): AiSettings? {
                     mistralPrompt = gamePrompt,
                     mistralServerPlayerPrompt = serverPlayerPrompt,
                     mistralOtherPlayerPrompt = otherPlayerPrompt
+                )
+                "Perplexity" -> settings.copy(
+                    perplexityApiKey = service.apiKey,
+                    perplexityModel = service.model,
+                    perplexityPrompt = gamePrompt,
+                    perplexityServerPlayerPrompt = serverPlayerPrompt,
+                    perplexityOtherPlayerPrompt = otherPlayerPrompt
                 )
                 else -> settings
             }
@@ -1165,6 +1206,87 @@ fun MistralSettingsScreen(
                 onResetOtherPlayerPrompt = {
                     otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
                     onSave(aiSettings.copy(mistralOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Perplexity settings screen.
+ */
+@Composable
+fun PerplexitySettingsScreen(
+    aiSettings: AiSettings,
+    availableModels: List<String>,
+    isLoadingModels: Boolean,
+    onBackToAiSettings: () -> Unit,
+    onBackToGame: () -> Unit,
+    onSave: (AiSettings) -> Unit,
+    onFetchModels: (String) -> Unit
+) {
+    var apiKey by remember { mutableStateOf(aiSettings.perplexityApiKey) }
+    var selectedModel by remember { mutableStateOf(aiSettings.perplexityModel) }
+    var gamePrompt by remember { mutableStateOf(aiSettings.perplexityPrompt) }
+    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.perplexityServerPlayerPrompt) }
+    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.perplexityOtherPlayerPrompt) }
+    var showKey by remember { mutableStateOf(false) }
+
+    AiServiceSettingsScreenTemplate(
+        title = "Perplexity",
+        subtitle = "Perplexity AI",
+        accentColor = Color(0xFF20B2AA),
+        apiKey = apiKey,
+        showKey = showKey,
+        onApiKeyChange = {
+            apiKey = it
+            onSave(aiSettings.copy(perplexityApiKey = it.trim()))
+        },
+        onToggleVisibility = { showKey = !showKey },
+        onBackToAiSettings = onBackToAiSettings,
+        onBackToGame = onBackToGame
+    ) {
+        // Model selection
+        if (apiKey.isNotBlank()) {
+            ModelSelectionSection(
+                selectedModel = selectedModel,
+                availableModels = availableModels,
+                isLoadingModels = isLoadingModels,
+                onModelChange = {
+                    selectedModel = it
+                    onSave(aiSettings.copy(perplexityModel = it))
+                },
+                onFetchModels = { onFetchModels(apiKey) }
+            )
+
+            // All prompts editing
+            AllPromptsSection(
+                gamePrompt = gamePrompt,
+                serverPlayerPrompt = serverPlayerPrompt,
+                otherPlayerPrompt = otherPlayerPrompt,
+                onGamePromptChange = {
+                    gamePrompt = it
+                    onSave(aiSettings.copy(perplexityPrompt = it))
+                },
+                onServerPlayerPromptChange = {
+                    serverPlayerPrompt = it
+                    onSave(aiSettings.copy(perplexityServerPlayerPrompt = it))
+                },
+                onOtherPlayerPromptChange = {
+                    otherPlayerPrompt = it
+                    onSave(aiSettings.copy(perplexityOtherPlayerPrompt = it))
+                },
+                onResetGamePrompt = {
+                    gamePrompt = DEFAULT_GAME_PROMPT
+                    onSave(aiSettings.copy(perplexityPrompt = DEFAULT_GAME_PROMPT))
+                },
+                onResetServerPlayerPrompt = {
+                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
+                    onSave(aiSettings.copy(perplexityServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
+                },
+                onResetOtherPlayerPrompt = {
+                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
+                    onSave(aiSettings.copy(perplexityOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
                 }
             )
         }
