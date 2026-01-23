@@ -347,7 +347,10 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             perplexityOtherPlayerPrompt = prefs.getString(KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
             perplexityModelSource = loadModelSource(KEY_AI_PERPLEXITY_MODEL_SOURCE, ModelSource.MANUAL),
             perplexityManualModels = loadManualModelsWithDefault(KEY_AI_PERPLEXITY_MANUAL_MODELS, PERPLEXITY_MODELS),
-            dummyEnabled = prefs.getBoolean(KEY_AI_DUMMY_ENABLED, false)
+            dummyEnabled = prefs.getBoolean(KEY_AI_DUMMY_ENABLED, false),
+            dummyPrompt = prefs.getString(KEY_AI_DUMMY_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
+            dummyServerPlayerPrompt = prefs.getString(KEY_AI_DUMMY_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
+            dummyOtherPlayerPrompt = prefs.getString(KEY_AI_DUMMY_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT
         )
     }
 
@@ -432,6 +435,9 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             .putString(KEY_AI_PERPLEXITY_MODEL_SOURCE, settings.perplexityModelSource.name)
             .putString(KEY_AI_PERPLEXITY_MANUAL_MODELS, gson.toJson(settings.perplexityManualModels))
             .putBoolean(KEY_AI_DUMMY_ENABLED, settings.dummyEnabled)
+            .putString(KEY_AI_DUMMY_PROMPT, settings.dummyPrompt)
+            .putString(KEY_AI_DUMMY_SERVER_PLAYER_PROMPT, settings.dummyServerPlayerPrompt)
+            .putString(KEY_AI_DUMMY_OTHER_PLAYER_PROMPT, settings.dummyOtherPlayerPrompt)
             .apply()
     }
 
@@ -602,6 +608,9 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_PERPLEXITY_MODEL = "ai_perplexity_model"
         private const val KEY_AI_PERPLEXITY_PROMPT = "ai_perplexity_prompt"
         private const val KEY_AI_DUMMY_ENABLED = "ai_dummy_enabled"
+        private const val KEY_AI_DUMMY_PROMPT = "ai_dummy_prompt"
+        private const val KEY_AI_DUMMY_SERVER_PLAYER_PROMPT = "ai_dummy_server_player_prompt"
+        private const val KEY_AI_DUMMY_OTHER_PLAYER_PROMPT = "ai_dummy_other_player_prompt"
 
         // AI prompts - Server player prompts
         private const val KEY_AI_CHATGPT_SERVER_PLAYER_PROMPT = "ai_chatgpt_server_player_prompt"

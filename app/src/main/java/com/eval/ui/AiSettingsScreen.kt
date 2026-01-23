@@ -130,7 +130,10 @@ data class AiSettings(
     val perplexityOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
     val perplexityModelSource: ModelSource = ModelSource.MANUAL,
     val perplexityManualModels: List<String> = PERPLEXITY_MODELS,
-    val dummyEnabled: Boolean = false
+    val dummyEnabled: Boolean = false,
+    val dummyPrompt: String = DEFAULT_GAME_PROMPT,
+    val dummyServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
+    val dummyOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT
 ) {
     fun getApiKey(service: AiService): String {
         return when (service) {
@@ -169,7 +172,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekPrompt
             AiService.MISTRAL -> mistralPrompt
             AiService.PERPLEXITY -> perplexityPrompt
-            AiService.DUMMY -> ""
+            AiService.DUMMY -> dummyPrompt
         }
     }
 
@@ -182,7 +185,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekServerPlayerPrompt
             AiService.MISTRAL -> mistralServerPlayerPrompt
             AiService.PERPLEXITY -> perplexityServerPlayerPrompt
-            AiService.DUMMY -> ""
+            AiService.DUMMY -> dummyServerPlayerPrompt
         }
     }
 
@@ -195,7 +198,7 @@ data class AiSettings(
             AiService.DEEPSEEK -> deepSeekOtherPlayerPrompt
             AiService.MISTRAL -> mistralOtherPlayerPrompt
             AiService.PERPLEXITY -> perplexityOtherPlayerPrompt
-            AiService.DUMMY -> ""
+            AiService.DUMMY -> dummyOtherPlayerPrompt
         }
     }
 
@@ -1466,6 +1469,9 @@ fun DummySettingsScreen(
     onSave: (AiSettings) -> Unit
 ) {
     var enabled by remember { mutableStateOf(aiSettings.dummyEnabled) }
+    var gamePrompt by remember { mutableStateOf(aiSettings.dummyPrompt) }
+    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.dummyServerPlayerPrompt) }
+    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.dummyOtherPlayerPrompt) }
 
     Column(
         modifier = Modifier
@@ -1562,6 +1568,39 @@ fun DummySettingsScreen(
                     )
                 }
             }
+        }
+
+        // Show prompts when enabled (for testing prompt selection)
+        if (enabled) {
+            AllPromptsSection(
+                gamePrompt = gamePrompt,
+                serverPlayerPrompt = serverPlayerPrompt,
+                otherPlayerPrompt = otherPlayerPrompt,
+                onGamePromptChange = {
+                    gamePrompt = it
+                    onSave(aiSettings.copy(dummyPrompt = it))
+                },
+                onServerPlayerPromptChange = {
+                    serverPlayerPrompt = it
+                    onSave(aiSettings.copy(dummyServerPlayerPrompt = it))
+                },
+                onOtherPlayerPromptChange = {
+                    otherPlayerPrompt = it
+                    onSave(aiSettings.copy(dummyOtherPlayerPrompt = it))
+                },
+                onResetGamePrompt = {
+                    gamePrompt = DEFAULT_GAME_PROMPT
+                    onSave(aiSettings.copy(dummyPrompt = DEFAULT_GAME_PROMPT))
+                },
+                onResetServerPlayerPrompt = {
+                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
+                    onSave(aiSettings.copy(dummyServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
+                },
+                onResetOtherPlayerPrompt = {
+                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
+                    onSave(aiSettings.copy(dummyOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))

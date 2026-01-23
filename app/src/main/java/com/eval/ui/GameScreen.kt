@@ -2311,13 +2311,17 @@ private fun convertPlayerAiReportsToHtml(uiState: GameUiState, appVersion: Strin
     // Generate tabs HTML
     val tabsHtml = serviceNames.mapIndexed { index, service ->
         val isActive = if (index == 0) "active" else ""
-        """<button class="tab-btn $isActive" onclick="showTab('${service.name}')">${service.displayName}</button>"""
+        val model = aiSettings.getModel(service)
+        val nameWithModel = if (model.isNotBlank()) "${service.displayName} ($model)" else service.displayName
+        """<button class="tab-btn $isActive" onclick="showTab('${service.name}')">${escapeHtml(nameWithModel)}</button>"""
     }.joinToString("\n")
 
     // Generate content panels for each service
     val panelsHtml = serviceNames.mapIndexed { index, service ->
         val result = results[service]!!
         val isActive = if (index == 0) "active" else ""
+        val model = aiSettings.getModel(service)
+        val nameWithModel = if (model.isNotBlank()) "${service.displayName} ($model)" else service.displayName
         val content = if (result.isSuccess && result.analysis != null) {
             convertMarkdownContentToHtml(result.analysis)
         } else {
@@ -2339,7 +2343,7 @@ private fun convertPlayerAiReportsToHtml(uiState: GameUiState, appVersion: Strin
         } else ""
         """
         <div id="panel-${service.name}" class="tab-panel $isActive">
-            <h2>${service.displayName} Analysis</h2>
+            <h2>${escapeHtml(nameWithModel)} Analysis</h2>
             $content
             $promptHtml
         </div>
@@ -2807,24 +2811,29 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
 
     val results = uiState.aiReportsResults
     val serviceNames = results.keys.sortedBy { it.ordinal }
+    val aiSettings = uiState.aiSettings
 
     // Generate tabs HTML
     val tabsHtml = serviceNames.mapIndexed { index, service ->
         val isActive = if (index == 0) "active" else ""
-        """<button class="tab-btn $isActive" onclick="showTab('${service.name}')">${service.displayName}</button>"""
+        val model = aiSettings.getModel(service)
+        val nameWithModel = if (model.isNotBlank()) "${service.displayName} ($model)" else service.displayName
+        """<button class="tab-btn $isActive" onclick="showTab('${service.name}')">${escapeHtml(nameWithModel)}</button>"""
     }.joinToString("\n")
 
     // Generate content panels for each service
     val panelsHtml = serviceNames.mapIndexed { index, service ->
         val result = results[service]!!
         val isActive = if (index == 0) "active" else ""
+        val model = aiSettings.getModel(service)
+        val nameWithModel = if (model.isNotBlank()) "${service.displayName} ($model)" else service.displayName
         val content = if (result.isSuccess && result.analysis != null) {
             convertMarkdownContentToHtml(result.analysis)
         } else {
             """<pre class="error">${escapeHtml(result.error ?: "Unknown error")}</pre>"""
         }
         // Get the prompt used for this service
-        val prompt = uiState.aiSettings.getPrompt(service)
+        val prompt = aiSettings.getPrompt(service)
         val promptHtml = if (prompt.isNotBlank()) {
             """
             <div class="prompt-section">
@@ -2835,7 +2844,7 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
         } else ""
         """
         <div id="panel-${service.name}" class="tab-panel $isActive">
-            <h2>${service.displayName} Analysis</h2>
+            <h2>${escapeHtml(nameWithModel)} Analysis</h2>
             $content
             $promptHtml
         </div>

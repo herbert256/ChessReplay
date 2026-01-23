@@ -1060,12 +1060,20 @@ ${opening.moves} *
 
     // ===== AI ANALYSIS =====
     fun requestAiAnalysis(service: AiService) {
-        val apiKey = _uiState.value.aiSettings.getApiKey(service)
+        val aiSettings = _uiState.value.aiSettings
+        val apiKey = aiSettings.getApiKey(service)
+        val model = aiSettings.getModel(service)
+        val serviceNameWithModel = if (model.isNotBlank()) {
+            "${service.displayName} ($model)"
+        } else {
+            service.displayName
+        }
+
         if (apiKey.isBlank()) {
             _uiState.value = _uiState.value.copy(
                 showAiAnalysisDialog = true,
                 aiAnalysisLoading = false,
-                aiAnalysisServiceName = service.displayName,
+                aiAnalysisServiceName = serviceNameWithModel,
                 aiAnalysisResult = AiAnalysisResponse(
                     service = service,
                     analysis = null,
@@ -1080,12 +1088,11 @@ ${opening.moves} *
         _uiState.value = _uiState.value.copy(
             showAiAnalysisDialog = true,
             aiAnalysisLoading = true,
-            aiAnalysisServiceName = service.displayName,
+            aiAnalysisServiceName = serviceNameWithModel,
             aiAnalysisResult = null
         )
 
         viewModelScope.launch {
-            val aiSettings = _uiState.value.aiSettings
             val prompt = when (service) {
                 AiService.CHATGPT -> aiSettings.chatGptPrompt
                 AiService.CLAUDE -> aiSettings.claudePrompt
