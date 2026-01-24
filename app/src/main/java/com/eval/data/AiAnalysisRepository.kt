@@ -22,7 +22,8 @@ data class AiAnalysisResponse(
     val analysis: String?,
     val error: String?,
     val tokenUsage: TokenUsage? = null,
-    val agentName: String? = null  // Name of the agent that generated this response (for three-tier architecture)
+    val agentName: String? = null,  // Name of the agent that generated this response (for three-tier architecture)
+    val promptUsed: String? = null  // The actual prompt sent to the AI (with @FEN@ etc. replaced)
 ) {
     val isSuccess: Boolean get() = analysis != null && error == null
 
@@ -258,8 +259,8 @@ class AiAnalysisRepository {
                 AiService.OPENROUTER -> analyzeWithOpenRouter(agent.apiKey, finalPrompt, agent.model)
                 AiService.DUMMY -> analyzeWithDummy()
             }
-            // Add agent name to result
-            return result.copy(agentName = agent.name)
+            // Add agent name and prompt used to result
+            return result.copy(agentName = agent.name, promptUsed = finalPrompt)
         }
 
         // First attempt
@@ -316,7 +317,7 @@ class AiAnalysisRepository {
                 AiService.OPENROUTER -> analyzeWithOpenRouter(agent.apiKey, prompt, agent.model)
                 AiService.DUMMY -> analyzeWithDummy()
             }
-            return result.copy(agentName = agent.name)
+            return result.copy(agentName = agent.name, promptUsed = prompt)
         }
 
         try {

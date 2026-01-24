@@ -2492,17 +2492,13 @@ private fun convertPlayerAiReportsToHtml(uiState: GameUiState, appVersion: Strin
         } else {
             """<pre class="error">${escapeHtml(result.error ?: "Unknown error")}</pre>"""
         }
-        // Get the prompt used for this agent
-        val prompt = if (server != null) {
-            aiSettings.getAgentServerPlayerPrompt(agent)
-        } else {
-            aiSettings.getAgentOtherPlayerPrompt(agent)
-        }
-        val promptHtml = if (prompt.isNotBlank()) {
+        // Get the actual prompt used (with placeholders replaced)
+        val promptUsed = result.promptUsed ?: ""
+        val promptHtml = if (promptUsed.isNotBlank()) {
             """
             <div class="prompt-section">
                 <h3>Prompt Used</h3>
-                <pre class="prompt-text">${escapeHtml(prompt)}</pre>
+                <pre class="prompt-text">${escapeHtml(promptUsed)}</pre>
             </div>
             """
         } else ""
@@ -2965,7 +2961,6 @@ private fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Stri
     val generatedDate = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
         .format(java.util.Date())
     val title = uiState.genericAiPromptTitle
-    val prompt = uiState.genericAiPromptText
     val aiSettings = uiState.aiSettings
 
     // Get agents with results, sorted by name
@@ -2974,6 +2969,9 @@ private fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Stri
         val result = uiState.genericAiReportsAgentResults[agentId]
         if (agent != null && result != null) agent to result else null
     }.sortedBy { it.first.name.lowercase() }
+
+    // Get the actual prompt used from the first result
+    val promptUsed = agentsWithResults.firstOrNull()?.second?.promptUsed ?: uiState.genericAiPromptText
 
     // Generate tabs HTML (show agent name)
     val tabsHtml = agentsWithResults.mapIndexed { index, (agent, _) ->
@@ -3125,7 +3123,7 @@ private fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Stri
     <!-- Prompt used (shown once at the bottom) -->
     <div class="prompt-section">
         <h3>Prompt Used</h3>
-        <pre class="prompt-text">${escapeHtml(prompt)}</pre>
+        <pre class="prompt-text">${escapeHtml(promptUsed)}</pre>
     </div>
 
     <div class="generated-footer">
@@ -3374,13 +3372,13 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
         } else {
             """<pre class="error">${escapeHtml(result.error ?: "Unknown error")}</pre>"""
         }
-        // Get the prompt used for this agent
-        val prompt = aiSettings.getAgentGamePrompt(agent)
-        val promptHtml = if (prompt.isNotBlank()) {
+        // Get the actual prompt used (with @FEN@ replaced)
+        val promptUsed = result.promptUsed ?: ""
+        val promptHtml = if (promptUsed.isNotBlank()) {
             """
             <div class="prompt-section">
                 <h3>Prompt Used</h3>
-                <pre class="prompt-text">${escapeHtml(prompt)}</pre>
+                <pre class="prompt-text">${escapeHtml(promptUsed)}</pre>
             </div>
             """
         } else ""
