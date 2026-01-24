@@ -446,6 +446,21 @@ fun AiSettingsScreen(
                 Text("Export AI configuration")
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Export API keys only button
+            Button(
+                onClick = {
+                    exportApiKeysToClipboard(context, aiSettings)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF2196F3)
+                )
+            ) {
+                Text("Export API keys")
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
         }
 
@@ -629,6 +644,58 @@ private fun exportAiConfigToClipboard(context: Context, aiSettings: AiSettings) 
     clipboard.setPrimaryClip(clip)
 
     Toast.makeText(context, "AI configuration copied to clipboard", Toast.LENGTH_SHORT).show()
+}
+
+/**
+ * Data class for API key export entry.
+ */
+private data class ApiKeyEntry(
+    val service: String,
+    val apiKey: String
+)
+
+/**
+ * Export API keys only to clipboard as JSON array.
+ */
+private fun exportApiKeysToClipboard(context: Context, aiSettings: AiSettings) {
+    val keys = mutableListOf<ApiKeyEntry>()
+
+    if (aiSettings.chatGptApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("ChatGPT", aiSettings.chatGptApiKey))
+    }
+    if (aiSettings.claudeApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("Claude", aiSettings.claudeApiKey))
+    }
+    if (aiSettings.geminiApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("Gemini", aiSettings.geminiApiKey))
+    }
+    if (aiSettings.grokApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("Grok", aiSettings.grokApiKey))
+    }
+    if (aiSettings.deepSeekApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("DeepSeek", aiSettings.deepSeekApiKey))
+    }
+    if (aiSettings.mistralApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("Mistral", aiSettings.mistralApiKey))
+    }
+    if (aiSettings.perplexityApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("Perplexity", aiSettings.perplexityApiKey))
+    }
+    if (aiSettings.togetherApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("Together", aiSettings.togetherApiKey))
+    }
+    if (aiSettings.openRouterApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("OpenRouter", aiSettings.openRouterApiKey))
+    }
+
+    val gson = Gson()
+    val json = gson.toJson(keys)
+
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("API Keys", json)
+    clipboard.setPrimaryClip(clip)
+
+    Toast.makeText(context, "${keys.size} API keys copied to clipboard", Toast.LENGTH_SHORT).show()
 }
 
 /**
