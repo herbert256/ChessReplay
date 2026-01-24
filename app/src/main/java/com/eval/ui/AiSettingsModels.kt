@@ -142,6 +142,13 @@ data class AiSettings(
     val grokOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
     val grokModelSource: ModelSource = ModelSource.API,
     val grokManualModels: List<String> = emptyList(),
+    val groqApiKey: String = "",
+    val groqModel: String = "llama-3.3-70b-versatile",
+    val groqPrompt: String = DEFAULT_GAME_PROMPT,
+    val groqServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
+    val groqOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    val groqModelSource: ModelSource = ModelSource.API,
+    val groqManualModels: List<String> = emptyList(),
     val deepSeekApiKey: String = "",
     val deepSeekModel: String = "deepseek-chat",
     val deepSeekPrompt: String = DEFAULT_GAME_PROMPT,
@@ -190,6 +197,7 @@ data class AiSettings(
             AiService.CLAUDE -> claudeApiKey
             AiService.GEMINI -> geminiApiKey
             AiService.GROK -> grokApiKey
+            AiService.GROQ -> groqApiKey
             AiService.DEEPSEEK -> deepSeekApiKey
             AiService.MISTRAL -> mistralApiKey
             AiService.PERPLEXITY -> perplexityApiKey
@@ -205,6 +213,7 @@ data class AiSettings(
             AiService.CLAUDE -> claudeModel
             AiService.GEMINI -> geminiModel
             AiService.GROK -> grokModel
+            AiService.GROQ -> groqModel
             AiService.DEEPSEEK -> deepSeekModel
             AiService.MISTRAL -> mistralModel
             AiService.PERPLEXITY -> perplexityModel
@@ -222,6 +231,7 @@ data class AiSettings(
             AiService.CLAUDE -> claudePrompt
             AiService.GEMINI -> geminiPrompt
             AiService.GROK -> grokPrompt
+            AiService.GROQ -> groqPrompt
             AiService.DEEPSEEK -> deepSeekPrompt
             AiService.MISTRAL -> mistralPrompt
             AiService.PERPLEXITY -> perplexityPrompt
@@ -237,6 +247,7 @@ data class AiSettings(
             AiService.CLAUDE -> claudeServerPlayerPrompt
             AiService.GEMINI -> geminiServerPlayerPrompt
             AiService.GROK -> grokServerPlayerPrompt
+            AiService.GROQ -> groqServerPlayerPrompt
             AiService.DEEPSEEK -> deepSeekServerPlayerPrompt
             AiService.MISTRAL -> mistralServerPlayerPrompt
             AiService.PERPLEXITY -> perplexityServerPlayerPrompt
@@ -252,6 +263,7 @@ data class AiSettings(
             AiService.CLAUDE -> claudeOtherPlayerPrompt
             AiService.GEMINI -> geminiOtherPlayerPrompt
             AiService.GROK -> grokOtherPlayerPrompt
+            AiService.GROQ -> groqOtherPlayerPrompt
             AiService.DEEPSEEK -> deepSeekOtherPlayerPrompt
             AiService.MISTRAL -> mistralOtherPlayerPrompt
             AiService.PERPLEXITY -> perplexityOtherPlayerPrompt
@@ -267,6 +279,7 @@ data class AiSettings(
             AiService.CLAUDE -> copy(claudeModel = model)
             AiService.GEMINI -> copy(geminiModel = model)
             AiService.GROK -> copy(grokModel = model)
+            AiService.GROQ -> copy(groqModel = model)
             AiService.DEEPSEEK -> copy(deepSeekModel = model)
             AiService.MISTRAL -> copy(mistralModel = model)
             AiService.PERPLEXITY -> copy(perplexityModel = model)
@@ -282,6 +295,7 @@ data class AiSettings(
             AiService.CLAUDE -> claudeModelSource
             AiService.GEMINI -> geminiModelSource
             AiService.GROK -> grokModelSource
+            AiService.GROQ -> groqModelSource
             AiService.DEEPSEEK -> deepSeekModelSource
             AiService.MISTRAL -> mistralModelSource
             AiService.PERPLEXITY -> perplexityModelSource
@@ -297,6 +311,7 @@ data class AiSettings(
             AiService.CLAUDE -> claudeManualModels
             AiService.GEMINI -> geminiManualModels
             AiService.GROK -> grokManualModels
+            AiService.GROQ -> groqManualModels
             AiService.DEEPSEEK -> deepSeekManualModels
             AiService.MISTRAL -> mistralManualModels
             AiService.PERPLEXITY -> perplexityManualModels

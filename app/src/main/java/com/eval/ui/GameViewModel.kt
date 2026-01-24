@@ -224,6 +224,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val cachedChatGptModels = settingsPrefs.loadCachedChatGptModels()
             val cachedGeminiModels = settingsPrefs.loadCachedGeminiModels()
             val cachedGrokModels = settingsPrefs.loadCachedGrokModels()
+            val cachedGroqModels = settingsPrefs.loadCachedGroqModels()
             val cachedDeepSeekModels = settingsPrefs.loadCachedDeepSeekModels()
             val cachedMistralModels = settingsPrefs.loadCachedMistralModels()
             val cachedPerplexityModels = settingsPrefs.loadCachedPerplexityModels()
@@ -248,6 +249,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 availableChatGptModels = cachedChatGptModels,
                 availableGeminiModels = cachedGeminiModels,
                 availableGrokModels = cachedGrokModels,
+                availableGroqModels = cachedGroqModels,
                 availableDeepSeekModels = cachedDeepSeekModels,
                 availableMistralModels = cachedMistralModels,
                 availablePerplexityModels = cachedPerplexityModels,
@@ -322,6 +324,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val cachedChatGptModels = settingsPrefs.loadCachedChatGptModels()
         val cachedGeminiModels = settingsPrefs.loadCachedGeminiModels()
         val cachedGrokModels = settingsPrefs.loadCachedGrokModels()
+        val cachedGroqModels = settingsPrefs.loadCachedGroqModels()
         val cachedDeepSeekModels = settingsPrefs.loadCachedDeepSeekModels()
         val cachedMistralModels = settingsPrefs.loadCachedMistralModels()
         val cachedPerplexityModels = settingsPrefs.loadCachedPerplexityModels()
@@ -343,6 +346,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             availableChatGptModels = cachedChatGptModels,
             availableGeminiModels = cachedGeminiModels,
             availableGrokModels = cachedGrokModels,
+            availableGroqModels = cachedGroqModels,
             availableDeepSeekModels = cachedDeepSeekModels,
             availableMistralModels = cachedMistralModels,
             availablePerplexityModels = cachedPerplexityModels,
@@ -1165,6 +1169,7 @@ ${opening.moves} *
                 AiService.CLAUDE -> aiSettings.claudePrompt
                 AiService.GEMINI -> aiSettings.geminiPrompt
                 AiService.GROK -> aiSettings.grokPrompt
+                AiService.GROQ -> aiSettings.groqPrompt
                 AiService.DEEPSEEK -> aiSettings.deepSeekPrompt
                 AiService.MISTRAL -> aiSettings.mistralPrompt
                 AiService.PERPLEXITY -> aiSettings.perplexityPrompt
@@ -1181,6 +1186,7 @@ ${opening.moves} *
                 claudeModel = aiSettings.claudeModel,
                 geminiModel = aiSettings.geminiModel,
                 grokModel = aiSettings.grokModel,
+                groqModel = aiSettings.groqModel,
                 deepSeekModel = aiSettings.deepSeekModel,
                 mistralModel = aiSettings.mistralModel,
                 perplexityModel = aiSettings.perplexityModel,
@@ -1783,6 +1789,21 @@ ${opening.moves} *
             _uiState.value = _uiState.value.copy(
                 availableGrokModels = models,
                 isLoadingGrokModels = false
+            )
+        }
+    }
+
+    fun fetchGroqModels(apiKey: String) {
+        if (apiKey.isBlank()) return
+        _uiState.value = _uiState.value.copy(isLoadingGroqModels = true)
+        viewModelScope.launch {
+            val models = aiAnalysisRepository.fetchGroqModels(apiKey)
+            if (models.isNotEmpty()) {
+                settingsPrefs.saveCachedGroqModels(models)
+            }
+            _uiState.value = _uiState.value.copy(
+                availableGroqModels = models,
+                isLoadingGroqModels = false
             )
         }
     }

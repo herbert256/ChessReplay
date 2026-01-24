@@ -81,6 +81,7 @@ fun exportAiConfigToFile(context: Context, aiSettings: AiSettings) {
         "CLAUDE" to ProviderConfigExport(ModelSource.MANUAL.name, aiSettings.claudeManualModels, aiSettings.claudeApiKey),
         "GEMINI" to ProviderConfigExport(aiSettings.geminiModelSource.name, aiSettings.geminiManualModels, aiSettings.geminiApiKey),
         "GROK" to ProviderConfigExport(aiSettings.grokModelSource.name, aiSettings.grokManualModels, aiSettings.grokApiKey),
+        "GROQ" to ProviderConfigExport(aiSettings.groqModelSource.name, aiSettings.groqManualModels, aiSettings.groqApiKey),
         "DEEPSEEK" to ProviderConfigExport(aiSettings.deepSeekModelSource.name, aiSettings.deepSeekManualModels, aiSettings.deepSeekApiKey),
         "MISTRAL" to ProviderConfigExport(aiSettings.mistralModelSource.name, aiSettings.mistralManualModels, aiSettings.mistralApiKey),
         "PERPLEXITY" to ProviderConfigExport(ModelSource.MANUAL.name, aiSettings.perplexityManualModels, aiSettings.perplexityApiKey),
@@ -163,6 +164,9 @@ fun exportApiKeysToClipboard(context: Context, aiSettings: AiSettings) {
     }
     if (aiSettings.grokApiKey.isNotBlank()) {
         keys.add(ApiKeyEntry("Grok", aiSettings.grokApiKey))
+    }
+    if (aiSettings.groqApiKey.isNotBlank()) {
+        keys.add(ApiKeyEntry("Groq", aiSettings.groqApiKey))
     }
     if (aiSettings.deepSeekApiKey.isNotBlank()) {
         keys.add(ApiKeyEntry("DeepSeek", aiSettings.deepSeekApiKey))
@@ -280,6 +284,13 @@ fun importAiConfigFromClipboard(context: Context, currentSettings: AiSettings): 
                 grokModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
                 grokManualModels = p.manualModels,
                 grokApiKey = p.apiKey
+            )
+        }
+        export.providers["GROQ"]?.let { p ->
+            settings = settings.copy(
+                groqModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                groqManualModels = p.manualModels,
+                groqApiKey = p.apiKey
             )
         }
         export.providers["DEEPSEEK"]?.let { p ->
@@ -427,6 +438,13 @@ fun importAiConfigFromFile(context: Context, uri: Uri, currentSettings: AiSettin
                 grokModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
                 grokManualModels = p.manualModels,
                 grokApiKey = p.apiKey
+            )
+        }
+        export.providers["GROQ"]?.let { p ->
+            settings = settings.copy(
+                groqModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                groqManualModels = p.manualModels,
+                groqApiKey = p.apiKey
             )
         }
         export.providers["DEEPSEEK"]?.let { p ->

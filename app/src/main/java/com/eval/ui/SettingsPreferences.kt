@@ -354,6 +354,13 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             grokOtherPlayerPrompt = prefs.getString(KEY_AI_GROK_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
             grokModelSource = loadModelSource(KEY_AI_GROK_MODEL_SOURCE, ModelSource.API),
             grokManualModels = loadManualModels(KEY_AI_GROK_MANUAL_MODELS),
+            groqApiKey = prefs.getString(KEY_AI_GROQ_API_KEY, "") ?: "",
+            groqModel = prefs.getString(KEY_AI_GROQ_MODEL, "llama-3.3-70b-versatile") ?: "llama-3.3-70b-versatile",
+            groqPrompt = prefs.getString(KEY_AI_GROQ_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
+            groqServerPlayerPrompt = prefs.getString(KEY_AI_GROQ_SERVER_PLAYER_PROMPT, DEFAULT_SERVER_PLAYER_PROMPT) ?: DEFAULT_SERVER_PLAYER_PROMPT,
+            groqOtherPlayerPrompt = prefs.getString(KEY_AI_GROQ_OTHER_PLAYER_PROMPT, DEFAULT_OTHER_PLAYER_PROMPT) ?: DEFAULT_OTHER_PLAYER_PROMPT,
+            groqModelSource = loadModelSource(KEY_AI_GROQ_MODEL_SOURCE, ModelSource.API),
+            groqManualModels = loadManualModels(KEY_AI_GROQ_MANUAL_MODELS),
             deepSeekApiKey = prefs.getString(KEY_AI_DEEPSEEK_API_KEY, "") ?: "",
             deepSeekModel = prefs.getString(KEY_AI_DEEPSEEK_MODEL, "deepseek-chat") ?: "deepseek-chat",
             deepSeekPrompt = prefs.getString(KEY_AI_DEEPSEEK_PROMPT, DEFAULT_GAME_PROMPT) ?: DEFAULT_GAME_PROMPT,
@@ -454,6 +461,13 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             .putString(KEY_AI_GROK_OTHER_PLAYER_PROMPT, settings.grokOtherPlayerPrompt)
             .putString(KEY_AI_GROK_MODEL_SOURCE, settings.grokModelSource.name)
             .putString(KEY_AI_GROK_MANUAL_MODELS, gson.toJson(settings.grokManualModels))
+            .putString(KEY_AI_GROQ_API_KEY, settings.groqApiKey)
+            .putString(KEY_AI_GROQ_MODEL, settings.groqModel)
+            .putString(KEY_AI_GROQ_PROMPT, settings.groqPrompt)
+            .putString(KEY_AI_GROQ_SERVER_PLAYER_PROMPT, settings.groqServerPlayerPrompt)
+            .putString(KEY_AI_GROQ_OTHER_PLAYER_PROMPT, settings.groqOtherPlayerPrompt)
+            .putString(KEY_AI_GROQ_MODEL_SOURCE, settings.groqModelSource.name)
+            .putString(KEY_AI_GROQ_MANUAL_MODELS, gson.toJson(settings.groqManualModels))
             .putString(KEY_AI_DEEPSEEK_API_KEY, settings.deepSeekApiKey)
             .putString(KEY_AI_DEEPSEEK_MODEL, settings.deepSeekModel)
             .putString(KEY_AI_DEEPSEEK_PROMPT, settings.deepSeekPrompt)
@@ -646,6 +660,19 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
                 provider = com.eval.data.AiService.GROK,
                 model = aiSettings.grokModel,
                 apiKey = aiSettings.grokApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.groqApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Groq",
+                provider = com.eval.data.AiService.GROQ,
+                model = aiSettings.groqModel,
+                apiKey = aiSettings.groqApiKey,
                 gamePromptId = gamePromptId,
                 serverPlayerPromptId = serverPlayerPromptId,
                 otherPlayerPromptId = otherPlayerPromptId
@@ -878,6 +905,8 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_GEMINI_MODEL = "ai_gemini_model"
         private const val KEY_AI_GROK_API_KEY = "ai_grok_api_key"
         private const val KEY_AI_GROK_MODEL = "ai_grok_model"
+        private const val KEY_AI_GROQ_API_KEY = "ai_groq_api_key"
+        private const val KEY_AI_GROQ_MODEL = "ai_groq_model"
         private const val KEY_AI_DEEPSEEK_API_KEY = "ai_deepseek_api_key"
         private const val KEY_AI_DEEPSEEK_MODEL = "ai_deepseek_model"
 
@@ -886,6 +915,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_CLAUDE_PROMPT = "ai_claude_prompt"
         private const val KEY_AI_GEMINI_PROMPT = "ai_gemini_prompt"
         private const val KEY_AI_GROK_PROMPT = "ai_grok_prompt"
+        private const val KEY_AI_GROQ_PROMPT = "ai_groq_prompt"
         private const val KEY_AI_DEEPSEEK_PROMPT = "ai_deepseek_prompt"
         private const val KEY_AI_MISTRAL_API_KEY = "ai_mistral_api_key"
         private const val KEY_AI_MISTRAL_MODEL = "ai_mistral_model"
@@ -908,6 +938,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_CLAUDE_SERVER_PLAYER_PROMPT = "ai_claude_server_player_prompt"
         private const val KEY_AI_GEMINI_SERVER_PLAYER_PROMPT = "ai_gemini_server_player_prompt"
         private const val KEY_AI_GROK_SERVER_PLAYER_PROMPT = "ai_grok_server_player_prompt"
+        private const val KEY_AI_GROQ_SERVER_PLAYER_PROMPT = "ai_groq_server_player_prompt"
         private const val KEY_AI_DEEPSEEK_SERVER_PLAYER_PROMPT = "ai_deepseek_server_player_prompt"
         private const val KEY_AI_MISTRAL_SERVER_PLAYER_PROMPT = "ai_mistral_server_player_prompt"
         private const val KEY_AI_PERPLEXITY_SERVER_PLAYER_PROMPT = "ai_perplexity_server_player_prompt"
@@ -919,6 +950,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_CLAUDE_OTHER_PLAYER_PROMPT = "ai_claude_other_player_prompt"
         private const val KEY_AI_GEMINI_OTHER_PLAYER_PROMPT = "ai_gemini_other_player_prompt"
         private const val KEY_AI_GROK_OTHER_PLAYER_PROMPT = "ai_grok_other_player_prompt"
+        private const val KEY_AI_GROQ_OTHER_PLAYER_PROMPT = "ai_groq_other_player_prompt"
         private const val KEY_AI_DEEPSEEK_OTHER_PLAYER_PROMPT = "ai_deepseek_other_player_prompt"
         private const val KEY_AI_MISTRAL_OTHER_PLAYER_PROMPT = "ai_mistral_other_player_prompt"
         private const val KEY_AI_PERPLEXITY_OTHER_PLAYER_PROMPT = "ai_perplexity_other_player_prompt"
@@ -930,6 +962,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_CLAUDE_MODEL_SOURCE = "ai_claude_model_source"
         private const val KEY_AI_GEMINI_MODEL_SOURCE = "ai_gemini_model_source"
         private const val KEY_AI_GROK_MODEL_SOURCE = "ai_grok_model_source"
+        private const val KEY_AI_GROQ_MODEL_SOURCE = "ai_groq_model_source"
         private const val KEY_AI_DEEPSEEK_MODEL_SOURCE = "ai_deepseek_model_source"
         private const val KEY_AI_MISTRAL_MODEL_SOURCE = "ai_mistral_model_source"
         private const val KEY_AI_PERPLEXITY_MODEL_SOURCE = "ai_perplexity_model_source"
@@ -941,6 +974,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_AI_CLAUDE_MANUAL_MODELS = "ai_claude_manual_models"
         private const val KEY_AI_GEMINI_MANUAL_MODELS = "ai_gemini_manual_models"
         private const val KEY_AI_GROK_MANUAL_MODELS = "ai_grok_manual_models"
+        private const val KEY_AI_GROQ_MANUAL_MODELS = "ai_groq_manual_models"
         private const val KEY_AI_DEEPSEEK_MANUAL_MODELS = "ai_deepseek_manual_models"
         private const val KEY_AI_MISTRAL_MANUAL_MODELS = "ai_mistral_manual_models"
         private const val KEY_AI_PERPLEXITY_MANUAL_MODELS = "ai_perplexity_manual_models"
@@ -960,6 +994,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_CACHED_CHATGPT_MODELS = "cached_chatgpt_models"
         private const val KEY_CACHED_GEMINI_MODELS = "cached_gemini_models"
         private const val KEY_CACHED_GROK_MODELS = "cached_grok_models"
+        private const val KEY_CACHED_GROQ_MODELS = "cached_groq_models"
         private const val KEY_CACHED_DEEPSEEK_MODELS = "cached_deepseek_models"
         private const val KEY_CACHED_MISTRAL_MODELS = "cached_mistral_models"
         private const val KEY_CACHED_PERPLEXITY_MODELS = "cached_perplexity_models"
@@ -1110,6 +1145,21 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
     fun saveCachedGrokModels(models: List<String>) {
         val json = gson.toJson(models)
         prefs.edit().putString(KEY_CACHED_GROK_MODELS, json).apply()
+    }
+
+    fun loadCachedGroqModels(): List<String> {
+        val json = prefs.getString(KEY_CACHED_GROQ_MODELS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveCachedGroqModels(models: List<String>) {
+        val json = gson.toJson(models)
+        prefs.edit().putString(KEY_CACHED_GROQ_MODELS, json).apply()
     }
 
     fun loadCachedDeepSeekModels(): List<String> {

@@ -92,6 +92,12 @@ fun AiSettingsScreen(
             onClick = { onNavigate(SettingsSubScreen.AI_GROK) }
         )
         AiServiceNavigationCard(
+            title = "Groq",
+            subtitle = "Groq",
+            accentColor = Color(0xFFF55036),
+            onClick = { onNavigate(SettingsSubScreen.AI_GROQ) }
+        )
+        AiServiceNavigationCard(
             title = "DeepSeek",
             subtitle = "DeepSeek AI",
             accentColor = Color(0xFF4D6BFE),
@@ -397,6 +403,12 @@ fun AiProvidersScreen(
             subtitle = "xAI",
             accentColor = Color(0xFFFFFFFF),
             onClick = { onNavigate(SettingsSubScreen.AI_GROK) }
+        )
+        AiServiceNavigationCard(
+            title = "Groq",
+            subtitle = "Groq",
+            accentColor = Color(0xFFF55036),
+            onClick = { onNavigate(SettingsSubScreen.AI_GROQ) }
         )
         AiServiceNavigationCard(
             title = "DeepSeek",

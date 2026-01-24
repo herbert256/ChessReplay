@@ -325,6 +325,7 @@ fun AiAgentsScreen(
     availableChatGptModels: List<String>,
     availableGeminiModels: List<String>,
     availableGrokModels: List<String>,
+    availableGroqModels: List<String>,
     availableDeepSeekModels: List<String>,
     availableMistralModels: List<String>,
     availablePerplexityModels: List<String>,
@@ -431,6 +432,7 @@ fun AiAgentsScreen(
             availableChatGptModels = availableChatGptModels,
             availableGeminiModels = availableGeminiModels,
             availableGrokModels = availableGrokModels,
+            availableGroqModels = availableGroqModels,
             availableDeepSeekModels = availableDeepSeekModels,
             availableMistralModels = availableMistralModels,
             availablePerplexityModels = availablePerplexityModels,
@@ -559,6 +561,7 @@ private fun AgentEditDialog(
     availableChatGptModels: List<String>,
     availableGeminiModels: List<String>,
     availableGrokModels: List<String>,
+    availableGroqModels: List<String>,
     availableDeepSeekModels: List<String>,
     availableMistralModels: List<String>,
     availablePerplexityModels: List<String>,
@@ -613,6 +616,11 @@ private fun AgentEditDialog(
         AiService.GROK -> {
             val apiModels = if (aiSettings.grokModelSource == ModelSource.API) availableGrokModels else emptyList()
             val manualModels = if (aiSettings.grokModelSource == ModelSource.MANUAL) aiSettings.grokManualModels else emptyList()
+            (apiModels + manualModels).ifEmpty { listOf(model) }
+        }
+        AiService.GROQ -> {
+            val apiModels = if (aiSettings.groqModelSource == ModelSource.API) availableGroqModels else emptyList()
+            val manualModels = if (aiSettings.groqModelSource == ModelSource.MANUAL) aiSettings.groqManualModels else emptyList()
             (apiModels + manualModels).ifEmpty { listOf(model) }
         }
         AiService.DEEPSEEK -> {
@@ -937,6 +945,7 @@ fun getDefaultModelForProvider(provider: AiService): String {
         AiService.CLAUDE -> "claude-sonnet-4-20250514"
         AiService.GEMINI -> "gemini-2.0-flash"
         AiService.GROK -> "grok-3-mini"
+        AiService.GROQ -> "llama-3.3-70b-versatile"
         AiService.DEEPSEEK -> "deepseek-chat"
         AiService.MISTRAL -> "mistral-small-latest"
         AiService.PERPLEXITY -> "sonar"

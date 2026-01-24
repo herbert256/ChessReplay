@@ -20,6 +20,7 @@ enum class AiService(val displayName: String, val baseUrl: String) {
     CLAUDE("Claude", "https://api.anthropic.com/"),
     GEMINI("Gemini", "https://generativelanguage.googleapis.com/"),
     GROK("Grok", "https://api.x.ai/"),
+    GROQ("Groq", "https://api.groq.com/openai/"),
     DEEPSEEK("DeepSeek", "https://api.deepseek.com/"),
     MISTRAL("Mistral", "https://api.mistral.ai/"),
     PERPLEXITY("Perplexity", "https://api.perplexity.ai/"),
@@ -219,6 +220,13 @@ data class OpenRouterRequest(
     val max_tokens: Int = 1024
 )
 
+// Groq models (uses OpenAI-compatible format)
+data class GroqRequest(
+    val model: String = "llama-3.3-70b-versatile",
+    val messages: List<OpenAiMessage>,
+    val max_tokens: Int = 1024
+)
+
 /**
  * Retrofit interface for OpenAI / ChatGPT API.
  * Uses Chat Completions API for older models (gpt-4o, etc.)
@@ -391,6 +399,22 @@ interface OpenRouterApi {
 }
 
 /**
+ * Retrofit interface for Groq API (OpenAI-compatible).
+ */
+interface GroqApi {
+    @POST("v1/chat/completions")
+    suspend fun createChatCompletion(
+        @Header("Authorization") authorization: String,
+        @Body request: GroqRequest
+    ): Response<OpenAiResponse>
+
+    @retrofit2.http.GET("v1/models")
+    suspend fun listModels(
+        @Header("Authorization") authorization: String
+    ): Response<OpenAiModelsResponse>
+}
+
+/**
  * Factory for creating API instances.
  */
 object AiApiFactory {
@@ -428,6 +452,10 @@ object AiApiFactory {
 
     fun createGrokApi(): GrokApi {
         return getRetrofit(AiService.GROK.baseUrl).create(GrokApi::class.java)
+    }
+
+    fun createGroqApi(): GroqApi {
+        return getRetrofit(AiService.GROQ.baseUrl).create(GroqApi::class.java)
     }
 
     fun createDeepSeekApi(): DeepSeekApi {

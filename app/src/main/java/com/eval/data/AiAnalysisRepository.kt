@@ -1,8 +1,10 @@
 package com.eval.data
 
+import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import okhttp3.Headers
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -28,7 +30,9 @@ data class AiAnalysisResponse(
     val agentName: String? = null,  // Name of the agent that generated this response (for three-tier architecture)
     val promptUsed: String? = null,  // The actual prompt sent to the AI (with @FEN@ etc. replaced)
     val citations: List<String>? = null,  // Citations/sources returned by AI (e.g., Perplexity)
-    val searchResults: List<SearchResult>? = null  // Search results returned by AI (e.g., Grok, Perplexity)
+    val searchResults: List<SearchResult>? = null,  // Search results returned by AI (e.g., Grok, Perplexity)
+    val rawUsageJson: String? = null,  // Raw usage/usageMetadata JSON for developer mode
+    val httpHeaders: String? = null  // HTTP response headers for developer mode
 ) {
     val isSuccess: Boolean get() = analysis != null && error == null
 
@@ -44,11 +48,27 @@ class AiAnalysisRepository {
     private val claudeApi = AiApiFactory.createClaudeApi()
     private val geminiApi = AiApiFactory.createGeminiApi()
     private val grokApi = AiApiFactory.createGrokApi()
+    private val groqApi = AiApiFactory.createGroqApi()
     private val deepSeekApi = AiApiFactory.createDeepSeekApi()
     private val mistralApi = AiApiFactory.createMistralApi()
     private val perplexityApi = AiApiFactory.createPerplexityApi()
     private val togetherApi = AiApiFactory.createTogetherApi()
     private val openRouterApi = AiApiFactory.createOpenRouterApi()
+
+    // Gson instance for pretty printing usage JSON
+    private val gson = GsonBuilder().setPrettyPrinting().create()
+
+    // Helper to convert usage object to pretty JSON
+    private fun formatUsageJson(usage: Any?): String? {
+        return usage?.let { gson.toJson(it) }
+    }
+
+    // Helper to format HTTP headers as a string
+    private fun formatHeaders(headers: Headers): String {
+        return headers.toMultimap().entries.joinToString("\n") { (name, values) ->
+            "$name: ${values.joinToString(", ")}"
+        }
+    }
 
     /**
      * Formats the current date as "Saturday, January 24th".
@@ -116,6 +136,7 @@ class AiAnalysisRepository {
         claudeModel: String = "claude-sonnet-4-20250514",
         geminiModel: String = "gemini-2.0-flash",
         grokModel: String = "grok-3-mini",
+        groqModel: String = "llama-3.3-70b-versatile",
         deepSeekModel: String = "deepseek-chat",
         mistralModel: String = "mistral-small-latest",
         perplexityModel: String = "sonar",
@@ -138,6 +159,7 @@ class AiAnalysisRepository {
                 AiService.CLAUDE -> analyzeWithClaude(apiKey, finalPrompt, claudeModel)
                 AiService.GEMINI -> analyzeWithGemini(apiKey, finalPrompt, geminiModel)
                 AiService.GROK -> analyzeWithGrok(apiKey, finalPrompt, grokModel)
+                AiService.GROQ -> analyzeWithGroq(apiKey, finalPrompt, groqModel)
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(apiKey, finalPrompt, deepSeekModel)
                 AiService.MISTRAL -> analyzeWithMistral(apiKey, finalPrompt, mistralModel)
                 AiService.PERPLEXITY -> analyzeWithPerplexity(apiKey, finalPrompt, perplexityModel)
@@ -196,6 +218,7 @@ class AiAnalysisRepository {
         claudeModel: String = "claude-sonnet-4-20250514",
         geminiModel: String = "gemini-2.0-flash",
         grokModel: String = "grok-3-mini",
+        groqModel: String = "llama-3.3-70b-versatile",
         deepSeekModel: String = "deepseek-chat",
         mistralModel: String = "mistral-small-latest",
         perplexityModel: String = "sonar",
@@ -218,6 +241,7 @@ class AiAnalysisRepository {
                 AiService.CLAUDE -> analyzeWithClaude(apiKey, finalPrompt, claudeModel)
                 AiService.GEMINI -> analyzeWithGemini(apiKey, finalPrompt, geminiModel)
                 AiService.GROK -> analyzeWithGrok(apiKey, finalPrompt, grokModel)
+                AiService.GROQ -> analyzeWithGroq(apiKey, finalPrompt, groqModel)
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(apiKey, finalPrompt, deepSeekModel)
                 AiService.MISTRAL -> analyzeWithMistral(apiKey, finalPrompt, mistralModel)
                 AiService.PERPLEXITY -> analyzeWithPerplexity(apiKey, finalPrompt, perplexityModel)
@@ -279,6 +303,7 @@ class AiAnalysisRepository {
                 AiService.CLAUDE -> analyzeWithClaude(agent.apiKey, finalPrompt, agent.model)
                 AiService.GEMINI -> analyzeWithGemini(agent.apiKey, finalPrompt, agent.model)
                 AiService.GROK -> analyzeWithGrok(agent.apiKey, finalPrompt, agent.model)
+                AiService.GROQ -> analyzeWithGroq(agent.apiKey, finalPrompt, agent.model)
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(agent.apiKey, finalPrompt, agent.model)
                 AiService.MISTRAL -> analyzeWithMistral(agent.apiKey, finalPrompt, agent.model)
                 AiService.PERPLEXITY -> analyzeWithPerplexity(agent.apiKey, finalPrompt, agent.model)
@@ -340,6 +365,7 @@ class AiAnalysisRepository {
                 AiService.CLAUDE -> analyzeWithClaude(agent.apiKey, finalPrompt, agent.model)
                 AiService.GEMINI -> analyzeWithGemini(agent.apiKey, finalPrompt, agent.model)
                 AiService.GROK -> analyzeWithGrok(agent.apiKey, finalPrompt, agent.model)
+                AiService.GROQ -> analyzeWithGroq(agent.apiKey, finalPrompt, agent.model)
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(agent.apiKey, finalPrompt, agent.model)
                 AiService.MISTRAL -> analyzeWithMistral(agent.apiKey, finalPrompt, agent.model)
                 AiService.PERPLEXITY -> analyzeWithPerplexity(agent.apiKey, finalPrompt, agent.model)
@@ -406,9 +432,11 @@ class AiAnalysisRepository {
             request = request
         )
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
+            val rawUsageJson = formatUsageJson(body?.usage)
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -416,13 +444,13 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.CHATGPT, content, null, usage)
+                AiAnalysisResponse(AiService.CHATGPT, content, null, usage, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.CHATGPT, null, errorMsg)
+                AiAnalysisResponse(AiService.CHATGPT, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.CHATGPT, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.CHATGPT, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -439,19 +467,20 @@ class AiAnalysisRepository {
             request = request
         )
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             // Extract text from output[0].content where type is "output_text"
             val content = body?.output?.firstOrNull()?.content
                 ?.firstOrNull { it.type == "output_text" }?.text
             if (content != null) {
-                AiAnalysisResponse(AiService.CHATGPT, content, null, null)
+                AiAnalysisResponse(AiService.CHATGPT, content, null, null, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.CHATGPT, null, errorMsg)
+                AiAnalysisResponse(AiService.CHATGPT, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.CHATGPT, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.CHATGPT, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -462,9 +491,11 @@ class AiAnalysisRepository {
         )
         val response = claudeApi.createMessage(apiKey = apiKey, request = request)
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.content?.firstOrNull { it.type == "text" }?.text
+            val rawUsageJson = formatUsageJson(body?.usage)
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.input_tokens ?: 0,
@@ -472,13 +503,13 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.CLAUDE, content, null, usage)
+                AiAnalysisResponse(AiService.CLAUDE, content, null, usage, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.CLAUDE, null, errorMsg)
+                AiAnalysisResponse(AiService.CLAUDE, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.CLAUDE, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.CLAUDE, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -495,9 +526,11 @@ class AiAnalysisRepository {
 
         android.util.Log.d("GeminiAPI", "Response code: ${response.code()}, message: ${response.message()}")
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            val rawUsageJson = formatUsageJson(body?.usageMetadata)
             val usage = body?.usageMetadata?.let {
                 TokenUsage(
                     inputTokens = it.promptTokenCount ?: 0,
@@ -505,15 +538,15 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.GEMINI, content, null, usage)
+                AiAnalysisResponse(AiService.GEMINI, content, null, usage, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.GEMINI, null, errorMsg)
+                AiAnalysisResponse(AiService.GEMINI, null, errorMsg, httpHeaders = headers)
             }
         } else {
             val errorBody = response.errorBody()?.string()
             android.util.Log.e("GeminiAPI", "Error body: $errorBody")
-            AiAnalysisResponse(AiService.GEMINI, null, "API error: ${response.code()} ${response.message()} - $errorBody")
+            AiAnalysisResponse(AiService.GEMINI, null, "API error: ${response.code()} ${response.message()} - $errorBody", httpHeaders = headers)
         }
     }
 
@@ -527,10 +560,12 @@ class AiAnalysisRepository {
             request = request
         )
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
             val searchResults = body?.search_results  // Grok may return search results
+            val rawUsageJson = formatUsageJson(body?.usage)
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -538,13 +573,45 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.GROK, content, null, usage, searchResults = searchResults)
+                AiAnalysisResponse(AiService.GROK, content, null, usage, searchResults = searchResults, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.GROK, null, errorMsg)
+                AiAnalysisResponse(AiService.GROK, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.GROK, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.GROK, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
+        }
+    }
+
+    private suspend fun analyzeWithGroq(apiKey: String, prompt: String, model: String): AiAnalysisResponse {
+        val request = GroqRequest(
+            model = model,
+            messages = listOf(OpenAiMessage(role = "user", content = prompt))
+        )
+        val response = groqApi.createChatCompletion(
+            authorization = "Bearer $apiKey",
+            request = request
+        )
+
+        val headers = formatHeaders(response.headers())
+        return if (response.isSuccessful) {
+            val body = response.body()
+            val content = body?.choices?.firstOrNull()?.message?.content
+            val rawUsageJson = formatUsageJson(body?.usage)
+            val usage = body?.usage?.let {
+                TokenUsage(
+                    inputTokens = it.prompt_tokens ?: 0,
+                    outputTokens = it.completion_tokens ?: 0
+                )
+            }
+            if (content != null) {
+                AiAnalysisResponse(AiService.GROQ, content, null, usage, rawUsageJson = rawUsageJson, httpHeaders = headers)
+            } else {
+                val errorMsg = body?.error?.message ?: "No response content"
+                AiAnalysisResponse(AiService.GROQ, null, errorMsg, httpHeaders = headers)
+            }
+        } else {
+            AiAnalysisResponse(AiService.GROQ, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -558,6 +625,7 @@ class AiAnalysisRepository {
             request = request
         )
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val message = body?.choices?.firstOrNull()?.message
@@ -565,6 +633,7 @@ class AiAnalysisRepository {
             // Use content first, fall back to reasoning_content
             val content = message?.content ?: message?.reasoning_content
             val searchResults = body?.search_results
+            val rawUsageJson = formatUsageJson(body?.usage)
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -572,13 +641,13 @@ class AiAnalysisRepository {
                 )
             }
             if (!content.isNullOrBlank()) {
-                AiAnalysisResponse(AiService.DEEPSEEK, content, null, usage, searchResults = searchResults)
+                AiAnalysisResponse(AiService.DEEPSEEK, content, null, usage, searchResults = searchResults, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.DEEPSEEK, null, errorMsg)
+                AiAnalysisResponse(AiService.DEEPSEEK, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.DEEPSEEK, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.DEEPSEEK, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -592,10 +661,12 @@ class AiAnalysisRepository {
             request = request
         )
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
             val searchResults = body?.search_results
+            val rawUsageJson = formatUsageJson(body?.usage)
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -603,13 +674,13 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.MISTRAL, content, null, usage, searchResults = searchResults)
+                AiAnalysisResponse(AiService.MISTRAL, content, null, usage, searchResults = searchResults, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.MISTRAL, null, errorMsg)
+                AiAnalysisResponse(AiService.MISTRAL, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.MISTRAL, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.MISTRAL, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -623,11 +694,13 @@ class AiAnalysisRepository {
             request = request
         )
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
             val citations = body?.citations  // Extract citations from Perplexity response
             val searchResults = body?.search_results  // Extract search results
+            val rawUsageJson = formatUsageJson(body?.usage)
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -635,13 +708,13 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.PERPLEXITY, content, null, usage, citations = citations, searchResults = searchResults)
+                AiAnalysisResponse(AiService.PERPLEXITY, content, null, usage, citations = citations, searchResults = searchResults, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.PERPLEXITY, null, errorMsg)
+                AiAnalysisResponse(AiService.PERPLEXITY, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.PERPLEXITY, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.PERPLEXITY, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -655,10 +728,12 @@ class AiAnalysisRepository {
             request = request
         )
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
             val searchResults = body?.search_results
+            val rawUsageJson = formatUsageJson(body?.usage)
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -666,13 +741,13 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.TOGETHER, content, null, usage, searchResults = searchResults)
+                AiAnalysisResponse(AiService.TOGETHER, content, null, usage, searchResults = searchResults, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.TOGETHER, null, errorMsg)
+                AiAnalysisResponse(AiService.TOGETHER, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.TOGETHER, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.TOGETHER, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -686,10 +761,12 @@ class AiAnalysisRepository {
             request = request
         )
 
+        val headers = formatHeaders(response.headers())
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
             val searchResults = body?.search_results
+            val rawUsageJson = formatUsageJson(body?.usage)
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -697,13 +774,13 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.OPENROUTER, content, null, usage, searchResults = searchResults)
+                AiAnalysisResponse(AiService.OPENROUTER, content, null, usage, searchResults = searchResults, rawUsageJson = rawUsageJson, httpHeaders = headers)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
-                AiAnalysisResponse(AiService.OPENROUTER, null, errorMsg)
+                AiAnalysisResponse(AiService.OPENROUTER, null, errorMsg, httpHeaders = headers)
             }
         } else {
-            AiAnalysisResponse(AiService.OPENROUTER, null, "API error: ${response.code()} ${response.message()}")
+            AiAnalysisResponse(AiService.OPENROUTER, null, "API error: ${response.code()} ${response.message()}", httpHeaders = headers)
         }
     }
 
@@ -732,6 +809,7 @@ class AiAnalysisRepository {
                 AiService.CLAUDE -> analyzeWithClaude(apiKey, testPrompt, model)
                 AiService.GEMINI -> analyzeWithGemini(apiKey, testPrompt, model)
                 AiService.GROK -> analyzeWithGrok(apiKey, testPrompt, model)
+                AiService.GROQ -> analyzeWithGroq(apiKey, testPrompt, model)
                 AiService.DEEPSEEK -> analyzeWithDeepSeek(apiKey, testPrompt, model)
                 AiService.MISTRAL -> analyzeWithMistral(apiKey, testPrompt, model)
                 AiService.PERPLEXITY -> analyzeWithPerplexity(apiKey, testPrompt, model)
@@ -795,6 +873,27 @@ class AiAnalysisRepository {
             }
         } catch (e: Exception) {
             android.util.Log.e("GrokAPI", "Error fetching models: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch available Groq models.
+     */
+    suspend fun fetchGroqModels(apiKey: String): List<String> = withContext(Dispatchers.IO) {
+        try {
+            val response = groqApi.listModels("Bearer $apiKey")
+            if (response.isSuccessful) {
+                val models = response.body()?.data ?: emptyList()
+                models
+                    .mapNotNull { it.id }
+                    .sorted()
+            } else {
+                android.util.Log.e("GroqAPI", "Failed to fetch models: ${response.code()}")
+                emptyList()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("GroqAPI", "Error fetching models: ${e.message}")
             emptyList()
         }
     }

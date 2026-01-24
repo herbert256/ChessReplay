@@ -33,6 +33,7 @@ enum class SettingsSubScreen {
     AI_CLAUDE,
     AI_GEMINI,
     AI_GROK,
+    AI_GROQ,
     AI_DEEPSEEK,
     AI_MISTRAL,
     AI_PERPLEXITY,
@@ -64,6 +65,8 @@ fun SettingsScreen(
     isLoadingGeminiModels: Boolean,
     availableGrokModels: List<String>,
     isLoadingGrokModels: Boolean,
+    availableGroqModels: List<String>,
+    isLoadingGroqModels: Boolean,
     availableDeepSeekModels: List<String>,
     isLoadingDeepSeekModels: Boolean,
     availableMistralModels: List<String>,
@@ -86,6 +89,7 @@ fun SettingsScreen(
     onFetchChatGptModels: (String) -> Unit,
     onFetchGeminiModels: (String) -> Unit,
     onFetchGrokModels: (String) -> Unit,
+    onFetchGroqModels: (String) -> Unit,
     onFetchDeepSeekModels: (String) -> Unit,
     onFetchMistralModels: (String) -> Unit,
     onFetchPerplexityModels: (String) -> Unit,
@@ -103,6 +107,7 @@ fun SettingsScreen(
             SettingsSubScreen.AI_CLAUDE,
             SettingsSubScreen.AI_GEMINI,
             SettingsSubScreen.AI_GROK,
+            SettingsSubScreen.AI_GROQ,
             SettingsSubScreen.AI_DEEPSEEK,
             SettingsSubScreen.AI_MISTRAL,
             SettingsSubScreen.AI_PERPLEXITY,
@@ -207,6 +212,15 @@ fun SettingsScreen(
             onSave = onSaveAi,
             onFetchModels = onFetchGrokModels
         )
+        SettingsSubScreen.AI_GROQ -> GroqSettingsScreen(
+            aiSettings = aiSettings,
+            availableModels = availableGroqModels,
+            isLoadingModels = isLoadingGroqModels,
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
+            onBackToGame = onBack,
+            onSave = onSaveAi,
+            onFetchModels = onFetchGroqModels
+        )
         SettingsSubScreen.AI_DEEPSEEK -> DeepSeekSettingsScreen(
             aiSettings = aiSettings,
             availableModels = availableDeepSeekModels,
@@ -285,6 +299,7 @@ fun SettingsScreen(
             availableChatGptModels = availableChatGptModels,
             availableGeminiModels = availableGeminiModels,
             availableGrokModels = availableGrokModels,
+            availableGroqModels = availableGroqModels,
             availableDeepSeekModels = availableDeepSeekModels,
             availableMistralModels = availableMistralModels,
             availablePerplexityModels = availablePerplexityModels,

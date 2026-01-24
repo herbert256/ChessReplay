@@ -206,6 +206,55 @@ fun GrokSettingsScreen(
 }
 
 /**
+ * Groq settings screen.
+ */
+@Composable
+fun GroqSettingsScreen(
+    aiSettings: AiSettings,
+    availableModels: List<String>,
+    isLoadingModels: Boolean,
+    onBackToAiSettings: () -> Unit,
+    onBackToGame: () -> Unit,
+    onSave: (AiSettings) -> Unit,
+    onFetchModels: (String) -> Unit
+) {
+    var apiKey by remember { mutableStateOf(aiSettings.groqApiKey) }
+    var modelSource by remember { mutableStateOf(aiSettings.groqModelSource) }
+    var manualModels by remember { mutableStateOf(aiSettings.groqManualModels) }
+
+    AiServiceSettingsScreenTemplate(
+        title = "Groq",
+        subtitle = "Groq",
+        accentColor = Color(0xFFF55036),
+        onBackToAiSettings = onBackToAiSettings,
+        onBackToGame = onBackToGame
+    ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(groqApiKey = it))
+            }
+        )
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(groqModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(groqManualModels = it))
+            },
+            onFetchModels = { onFetchModels(apiKey) }
+        )
+    }
+}
+
+/**
  * DeepSeek settings screen.
  */
 @Composable

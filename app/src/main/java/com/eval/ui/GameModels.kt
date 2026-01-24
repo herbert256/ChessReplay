@@ -351,6 +351,9 @@ data class GameUiState(
     // Grok model selection
     val availableGrokModels: List<String> = emptyList(),
     val isLoadingGrokModels: Boolean = false,
+    // Groq model selection
+    val availableGroqModels: List<String> = emptyList(),
+    val isLoadingGroqModels: Boolean = false,
     // DeepSeek model selection
     val availableDeepSeekModels: List<String> = emptyList(),
     val isLoadingDeepSeekModels: Boolean = false,

@@ -195,6 +195,7 @@ fun GameScreenContent(
                 availableChatGptModels = uiState.availableChatGptModels,
                 availableGeminiModels = uiState.availableGeminiModels,
                 availableGrokModels = uiState.availableGrokModels,
+                availableGroqModels = uiState.availableGroqModels,
                 availableDeepSeekModels = uiState.availableDeepSeekModels,
                 availableMistralModels = uiState.availableMistralModels,
                 availablePerplexityModels = uiState.availablePerplexityModels,
@@ -361,6 +362,7 @@ fun GameScreenContent(
                 availableChatGptModels = uiState.availableChatGptModels,
                 availableGeminiModels = uiState.availableGeminiModels,
                 availableGrokModels = uiState.availableGrokModels,
+                availableGroqModels = uiState.availableGroqModels,
                 availableDeepSeekModels = uiState.availableDeepSeekModels,
                 availableMistralModels = uiState.availableMistralModels,
                 availablePerplexityModels = uiState.availablePerplexityModels,
@@ -3212,6 +3214,8 @@ internal fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Str
         """<button class="tab-btn $isActive" onclick="showTab('${agent.id}')">${escapeHtml(agent.name)}</button>"""
     }.joinToString("\n")
 
+    val developerMode = uiState.generalSettings.developerMode
+
     // Generate content panels for each agent (no prompt per panel)
     val panelsHtml = agentsWithResults.mapIndexed { index, (agent, result) ->
         val isActive = if (index == 0) "active" else ""
@@ -3254,12 +3258,32 @@ internal fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Str
                 """
             } else ""
         } else ""
+        // Developer mode: raw usage JSON
+        val usageHtml = if (developerMode && !result.rawUsageJson.isNullOrBlank()) {
+            """
+            <div class="developer-section">
+                <h3>Usage (Developer Mode)</h3>
+                <pre class="developer-pre">${escapeHtml(result.rawUsageJson)}</pre>
+            </div>
+            """
+        } else ""
+        // Developer mode: HTTP headers
+        val headersHtml = if (developerMode && !result.httpHeaders.isNullOrBlank()) {
+            """
+            <div class="developer-section">
+                <h3>HTTP Headers (Developer Mode)</h3>
+                <pre class="developer-pre">${escapeHtml(result.httpHeaders)}</pre>
+            </div>
+            """
+        } else ""
         """
         <div id="panel-${agent.id}" class="tab-panel $isActive">
             <div class="panel-header">${escapeHtml(providerWithModel)}</div>
             $content
             $citationsHtml
             $searchResultsHtml
+            $usageHtml
+            $headersHtml
         </div>
         """
     }.joinToString("\n")
@@ -3428,6 +3452,33 @@ internal fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Str
             margin: 4px 0 0 0;
             color: #999;
             font-size: 0.9em;
+        }
+
+        /* Developer mode sections */
+        .developer-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #1a2a1a;
+            border-radius: 8px;
+            border: 1px solid #2a4a2a;
+        }
+        .developer-section h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #4CAF50;
+        }
+        .developer-pre {
+            background: #0d1a0d;
+            border: 1px solid #2a4a2a;
+            border-radius: 4px;
+            padding: 12px;
+            color: #81C784;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 0;
+            overflow-x: auto;
         }
 
         /* Footer */
@@ -3694,6 +3745,8 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
         """<button class="tab-btn $isActive" onclick="showTab('${agent.id}')">${escapeHtml(agent.name)}</button>"""
     }.joinToString("\n")
 
+    val developerMode = uiState.generalSettings.developerMode
+
     // Generate content panels for each agent
     val panelsHtml = agentsWithResults.mapIndexed { index, (agent, result) ->
         val isActive = if (index == 0) "active" else ""
@@ -3736,6 +3789,24 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
                 """
             } else ""
         } else ""
+        // Developer mode: raw usage JSON
+        val usageHtml = if (developerMode && !result.rawUsageJson.isNullOrBlank()) {
+            """
+            <div class="developer-section">
+                <h3>Usage (Developer Mode)</h3>
+                <pre class="developer-pre">${escapeHtml(result.rawUsageJson)}</pre>
+            </div>
+            """
+        } else ""
+        // Developer mode: HTTP headers
+        val headersHtml = if (developerMode && !result.httpHeaders.isNullOrBlank()) {
+            """
+            <div class="developer-section">
+                <h3>HTTP Headers (Developer Mode)</h3>
+                <pre class="developer-pre">${escapeHtml(result.httpHeaders)}</pre>
+            </div>
+            """
+        } else ""
         // Get the actual prompt used (with @FEN@ replaced)
         val promptUsed = result.promptUsed ?: ""
         val promptHtml = if (promptUsed.isNotBlank()) {
@@ -3752,6 +3823,8 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
             $content
             $citationsHtml
             $searchResultsHtml
+            $usageHtml
+            $headersHtml
             $promptHtml
         </div>
         """
@@ -4020,6 +4093,33 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
             margin: 4px 0 0 0;
             color: #999;
             font-size: 0.9em;
+        }
+
+        /* Developer mode sections */
+        .developer-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #1a2a1a;
+            border-radius: 8px;
+            border: 1px solid #2a4a2a;
+        }
+        .developer-section h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #4CAF50;
+        }
+        .developer-pre {
+            background: #0d1a0d;
+            border: 1px solid #2a4a2a;
+            border-radius: 4px;
+            padding: 12px;
+            color: #81C784;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 0;
+            overflow-x: auto;
         }
 
         /* Footer */
@@ -4907,6 +5007,7 @@ private fun AiReportsSelectionDialog(
     availableChatGptModels: List<String>,
     availableGeminiModels: List<String>,
     availableGrokModels: List<String>,
+    availableGroqModels: List<String>,
     availableDeepSeekModels: List<String>,
     availableMistralModels: List<String>,
     availablePerplexityModels: List<String>,
@@ -4970,6 +5071,7 @@ private fun AiReportsSelectionDialog(
                         com.eval.data.AiService.CLAUDE -> CLAUDE_MODELS
                         com.eval.data.AiService.GEMINI -> availableGeminiModels
                         com.eval.data.AiService.GROK -> availableGrokModels
+                        com.eval.data.AiService.GROQ -> availableGroqModels
                         com.eval.data.AiService.DEEPSEEK -> availableDeepSeekModels
                         com.eval.data.AiService.MISTRAL -> availableMistralModels
                         com.eval.data.AiService.PERPLEXITY -> availablePerplexityModels
@@ -5287,6 +5389,7 @@ private fun getAiServiceColor(service: com.eval.data.AiService): Color {
         com.eval.data.AiService.CLAUDE -> Color(0xFFD97757)
         com.eval.data.AiService.GEMINI -> Color(0xFF4285F4)
         com.eval.data.AiService.GROK -> Color(0xFF000000)
+        com.eval.data.AiService.GROQ -> Color(0xFFF55036)
         com.eval.data.AiService.DEEPSEEK -> Color(0xFF0066FF)
         com.eval.data.AiService.MISTRAL -> Color(0xFFFF7000)
         com.eval.data.AiService.PERPLEXITY -> Color(0xFF20B2AA)
@@ -5302,6 +5405,7 @@ private fun getAiServiceLetter(service: com.eval.data.AiService): String {
         com.eval.data.AiService.CLAUDE -> "C"
         com.eval.data.AiService.GEMINI -> "G"
         com.eval.data.AiService.GROK -> "X"
+        com.eval.data.AiService.GROQ -> "Q"
         com.eval.data.AiService.DEEPSEEK -> "D"
         com.eval.data.AiService.MISTRAL -> "M"
         com.eval.data.AiService.PERPLEXITY -> "P"
