@@ -115,14 +115,11 @@ fun InterfaceSettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "Show interface elements",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "Interface elements",
+            onBackClick = onBackToSettings,
+            onEvalClick = onBackToGame
         )
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -405,8 +402,5 @@ fun InterfaceSettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
     }
 }

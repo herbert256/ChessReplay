@@ -382,14 +382,11 @@ fun AiSettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "AI Analysis",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "AI Analysis",
+            onBackClick = onBackToSettings,
+            onEvalClick = onBackToGame
         )
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
 
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -507,9 +504,6 @@ fun AiSettingsScreen(
             Text("Import AI configuration")
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
     }
 
     // Import AI configuration dialog
@@ -988,6 +982,7 @@ fun ChatGptSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.chatGptApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.chatGptModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.chatGptManualModels) }
 
@@ -998,6 +993,13 @@ fun ChatGptSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(chatGptApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1011,7 +1013,7 @@ fun ChatGptSettingsScreen(
                 manualModels = it
                 onSave(aiSettings.copy(chatGptManualModels = it))
             },
-            onFetchModels = { onFetchModels(aiSettings.chatGptApiKey) }
+            onFetchModels = { onFetchModels(apiKey) }
         )
     }
 }
@@ -1026,6 +1028,7 @@ fun ClaudeSettingsScreen(
     onBackToGame: () -> Unit,
     onSave: (AiSettings) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.claudeApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.claudeModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.claudeManualModels) }
 
@@ -1036,6 +1039,13 @@ fun ClaudeSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(claudeApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1067,6 +1077,7 @@ fun GeminiSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.geminiApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.geminiModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.geminiManualModels) }
 
@@ -1077,6 +1088,13 @@ fun GeminiSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(geminiApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1090,7 +1108,7 @@ fun GeminiSettingsScreen(
                 manualModels = it
                 onSave(aiSettings.copy(geminiManualModels = it))
             },
-            onFetchModels = { onFetchModels(aiSettings.geminiApiKey) }
+            onFetchModels = { onFetchModels(apiKey) }
         )
     }
 }
@@ -1108,6 +1126,7 @@ fun GrokSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.grokApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.grokModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.grokManualModels) }
 
@@ -1118,6 +1137,13 @@ fun GrokSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(grokApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1131,7 +1157,7 @@ fun GrokSettingsScreen(
                 manualModels = it
                 onSave(aiSettings.copy(grokManualModels = it))
             },
-            onFetchModels = { onFetchModels(aiSettings.grokApiKey) }
+            onFetchModels = { onFetchModels(apiKey) }
         )
     }
 }
@@ -1149,6 +1175,7 @@ fun DeepSeekSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.deepSeekApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.deepSeekModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.deepSeekManualModels) }
 
@@ -1159,6 +1186,13 @@ fun DeepSeekSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(deepSeekApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1172,7 +1206,7 @@ fun DeepSeekSettingsScreen(
                 manualModels = it
                 onSave(aiSettings.copy(deepSeekManualModels = it))
             },
-            onFetchModels = { onFetchModels(aiSettings.deepSeekApiKey) }
+            onFetchModels = { onFetchModels(apiKey) }
         )
     }
 }
@@ -1190,6 +1224,7 @@ fun MistralSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.mistralApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.mistralModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.mistralManualModels) }
 
@@ -1200,6 +1235,13 @@ fun MistralSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(mistralApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1213,7 +1255,7 @@ fun MistralSettingsScreen(
                 manualModels = it
                 onSave(aiSettings.copy(mistralManualModels = it))
             },
-            onFetchModels = { onFetchModels(aiSettings.mistralApiKey) }
+            onFetchModels = { onFetchModels(apiKey) }
         )
     }
 }
@@ -1231,6 +1273,7 @@ fun PerplexitySettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.perplexityApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.perplexityModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.perplexityManualModels) }
 
@@ -1241,6 +1284,13 @@ fun PerplexitySettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(perplexityApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1254,7 +1304,7 @@ fun PerplexitySettingsScreen(
                 manualModels = it
                 onSave(aiSettings.copy(perplexityManualModels = it))
             },
-            onFetchModels = { onFetchModels(aiSettings.perplexityApiKey) }
+            onFetchModels = { onFetchModels(apiKey) }
         )
     }
 }
@@ -1272,6 +1322,7 @@ fun TogetherSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.togetherApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.togetherModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.togetherManualModels) }
 
@@ -1282,6 +1333,13 @@ fun TogetherSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(togetherApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1295,7 +1353,7 @@ fun TogetherSettingsScreen(
                 manualModels = it
                 onSave(aiSettings.copy(togetherManualModels = it))
             },
-            onFetchModels = { onFetchModels(aiSettings.togetherApiKey) }
+            onFetchModels = { onFetchModels(apiKey) }
         )
     }
 }
@@ -1313,6 +1371,7 @@ fun OpenRouterSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
+    var apiKey by remember { mutableStateOf(aiSettings.openRouterApiKey) }
     var modelSource by remember { mutableStateOf(aiSettings.openRouterModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.openRouterManualModels) }
 
@@ -1323,6 +1382,13 @@ fun OpenRouterSettingsScreen(
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
+        ApiKeyInputSection(
+            apiKey = apiKey,
+            onApiKeyChange = {
+                apiKey = it
+                onSave(aiSettings.copy(openRouterApiKey = it))
+            }
+        )
         UnifiedModelSelectionSection(
             modelSource = modelSource,
             manualModels = manualModels,
@@ -1336,7 +1402,7 @@ fun OpenRouterSettingsScreen(
                 manualModels = it
                 onSave(aiSettings.copy(openRouterManualModels = it))
             },
-            onFetchModels = { onFetchModels(aiSettings.openRouterApiKey) }
+            onFetchModels = { onFetchModels(apiKey) }
         )
     }
 }
@@ -1363,7 +1429,13 @@ fun DummySettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Title with color indicator
+        EvalTitleBar(
+            title = "Dummy",
+            onBackClick = onBackToAiSettings,
+            onEvalClick = onBackToGame
+        )
+
+        // Provider info with color indicator
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1373,28 +1445,11 @@ fun DummySettingsScreen(
                     .size(16.dp)
                     .background(Color(0xFF888888), shape = MaterialTheme.shapes.small)
             )
-            Column {
-                Text(
-                    text = "AI Provider: Dummy",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = "For testing",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFAAAAAA)
-                )
-            }
-        }
-
-        // Back buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(onClick = onBackToAiSettings) {
-                Text("< AI Providers")
-            }
+            Text(
+                text = "For testing",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFAAAAAA)
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1487,16 +1542,6 @@ fun DummySettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Bottom back buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(onClick = onBackToAiSettings) {
-                Text("< AI Providers")
-            }
-        }
     }
 }
 
@@ -1524,7 +1569,13 @@ private fun AiServiceSettingsScreenTemplate(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Title with color indicator
+        EvalTitleBar(
+            title = title,
+            onBackClick = onBackToAiSettings,
+            onEvalClick = onBackToGame
+        )
+
+        // Provider info with color indicator
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1534,28 +1585,11 @@ private fun AiServiceSettingsScreenTemplate(
                     .size(16.dp)
                     .background(accentColor, shape = MaterialTheme.shapes.small)
             )
-            Column {
-                Text(
-                    text = "AI Provider: $title",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFAAAAAA)
-                )
-            }
-        }
-
-        // Back buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(onClick = onBackToAiSettings) {
-                Text("< AI Providers")
-            }
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFAAAAAA)
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1563,16 +1597,6 @@ private fun AiServiceSettingsScreenTemplate(
         // Additional content (model selection, etc.)
         additionalContent()
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Bottom back buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(onClick = onBackToAiSettings) {
-                Text("< AI Providers")
-            }
-        }
     }
 }
 
@@ -1736,6 +1760,57 @@ private fun HardcodedModelSelectionSection(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * API key input section for provider settings.
+ */
+@Composable
+private fun ApiKeyInputSection(
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit
+) {
+    var showApiKey by remember { mutableStateOf(false) }
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "API Key",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+
+            OutlinedTextField(
+                value = apiKey,
+                onValueChange = onApiKeyChange,
+                label = { Text("API Key") },
+                singleLine = true,
+                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    TextButton(onClick = { showApiKey = !showApiKey }) {
+                        Text(
+                            text = if (showApiKey) "Hide" else "Show",
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
         }
     }
 }
@@ -2153,14 +2228,11 @@ fun AiSetupScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "AI Setup",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "AI Setup",
+            onBackClick = onBackToSettings,
+            onEvalClick = onBackToGame
         )
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -2203,9 +2275,6 @@ fun AiSetupScreen(
             onClick = { onNavigate(SettingsSubScreen.AI_AGENTS) }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
     }
 }
 
@@ -2274,6 +2343,14 @@ private fun AiSetupNavigationCard(
  * AI Providers screen - configure model source for each provider.
  * This is the renamed/refactored version of the old AiSettingsScreen.
  */
+/**
+ * Data class for parsing API keys from clipboard JSON.
+ */
+private data class ProviderApiKey(
+    val service: String = "",
+    val apiKey: String = ""
+)
+
 @Composable
 fun AiProvidersScreen(
     aiSettings: AiSettings,
@@ -2282,6 +2359,9 @@ fun AiProvidersScreen(
     onNavigate: (SettingsSubScreen) -> Unit,
     onSave: (AiSettings) -> Unit
 ) {
+    val context = LocalContext.current
+    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -2290,20 +2370,234 @@ fun AiProvidersScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "AI Providers",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "AI Providers",
+            onBackClick = onBackToAiSetup,
+            onEvalClick = onBackToGame
         )
 
-        // Back buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Import API keys button
+        Button(
+            onClick = {
+                try {
+                    val clipData = clipboardManager.primaryClip
+                    val jsonText = clipData?.getItemAt(0)?.text?.toString() ?: ""
+                    if (jsonText.isBlank()) {
+                        Toast.makeText(context, "Clipboard is empty", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    val gson = Gson()
+                    val apiKeys = gson.fromJson(jsonText, Array<ProviderApiKey>::class.java)
+
+                    var updatedSettings = aiSettings
+                    var importedCount = 0
+
+                    apiKeys.forEach { providerKey ->
+                        val serviceName = providerKey.service.lowercase()
+                        when {
+                            serviceName.contains("chatgpt") || serviceName.contains("openai") -> {
+                                updatedSettings = updatedSettings.copy(chatGptApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                            serviceName.contains("claude") || serviceName.contains("anthropic") -> {
+                                updatedSettings = updatedSettings.copy(claudeApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                            serviceName.contains("gemini") || serviceName.contains("google") -> {
+                                updatedSettings = updatedSettings.copy(geminiApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                            serviceName.contains("grok") || serviceName.contains("xai") -> {
+                                updatedSettings = updatedSettings.copy(grokApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                            serviceName.contains("deepseek") -> {
+                                updatedSettings = updatedSettings.copy(deepSeekApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                            serviceName.contains("mistral") -> {
+                                updatedSettings = updatedSettings.copy(mistralApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                            serviceName.contains("perplexity") -> {
+                                updatedSettings = updatedSettings.copy(perplexityApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                            serviceName.contains("together") -> {
+                                updatedSettings = updatedSettings.copy(togetherApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                            serviceName.contains("openrouter") -> {
+                                updatedSettings = updatedSettings.copy(openRouterApiKey = providerKey.apiKey)
+                                importedCount++
+                            }
+                        }
+                    }
+
+                    if (importedCount > 0) {
+                        onSave(updatedSettings)
+                        Toast.makeText(context, "Imported $importedCount API keys", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "No matching providers found", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: JsonSyntaxException) {
+                    Toast.makeText(context, "Invalid JSON format", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
         ) {
-            OutlinedButton(onClick = onBackToAiSetup) {
-                Text("< AI Setup")
-            }
+            Text("Get API keys from clipboard")
+        }
+
+        // Generate AI agents button
+        Button(
+            onClick = {
+                val newAgents = mutableListOf<AiAgent>()
+
+                // Helper to get first model from provider's manual models list
+                fun getFirstModel(manualModels: List<String>, defaultModel: String): String {
+                    return manualModels.firstOrNull() ?: defaultModel
+                }
+
+                // Helper to get prompt ID by name, or empty string if not found
+                fun getPromptId(name: String): String {
+                    return aiSettings.prompts.find { it.name == name }?.id ?: ""
+                }
+
+                // Get prompt IDs for default prompts
+                val gamePromptId = getPromptId(DEFAULT_GAME_PROMPT_NAME)
+                val serverPlayerPromptId = getPromptId(DEFAULT_SERVER_PLAYER_PROMPT_NAME)
+                val otherPlayerPromptId = getPromptId(DEFAULT_OTHER_PLAYER_PROMPT_NAME)
+
+                // Generate agent for each provider with a configured API key
+                if (aiSettings.chatGptApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "ChatGPT",
+                        provider = AiService.CHATGPT,
+                        model = getFirstModel(aiSettings.chatGptManualModels, "gpt-4o-mini"),
+                        apiKey = aiSettings.chatGptApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+                if (aiSettings.claudeApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "Claude",
+                        provider = AiService.CLAUDE,
+                        model = getFirstModel(aiSettings.claudeManualModels, "claude-sonnet-4-20250514"),
+                        apiKey = aiSettings.claudeApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+                if (aiSettings.geminiApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "Gemini",
+                        provider = AiService.GEMINI,
+                        model = getFirstModel(aiSettings.geminiManualModels, "gemini-2.0-flash"),
+                        apiKey = aiSettings.geminiApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+                if (aiSettings.grokApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "Grok",
+                        provider = AiService.GROK,
+                        model = getFirstModel(aiSettings.grokManualModels, "grok-3-mini"),
+                        apiKey = aiSettings.grokApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+                if (aiSettings.deepSeekApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "DeepSeek",
+                        provider = AiService.DEEPSEEK,
+                        model = getFirstModel(aiSettings.deepSeekManualModels, "deepseek-chat"),
+                        apiKey = aiSettings.deepSeekApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+                if (aiSettings.mistralApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "Mistral",
+                        provider = AiService.MISTRAL,
+                        model = getFirstModel(aiSettings.mistralManualModels, "mistral-small-latest"),
+                        apiKey = aiSettings.mistralApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+                if (aiSettings.perplexityApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "Perplexity",
+                        provider = AiService.PERPLEXITY,
+                        model = getFirstModel(aiSettings.perplexityManualModels, "sonar"),
+                        apiKey = aiSettings.perplexityApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+                if (aiSettings.togetherApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "Together",
+                        provider = AiService.TOGETHER,
+                        model = getFirstModel(aiSettings.togetherManualModels, "meta-llama/Llama-3-70b-chat-hf"),
+                        apiKey = aiSettings.togetherApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+                if (aiSettings.openRouterApiKey.isNotBlank()) {
+                    newAgents.add(AiAgent(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "OpenRouter",
+                        provider = AiService.OPENROUTER,
+                        model = getFirstModel(aiSettings.openRouterManualModels, "openai/gpt-4o-mini"),
+                        apiKey = aiSettings.openRouterApiKey,
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    ))
+                }
+
+                if (newAgents.isNotEmpty()) {
+                    // Merge with existing agents (replace agents with same name)
+                    val existingNames = newAgents.map { it.name }.toSet()
+                    val filteredExisting = aiSettings.agents.filter { it.name !in existingNames }
+                    val updatedAgents = filteredExisting + newAgents
+                    onSave(aiSettings.copy(agents = updatedAgents))
+                    Toast.makeText(context, "Generated ${newAgents.size} AI agents", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "No providers with API keys found", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+        ) {
+            Text("Generate AI agents")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -2370,16 +2664,6 @@ fun AiProvidersScreen(
             onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Back buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(onClick = onBackToAiSetup) {
-                Text("< AI Setup")
-            }
-        }
     }
 }
 
@@ -2405,21 +2689,11 @@ fun AiPromptsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "AI Prompts",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "AI Prompts",
+            onBackClick = onBackToAiSetup,
+            onEvalClick = onBackToGame
         )
-
-        // Back buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(onClick = onBackToAiSetup) {
-                Text("< AI Setup")
-            }
-        }
 
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -2723,21 +2997,11 @@ fun AiAgentsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "AI Agents",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "AI Agents",
+            onBackClick = onBackToAiSetup,
+            onEvalClick = onBackToGame
         )
-
-        // Back buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(onClick = onBackToAiSetup) {
-                Text("< AI Setup")
-            }
-        }
 
         // Add button
         Button(

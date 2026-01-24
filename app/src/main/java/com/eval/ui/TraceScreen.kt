@@ -69,27 +69,11 @@ fun TraceListScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "API Trace Log",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clickable { onBack() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("✕", fontSize = 24.sp, color = Color.White)
-            }
-        }
+        EvalTitleBar(
+            title = "API Trace Log",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
         Text(
             text = "${traceFiles.size} trace files",
@@ -398,27 +382,11 @@ private fun TraceDetailMainScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Trace Detail",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clickable { onBack() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("✕", fontSize = 24.sp, color = Color.White)
-            }
-        }
+        EvalTitleBar(
+            title = "Trace Detail",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
         // Filename display
         Text(
@@ -532,27 +500,11 @@ private fun DataViewScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clickable { onBack() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("✕", fontSize = 24.sp, color = Color.White)
-            }
-        }
+        EvalTitleBar(
+            title = title,
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
         // Filename display
         Text(

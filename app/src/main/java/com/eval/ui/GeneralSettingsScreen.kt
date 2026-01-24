@@ -46,14 +46,11 @@ fun GeneralSettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "General settings",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "General",
+            onBackClick = onBackToSettings,
+            onEvalClick = onBackToGame
         )
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -189,8 +186,5 @@ fun GeneralSettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
     }
 }

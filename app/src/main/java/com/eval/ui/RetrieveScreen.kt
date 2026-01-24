@@ -371,23 +371,13 @@ private fun RetrieveMainScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onBack) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = "Select a game",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        EvalTitleBar(
+            title = "Select a game",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Content
         Column(
@@ -686,23 +676,13 @@ private fun LichessRetrieveScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onBack) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = "lichess.org",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color(0xFF629924),
-                fontWeight = FontWeight.Bold
-            )
-        }
+        EvalTitleBar(
+            title = "lichess.org",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Content
         Column(
@@ -873,23 +853,13 @@ private fun ChessComRetrieveScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onBack) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = "chess.com",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color(0xFF769656),
-                fontWeight = FontWeight.Bold
-            )
-        }
+        EvalTitleBar(
+            title = "chess.com",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Content
         Column(
@@ -1045,21 +1015,11 @@ private fun TopRankingsScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onBack) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = "Top Rankings",
-                style = MaterialTheme.typography.titleLarge,
-                color = serverColor,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        EvalTitleBar(
+            title = "Top Rankings",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
         Text(
             text = serverName,
@@ -1261,27 +1221,17 @@ private fun TournamentsScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = {
+        EvalTitleBar(
+            title = if (uiState.selectedTournament != null) "Tournament Games" else "Tournaments",
+            onBackClick = {
                 if (uiState.selectedTournament != null) {
                     viewModel.backToTournamentList()
                 } else {
                     onBack()
                 }
-            }) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = if (uiState.selectedTournament != null) "Tournament Games" else "Tournaments",
-                style = MaterialTheme.typography.titleLarge,
-                color = serverColor,
-                fontWeight = FontWeight.Bold
-            )
-        }
+            },
+            onEvalClick = onBack
+        )
 
         if (uiState.selectedTournament != null) {
             Text(
@@ -1494,31 +1444,21 @@ private fun BroadcastsScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = {
+        EvalTitleBar(
+            title = when {
+                showingGames -> "Games"
+                showingRounds -> "Rounds"
+                else -> "Broadcasts"
+            },
+            onBackClick = {
                 if (uiState.selectedBroadcast != null) {
                     viewModel.backToBroadcastList()
                 } else {
                     onBack()
                 }
-            }) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = when {
-                    showingGames -> "Games"
-                    showingRounds -> "Rounds"
-                    else -> "Broadcasts"
-                },
-                style = MaterialTheme.typography.titleLarge,
-                color = serverColor,
-                fontWeight = FontWeight.Bold
-            )
-        }
+            },
+            onEvalClick = onBack
+        )
 
         // Subtitle showing current broadcast/round
         when {
@@ -1774,27 +1714,17 @@ private fun PgnFileScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = {
+        EvalTitleBar(
+            title = if (showingGames) "Games" else "Events",
+            onBackClick = {
                 if (showingGames && hasMultipleEvents) {
                     viewModel.backToPgnEventList()
                 } else {
                     onBack()
                 }
-            }) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = if (showingGames) "Games" else "Events",
-                style = MaterialTheme.typography.titleLarge,
-                color = accentColor,
-                fontWeight = FontWeight.Bold
-            )
-        }
+            },
+            onEvalClick = onBack
+        )
 
         // Subtitle
         if (showingGames) {
@@ -1960,21 +1890,11 @@ private fun LichessTvScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onBack) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = "Lichess TV",
-                style = MaterialTheme.typography.titleLarge,
-                color = serverColor,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        EvalTitleBar(
+            title = "Lichess TV",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
         Text(
             text = "Current top games",
@@ -2102,21 +2022,11 @@ private fun DailyPuzzleScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onBack) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = "Daily Puzzle",
-                style = MaterialTheme.typography.titleLarge,
-                color = serverColor,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        EvalTitleBar(
+            title = "Daily Puzzle",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
         Text(
             text = "chess.com",
@@ -2211,21 +2121,11 @@ private fun StreamersScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onBack) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = "Streamers",
-                style = MaterialTheme.typography.titleLarge,
-                color = serverColor,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        EvalTitleBar(
+            title = "Streamers",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
         Text(
             text = "chess.com streamers",
@@ -2383,23 +2283,13 @@ private fun OpeningSelectionScreen(
             .padding(16.dp)
     ) {
         // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onBack) {
-                Text("< Back", color = Color.White)
-            }
-            Text(
-                text = "Start with opening",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        EvalTitleBar(
+            title = "Start with opening",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Search input
         OutlinedTextField(

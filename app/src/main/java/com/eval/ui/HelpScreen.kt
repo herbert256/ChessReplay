@@ -29,23 +29,11 @@ fun HelpScreen(
             .background(Color(0xFF1A1A1A))
             .padding(16.dp)
     ) {
-        // Header with back button
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Text("←", fontSize = 28.sp, color = Color.White)
-            }
-            Text(
-                text = "Help",
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.width(48.dp))
-        }
+        EvalTitleBar(
+            title = "Help",
+            onBackClick = onBack,
+            onEvalClick = onBack
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 

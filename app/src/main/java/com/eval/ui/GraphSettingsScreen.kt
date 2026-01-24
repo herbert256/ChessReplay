@@ -68,14 +68,11 @@ fun GraphSettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "Graph settings",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "Graph settings",
+            onBackClick = onBackToSettings,
+            onEvalClick = onBackToGame
         )
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -274,9 +271,6 @@ fun GraphSettingsScreen(
             Text("Reset to defaults")
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
     }
 
     // Color picker dialogs

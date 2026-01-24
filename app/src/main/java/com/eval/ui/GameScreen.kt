@@ -661,94 +661,59 @@ fun GameScreenContent(
                 )
             }
     ) {
-        // Title row with buttons (when game loaded) and settings button - hidden in full screen mode
+        // Title bar - hidden in full screen mode
         if (!isFullScreen) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Buttons on the left
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    // Show retrieve games view - always visible
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clickable {
-                                if (uiState.game != null) {
-                                    viewModel.clearGame()
-                                }
-                                onNavigateToRetrieve()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("≡", fontSize = 44.sp, color = Color.White, modifier = Modifier.offset(y = (-12).dp))
-                    }
-                    // Reload last game from Active player/server (only when game loaded and Active stored)
+            EvalTitleBar(
+                onEvalClick = { viewModel.clearGame() },
+                leftContent = {
+                    // Menu icon - navigate to retrieve
+                    TitleBarIcon(
+                        icon = "≡",
+                        onClick = {
+                            if (uiState.game != null) {
+                                viewModel.clearGame()
+                            }
+                            onNavigateToRetrieve()
+                        },
+                        fontSize = 44,
+                        offsetY = -12
+                    )
+                    // Reload last game (only when game loaded and Active stored)
                     if (uiState.game != null && uiState.hasActive) {
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clickable { viewModel.reloadLastGame() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("↻", fontSize = 44.sp, color = Color.White, modifier = Modifier.offset(y = (-12).dp))
-                        }
+                        TitleBarIcon(
+                            icon = "↻",
+                            onClick = { viewModel.reloadLastGame() },
+                            fontSize = 44,
+                            size = 52,
+                            offsetY = -12
+                        )
                     }
                     // Debug trace icon (only when tracking is enabled)
                     if (uiState.generalSettings.trackApiCalls) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clickable { onNavigateToTrace() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("\uD83D\uDC1E", fontSize = 24.sp, color = Color.White, modifier = Modifier.offset(y = (-3).dp))  // Lady beetle for debug
-                        }
+                        TitleBarIcon(
+                            icon = "\uD83D\uDC1E",
+                            onClick = { onNavigateToTrace() },
+                            fontSize = 24
+                        )
                     }
                     // AI prompt icon
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clickable { onNavigateToAi() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("🤖", fontSize = 24.sp, color = Color.White, modifier = Modifier.offset(y = (-3).dp))
-                    }
-                    // Settings and help icons
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clickable { onNavigateToSettings() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("⚙", fontSize = 30.sp, color = Color.White, modifier = Modifier.offset(y = (-3).dp))
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clickable { onNavigateToHelp() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("?", fontSize = 30.sp, color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-3).dp))
-                    }
+                    TitleBarIcon(
+                        icon = "🤖",
+                        onClick = { onNavigateToAi() },
+                        fontSize = 24
+                    )
+                    // Settings icon
+                    TitleBarIcon(
+                        icon = "⚙",
+                        onClick = { onNavigateToSettings() }
+                    )
+                    // Help icon
+                    TitleBarIcon(
+                        icon = "?",
+                        onClick = { onNavigateToHelp() }
+                    )
                 }
-                Text(
-                    text = "Eval",
-                    fontSize = 36.sp,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.End,
-                    maxLines = 1,
-                    modifier = Modifier.clickable {
-                        viewModel.clearGame()
-                    }
-                )
-            }
+            )
         }
 
         // Stage indicator - only show during Preview and Analyse stages, hidden in full screen mode

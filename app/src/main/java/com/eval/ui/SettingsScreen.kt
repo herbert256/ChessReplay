@@ -299,22 +299,12 @@ private fun SettingsMainScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Title
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            modifier = Modifier.padding(bottom = 8.dp)
+        // Title bar
+        EvalTitleBar(
+            title = "Settings",
+            onBackClick = onBack,
+            onEvalClick = onBack
         )
-
-        // Back button at top
-        Button(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Back")
-        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -367,15 +357,6 @@ private fun SettingsMainScreen(
             onClick = { onNavigate(SettingsSubScreen.AI_SETUP) }
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Back button at bottom
-        Button(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Back")
-        }
     }
 }
 

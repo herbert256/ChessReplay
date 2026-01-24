@@ -88,14 +88,11 @@ fun BoardLayoutSettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "Board layout",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
+        EvalTitleBar(
+            title = "Board layout",
+            onBackClick = onBackToSettings,
+            onEvalClick = onBackToGame
         )
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -379,9 +376,6 @@ fun BoardLayoutSettingsScreen(
             Text("Reset to defaults")
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
     }
 
     // Color picker dialogs
