@@ -28,6 +28,8 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import com.eval.data.AiAnalysisResponse
+import com.eval.data.AiHistoryManager
+import com.eval.data.AiReportType
 import com.eval.data.ChessServer
 import com.eval.data.PlayerInfo
 import dev.jeziellago.compose.markdowntext.MarkdownText
@@ -2286,6 +2288,9 @@ private fun openAiReportsInChrome(context: android.content.Context, uiState: Gam
         } catch (e: Exception) { "unknown" }
         val html = convertAiReportsToHtml(uiState, appVersion)
 
+        // Save to AI history
+        AiHistoryManager.saveReport(html, AiReportType.GAME_ANALYSIS)
+
         val cacheDir = java.io.File(context.cacheDir, "ai_analysis")
         if (!cacheDir.exists()) {
             cacheDir.mkdirs()
@@ -2330,6 +2335,9 @@ private fun shareAiReports(context: android.content.Context, uiState: GameUiStat
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown"
         } catch (e: Exception) { "unknown" }
         val html = convertAiReportsToHtml(uiState, appVersion)
+
+        // Save to AI history
+        AiHistoryManager.saveReport(html, AiReportType.GAME_ANALYSIS)
 
         val cacheDir = java.io.File(context.cacheDir, "ai_analysis")
         if (!cacheDir.exists()) {
@@ -2377,6 +2385,14 @@ private fun openPlayerAiReportsInChrome(context: android.content.Context, uiStat
         } catch (e: Exception) { "unknown" }
         val html = convertPlayerAiReportsToHtml(uiState, appVersion)
 
+        // Save to AI history - server_player if server is set, otherwise other_player
+        val reportType = if (uiState.playerAiReportsServer != null) {
+            AiReportType.SERVER_PLAYER
+        } else {
+            AiReportType.OTHER_PLAYER
+        }
+        AiHistoryManager.saveReport(html, reportType)
+
         val cacheDir = java.io.File(context.cacheDir, "ai_analysis")
         if (!cacheDir.exists()) {
             cacheDir.mkdirs()
@@ -2421,6 +2437,14 @@ private fun sharePlayerAiReports(context: android.content.Context, uiState: Game
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown"
         } catch (e: Exception) { "unknown" }
         val html = convertPlayerAiReportsToHtml(uiState, appVersion)
+
+        // Save to AI history - server_player if server is set, otherwise other_player
+        val reportType = if (uiState.playerAiReportsServer != null) {
+            AiReportType.SERVER_PLAYER
+        } else {
+            AiReportType.OTHER_PLAYER
+        }
+        AiHistoryManager.saveReport(html, reportType)
 
         val cacheDir = java.io.File(context.cacheDir, "ai_analysis")
         if (!cacheDir.exists()) {
@@ -2881,6 +2905,9 @@ private fun openGenericAiReportsInChrome(context: android.content.Context, uiSta
         } catch (e: Exception) { "unknown" }
         val html = convertGenericAiReportsToHtml(uiState, appVersion)
 
+        // Save to AI history
+        AiHistoryManager.saveReport(html, AiReportType.GENERAL)
+
         val cacheDir = java.io.File(context.cacheDir, "ai_analysis")
         if (!cacheDir.exists()) {
             cacheDir.mkdirs()
@@ -2919,6 +2946,9 @@ private fun shareGenericAiReports(context: android.content.Context, uiState: Gam
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown"
         } catch (e: Exception) { "unknown" }
         val html = convertGenericAiReportsToHtml(uiState, appVersion)
+
+        // Save to AI history
+        AiHistoryManager.saveReport(html, AiReportType.GENERAL)
 
         val cacheDir = java.io.File(context.cacheDir, "ai_analysis")
         if (!cacheDir.exists()) {

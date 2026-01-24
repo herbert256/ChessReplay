@@ -3,6 +3,9 @@ package com.eval.data
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Token usage statistics from AI API response.
@@ -46,17 +49,39 @@ class AiAnalysisRepository {
     private val openRouterApi = AiApiFactory.createOpenRouterApi()
 
     /**
-     * Builds the chess analysis prompt by replacing @FEN@ placeholder with actual FEN.
+     * Formats the current date as "Saturday, January 24th".
      */
-    private fun buildChessPrompt(promptTemplate: String, fen: String): String {
-        return promptTemplate.replace("@FEN@", fen)
+    private fun formatCurrentDate(): String {
+        val today = LocalDate.now()
+        val dayOfWeek = today.format(DateTimeFormatter.ofPattern("EEEE", Locale.ENGLISH))
+        val month = today.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH))
+        val dayOfMonth = today.dayOfMonth
+        val ordinalSuffix = when {
+            dayOfMonth in 11..13 -> "th"
+            dayOfMonth % 10 == 1 -> "st"
+            dayOfMonth % 10 == 2 -> "nd"
+            dayOfMonth % 10 == 3 -> "rd"
+            else -> "th"
+        }
+        return "$dayOfWeek, $month $dayOfMonth$ordinalSuffix"
     }
 
     /**
-     * Builds the player analysis prompt by replacing @PLAYER@ and @SERVER@ placeholders.
+     * Builds the chess analysis prompt by replacing @FEN@ and @DATE@ placeholders.
+     */
+    private fun buildChessPrompt(promptTemplate: String, fen: String): String {
+        return promptTemplate
+            .replace("@FEN@", fen)
+            .replace("@DATE@", formatCurrentDate())
+    }
+
+    /**
+     * Builds the player analysis prompt by replacing @PLAYER@, @SERVER@, and @DATE@ placeholders.
      */
     private fun buildPlayerPrompt(promptTemplate: String, playerName: String, server: String?): String {
-        var result = promptTemplate.replace("@PLAYER@", playerName)
+        var result = promptTemplate
+            .replace("@PLAYER@", playerName)
+            .replace("@DATE@", formatCurrentDate())
         if (server != null) {
             result = result.replace("@SERVER@", server)
         }
@@ -304,20 +329,23 @@ class AiAnalysisRepository {
             )
         }
 
+        // Replace @DATE@ placeholder
+        val finalPrompt = prompt.replace("@DATE@", formatCurrentDate())
+
         suspend fun makeApiCall(): AiAnalysisResponse {
             val result = when (agent.provider) {
-                AiService.CHATGPT -> analyzeWithChatGpt(agent.apiKey, prompt, agent.model)
-                AiService.CLAUDE -> analyzeWithClaude(agent.apiKey, prompt, agent.model)
-                AiService.GEMINI -> analyzeWithGemini(agent.apiKey, prompt, agent.model)
-                AiService.GROK -> analyzeWithGrok(agent.apiKey, prompt, agent.model)
-                AiService.DEEPSEEK -> analyzeWithDeepSeek(agent.apiKey, prompt, agent.model)
-                AiService.MISTRAL -> analyzeWithMistral(agent.apiKey, prompt, agent.model)
-                AiService.PERPLEXITY -> analyzeWithPerplexity(agent.apiKey, prompt, agent.model)
-                AiService.TOGETHER -> analyzeWithTogether(agent.apiKey, prompt, agent.model)
-                AiService.OPENROUTER -> analyzeWithOpenRouter(agent.apiKey, prompt, agent.model)
+                AiService.CHATGPT -> analyzeWithChatGpt(agent.apiKey, finalPrompt, agent.model)
+                AiService.CLAUDE -> analyzeWithClaude(agent.apiKey, finalPrompt, agent.model)
+                AiService.GEMINI -> analyzeWithGemini(agent.apiKey, finalPrompt, agent.model)
+                AiService.GROK -> analyzeWithGrok(agent.apiKey, finalPrompt, agent.model)
+                AiService.DEEPSEEK -> analyzeWithDeepSeek(agent.apiKey, finalPrompt, agent.model)
+                AiService.MISTRAL -> analyzeWithMistral(agent.apiKey, finalPrompt, agent.model)
+                AiService.PERPLEXITY -> analyzeWithPerplexity(agent.apiKey, finalPrompt, agent.model)
+                AiService.TOGETHER -> analyzeWithTogether(agent.apiKey, finalPrompt, agent.model)
+                AiService.OPENROUTER -> analyzeWithOpenRouter(agent.apiKey, finalPrompt, agent.model)
                 AiService.DUMMY -> analyzeWithDummy()
             }
-            return result.copy(agentName = agent.name, promptUsed = prompt)
+            return result.copy(agentName = agent.name, promptUsed = finalPrompt)
         }
 
         try {

@@ -336,7 +336,7 @@ data class AiSettings(
 data class AiPrompt(
     val id: String,    // UUID
     val name: String,  // User-defined name
-    val text: String   // Prompt template with @FEN@, @PLAYER@, @SERVER@ placeholders
+    val text: String   // Prompt template with @FEN@, @PLAYER@, @SERVER@, @DATE@ placeholders
 )
 
 /**
@@ -2010,6 +2010,11 @@ fun PromptPlaceholdersInfo() {
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFFAAAAAA)
             )
+            Text(
+                text = "@DATE@ - Will be replaced by the current date (e.g., 'Friday, January 24th')",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFAAAAAA)
+            )
         }
     }
 }
@@ -2689,7 +2694,7 @@ private fun PromptEditDialog(
                 )
 
                 Text(
-                    text = "Use @FEN@, @PLAYER@, @SERVER@ as placeholders",
+                    text = "Use @FEN@, @PLAYER@, @SERVER@, @DATE@ as placeholders",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF888888)
                 )

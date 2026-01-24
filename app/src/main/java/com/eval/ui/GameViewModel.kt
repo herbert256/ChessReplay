@@ -8,6 +8,7 @@ import com.eval.chess.ChessBoard
 import com.eval.chess.Square
 import com.eval.data.AiAnalysisRepository
 import com.eval.data.AiAnalysisResponse
+import com.eval.data.AiHistoryManager
 import com.eval.data.AiService
 import com.eval.data.ApiTracer
 import com.eval.data.BroadcastInfo
@@ -190,6 +191,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         // Initialize ApiTracer for debugging
         ApiTracer.init(application)
+
+        // Initialize AiHistoryManager for AI report storage
+        AiHistoryManager.init(application)
 
         // Check if Stockfish is installed first
         val stockfishInstalled = stockfish.isStockfishInstalled()
