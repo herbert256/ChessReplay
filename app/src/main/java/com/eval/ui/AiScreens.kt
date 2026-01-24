@@ -16,14 +16,15 @@ import com.eval.data.AiHistoryManager
 import com.eval.data.AiHistoryFileInfo
 
 /**
- * AI hub screen with links to New AI Report and AI History.
+ * AI hub screen with links to New AI Report, AI History, and Prompt History.
  * Used as a navigation destination.
  */
 @Composable
 fun AiHubScreen(
     onNavigateBack: () -> Unit,
     onNavigateToHistory: () -> Unit,
-    onNavigateToNewReport: () -> Unit
+    onNavigateToNewReport: () -> Unit,
+    onNavigateToPromptHistory: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -31,24 +32,13 @@ fun AiHubScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "AI",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            TextButton(onClick = onNavigateBack) {
-                Text("Close", color = Color(0xFF6B9BFF))
-            }
-        }
+        EvalTitleBar(
+            title = "AI",
+            onBackClick = onNavigateBack,
+            onEvalClick = onNavigateBack
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // New AI Report card
         Card(
@@ -79,6 +69,44 @@ fun AiHubScreen(
                     )
                     Text(
                         text = "Create a new AI report with custom prompt",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFAAAAAA)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Prompt History card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToPromptHistory() },
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF2A3A4A)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "\uD83D\uDD52",
+                    fontSize = 24.sp
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "Prompt History",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "View and reuse previously used prompts",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFAAAAAA)
                     )
@@ -154,24 +182,13 @@ fun AiHistoryScreenNav(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "AI History",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            TextButton(onClick = onNavigateBack) {
-                Text("Close", color = Color(0xFF6B9BFF))
-            }
-        }
+        EvalTitleBar(
+            title = "AI History",
+            onBackClick = onNavigateBack,
+            onEvalClick = onNavigateBack
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (historyFiles.value.isEmpty()) {
             // Empty state
@@ -250,48 +267,107 @@ private fun AiHistoryRowNav(
     fileInfo: AiHistoryFileInfo,
     context: android.content.Context
 ) {
+    // Extract prompt from HTML file (cached)
+    val promptPreview = remember(fileInfo.file) {
+        extractPromptFromHtmlFile(fileInfo.file)
+    }
+
     Card(
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF2A3A4A)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(12.dp)
         ) {
-            // Filename
-            Text(
-                text = fileInfo.filename,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White,
-                modifier = Modifier.weight(1f)
-            )
-
-            // Actions
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Share button
-                TextButton(
-                    onClick = { shareHistoryFileNav(context, fileInfo.file) },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text("share", color = Color(0xFF6B9BFF), fontSize = 14.sp)
-                }
+                // Filename
+                Text(
+                    text = fileInfo.filename,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
+                )
 
-                // Chrome button
-                TextButton(
-                    onClick = { openHistoryFileInChromeNav(context, fileInfo.file) },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                // Actions
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("chrome", color = Color(0xFF6B9BFF), fontSize = 14.sp)
+                    // Share button
+                    TextButton(
+                        onClick = { shareHistoryFileNav(context, fileInfo.file) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("share", color = Color(0xFF6B9BFF), fontSize = 14.sp)
+                    }
+
+                    // Chrome button
+                    TextButton(
+                        onClick = { openHistoryFileInChromeNav(context, fileInfo.file) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("chrome", color = Color(0xFF6B9BFF), fontSize = 14.sp)
+                    }
                 }
             }
+
+            // Prompt preview (first 3 lines)
+            if (promptPreview.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = promptPreview,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF888888),
+                    fontSize = 11.sp,
+                    maxLines = 3,
+                    lineHeight = 14.sp
+                )
+            }
         }
+    }
+}
+
+/**
+ * Extracts the prompt from an HTML file by finding the prompt-text pre element.
+ * Returns the first 3 lines of the prompt, or empty string if not found.
+ */
+private fun extractPromptFromHtmlFile(file: java.io.File): String {
+    return try {
+        val html = file.readText()
+        // Look for the prompt in <pre class="prompt-text">...</pre>
+        val startMarker = """<pre class="prompt-text">"""
+        val endMarker = "</pre>"
+        val startIndex = html.indexOf(startMarker)
+        if (startIndex == -1) return ""
+
+        val contentStart = startIndex + startMarker.length
+        val endIndex = html.indexOf(endMarker, contentStart)
+        if (endIndex == -1) return ""
+
+        val promptHtml = html.substring(contentStart, endIndex)
+        // Unescape HTML entities
+        val prompt = promptHtml
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("<br>", "\n")
+            .replace("<br/>", "\n")
+            .replace("<br />", "\n")
+
+        // Get first 3 lines
+        val lines = prompt.trim().lines().take(3)
+        lines.joinToString("\n")
+    } catch (e: Exception) {
+        ""
     }
 }
 
@@ -363,11 +439,14 @@ private fun openHistoryFileInChromeNav(context: android.content.Context, file: j
 @Composable
 fun AiNewReportScreen(
     viewModel: GameViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    initialTitle: String = "",
+    initialPrompt: String = ""
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    var title by remember { mutableStateOf("") }
-    var prompt by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf(initialTitle) }
+    var prompt by remember { mutableStateOf(initialPrompt) }
 
     // Handle agent selection dialog
     if (uiState.showGenericAiAgentSelection) {
@@ -398,24 +477,13 @@ fun AiNewReportScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "New AI Report",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            TextButton(onClick = onNavigateBack) {
-                Text("Cancel", color = Color(0xFF6B9BFF))
-            }
-        }
+        EvalTitleBar(
+            title = "New AI Report",
+            onBackClick = onNavigateBack,
+            onEvalClick = onNavigateBack
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Title field
         OutlinedTextField(
@@ -461,6 +529,11 @@ fun AiNewReportScreen(
         Button(
             onClick = {
                 if (title.isNotBlank() && prompt.isNotBlank()) {
+                    // Save to prompt history
+                    val prefs = context.getSharedPreferences(SettingsPreferences.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                    val settingsPrefs = SettingsPreferences(prefs)
+                    settingsPrefs.savePromptToHistory(title, prompt)
+
                     viewModel.showGenericAiAgentSelection(title, prompt)
                 }
             },
@@ -654,6 +727,171 @@ private fun openGenericAiReportsInChromeNav(context: android.content.Context, ui
             "Failed to open in Chrome: ${e.message}",
             android.widget.Toast.LENGTH_SHORT
         ).show()
+    }
+}
+
+/**
+ * Prompt History screen showing previously used prompts with pagination.
+ * Used as a navigation destination.
+ */
+@Composable
+fun PromptHistoryScreen(
+    onNavigateBack: () -> Unit,
+    onSelectEntry: (PromptHistoryEntry) -> Unit
+) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences(SettingsPreferences.PREFS_NAME, android.content.Context.MODE_PRIVATE) }
+    val settingsPrefs = remember { SettingsPreferences(prefs) }
+    val historyEntries = remember { mutableStateOf(settingsPrefs.loadPromptHistory()) }
+    var currentPage by remember { mutableStateOf(0) }
+    val pageSize = 25
+
+    val totalPages = if (historyEntries.value.isEmpty()) 1 else (historyEntries.value.size + pageSize - 1) / pageSize
+    val startIndex = currentPage * pageSize
+    val endIndex = minOf(startIndex + pageSize, historyEntries.value.size)
+    val currentPageEntries = if (historyEntries.value.isNotEmpty()) {
+        historyEntries.value.subList(startIndex, endIndex)
+    } else {
+        emptyList()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        EvalTitleBar(
+            title = "Prompt History",
+            onBackClick = onNavigateBack,
+            onEvalClick = onNavigateBack
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (historyEntries.value.isEmpty()) {
+            // Empty state
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No prompt history yet",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF888888)
+                )
+            }
+        } else {
+            // History list
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                currentPageEntries.forEach { entry ->
+                    PromptHistoryRow(
+                        entry = entry,
+                        onClick = { onSelectEntry(entry) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Pagination
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = { if (currentPage > 0) currentPage-- },
+                    enabled = currentPage > 0
+                ) {
+                    Text(
+                        "Previous",
+                        color = if (currentPage > 0) Color(0xFF6B9BFF) else Color(0xFF444444)
+                    )
+                }
+
+                Text(
+                    text = "${currentPage + 1} / $totalPages",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = Color.White
+                )
+
+                TextButton(
+                    onClick = { if (currentPage < totalPages - 1) currentPage++ },
+                    enabled = currentPage < totalPages - 1
+                ) {
+                    Text(
+                        "Next",
+                        color = if (currentPage < totalPages - 1) Color(0xFF6B9BFF) else Color(0xFF444444)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Single row in Prompt History showing title and timestamp.
+ */
+@Composable
+private fun PromptHistoryRow(
+    entry: PromptHistoryEntry,
+    onClick: () -> Unit
+) {
+    val dateFormat = remember { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()) }
+    val formattedDate = remember(entry.timestamp) { dateFormat.format(java.util.Date(entry.timestamp)) }
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF2A3A4A)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            // Title and timestamp row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = entry.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = formattedDate,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF888888)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Prompt preview (truncated)
+            Text(
+                text = if (entry.prompt.length > 100) entry.prompt.take(100) + "..." else entry.prompt,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFAAAAAA),
+                maxLines = 2
+            )
+        }
     }
 }
 

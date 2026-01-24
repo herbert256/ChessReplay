@@ -1,19 +1,19 @@
 # Eval - Chess Game Analysis App
 
-A powerful Android application for fetching and analyzing chess games from Lichess.org and Chess.com using the Stockfish 17.1 chess engine and AI-powered position analysis from 6 leading AI services.
+A powerful Android application for fetching and analyzing chess games from Lichess.org and Chess.com using the Stockfish 17.1 chess engine and AI-powered position analysis from 9 leading AI services.
 
 ## Overview
 
 Eval provides comprehensive game analysis through an intelligent three-stage system that automatically identifies critical positions and mistakes. Whether you're reviewing your own games or studying master games from tournaments and broadcasts, Eval gives you deep insights into every position.
 
-**Statistics:** 44 Kotlin files, ~25,900 lines of code
+**Statistics:** 46 Kotlin files, ~33,500 lines of code
 
 ## Features
 
 ### Game Sources
 
 #### Online Sources
-- **Lichess.org** - Fetch games by username, browse tournaments, watch broadcasts, view TV channels, follow streamers
+- **Lichess.org** - Fetch games by username, browse tournaments, watch broadcasts, view TV channels, follow streamers, view rankings
 - **Chess.com** - Fetch games by username, solve daily puzzle, view leaderboards
 - **Live Games** - Follow games in real-time with automatic move updates
 
@@ -42,13 +42,13 @@ Eval provides comprehensive game analysis through an intelligent three-stage sys
 - **Real-Time Analysis**: Depth-based analysis (32 ply default)
 - **Multiple Variations**: View up to 32 principal variations
 - **Line Exploration**: Click any move to explore variations
-- **AI Analysis**: Get insights from 6 AI services
-- **Opening Explorer**: View position statistics
+- **AI Analysis**: Get insights from 9 AI services
+- **Opening Explorer**: View position statistics from Lichess database
 - **Clock Time Graph**: Visualize time usage (optional)
 
 ### AI Position Analysis
 
-Get intelligent analysis from 6 leading AI services:
+Get intelligent analysis from 9 leading AI services with a flexible three-tier architecture:
 
 | Service | Default Model |
 |---------|---------------|
@@ -58,14 +58,35 @@ Get intelligent analysis from 6 leading AI services:
 | **Grok** (xAI) | grok-3-mini |
 | **DeepSeek** | deepseek-chat |
 | **Mistral** | mistral-small-latest |
+| **Perplexity** | sonar |
+| **Together AI** | meta-llama/Llama-3.3-70B-Instruct-Turbo |
+| **OpenRouter** | anthropic/claude-3.5-sonnet |
+
+#### Three-Tier AI Architecture
+
+1. **AI Providers** - Services with configurable model sources (API-fetched or manual)
+2. **AI Prompts** - Reusable prompt templates with placeholders (@FEN@, @PLAYER@, @SERVER@)
+3. **AI Agents** - Configurations combining provider + model + API key + prompts
+
+#### AI Hub Features
+- **New AI Report** - Create custom AI reports with any prompt
+- **Prompt History** - Reuse previously submitted prompts (paginated, 25 per page)
+- **AI History** - View and share previously generated reports
 
 #### AI Features
-- **Custom Prompts**: Customize analysis prompts with @FEN@ placeholder
+- **Custom Prompts**: Three prompt types - game analysis, server player, other player
 - **Dynamic Models**: Automatically fetches available models from each service
 - **Rich HTML Reports**: View in Chrome with interactive chessboard, graphs, and move list
 - **Email Export**: Send reports as email attachments
-- **AI Reports**: Analyze multiple positions with multiple services simultaneously
+- **Multi-Position Reports**: Analyze multiple positions with multiple services simultaneously
 - **Retry Logic**: Automatic retry on API failures for reliability
+
+### Player Information
+
+- **Detailed Profiles**: View ratings across all time controls
+- **Game Statistics**: Win/loss/draw records
+- **Recent Games**: Quick access to player's recent matches
+- **AI Player Reports**: Generate AI analysis reports about players
 
 ### Interactive Chess Board
 
@@ -111,9 +132,9 @@ Extensive settings for:
 - **Graphs**: Colors for positive/negative scores, ranges
 - **Arrows**: Mode, count, colors for each side
 - **Stockfish**: Per-stage settings (time, threads, hash, NNUE, MultiPV)
-- **AI Services**: API keys, models, custom prompts for all 6 services
+- **AI Setup**: Providers, prompts, agents (three-tier architecture)
 - **Interface**: Visibility of each UI element per analysis stage (including time graph, opening explorer, opening name)
-- **General**: Fullscreen mode, pagination, move sounds
+- **General**: Fullscreen mode, pagination, move sounds, API tracing
 
 ## Requirements
 
@@ -136,6 +157,9 @@ To use AI position analysis, obtain API keys from:
 - xAI: https://console.x.ai/
 - DeepSeek: https://platform.deepseek.com/
 - Mistral: https://console.mistral.ai/
+- Perplexity: https://www.perplexity.ai/settings/api
+- Together AI: https://api.together.xyz/settings/api-keys
+- OpenRouter: https://openrouter.ai/keys
 
 ## Installation
 
@@ -176,32 +200,42 @@ adb shell am start -n com.eval/.MainActivity
 3. **Manual Stage**: Explore freely, use AI analysis, examine positions
 
 ### Navigation Controls
-- **⏮** : Go to start
-- **◀** : Previous move
-- **▶** : Next move
-- **⏭** : Go to end
-- **↻** : Flip board
+- **Start** : Go to start
+- **Prev** : Previous move
+- **Next** : Next move
+- **End** : Go to end
+- **Flip** : Flip board
 
 ### Top Bar Controls
-- **↻** : Reload latest game
-- **≡** : Return to retrieve screen
-- **↗** : Cycle arrow mode
-- **⚙** : Settings
-- **?** : Help
+- **Reload** : Reload latest game
+- **Menu** : Return to retrieve screen
+- **Arrows** : Cycle arrow mode
+- **Settings** : Settings
+- **Help** : Help screen
+- **Debug** : API trace viewer (when enabled)
 
 ### Using AI Analysis
-1. Configure API keys in Settings > AI Analysis
+1. Configure API keys in Settings > AI Setup > AI Agents
 2. In Manual stage, tap AI logos next to the board
 3. View analysis in popup dialog
 4. Use "View in Chrome" for rich HTML report
 5. Use "Send by email" to share
 
-### AI Reports (Multiple Positions)
-1. In Manual stage, tap the AI Reports button
-2. Select which AI services to use
-3. Select which positions to analyze
-4. View combined report with all analyses
-5. Export to Chrome or email
+### AI Hub
+1. Access from the main retrieve screen
+2. **New AI Report**: Create custom reports with any prompt
+3. **Prompt History**: Reuse previously submitted prompts
+4. **AI History**: View and share previously generated reports
+
+### Creating AI Agents
+1. Go to Settings > AI Setup > AI Agents
+2. Create a new agent with:
+   - Name (e.g., "My Claude Agent")
+   - Provider (ChatGPT, Claude, Gemini, etc.)
+   - Model (select from available models)
+   - API Key
+   - Prompts for game analysis, server player, and other player
+3. Use the agent for AI analysis and reports
 
 ### Exploring Variations
 1. In Manual stage, view the analysis panel
@@ -242,7 +276,8 @@ com.eval/
 3. **Score Perspective**: All scores from active player's perspective
 4. **Helper Classes**: ViewModel split for maintainability (7 helper classes)
 5. **Rich HTML Reports**: Interactive chessboard.js visualization
-6. **AI Reports**: Multi-position, multi-service analysis in single export
+6. **Three-Tier AI Architecture**: Flexible agent configuration with reusable prompts
+7. **AI Hub**: Centralized access to AI features with prompt history
 
 ## Privacy
 
@@ -250,7 +285,8 @@ com.eval/
 - API keys stored in local SharedPreferences only
 - Network requests only to:
   - Lichess.org/Chess.com for game retrieval
-  - AI services for position analysis (only FEN sent)
+  - AI services for position analysis (only FEN/position data sent)
+  - Opening explorer for statistics
 - No tracking or analytics
 
 ## Troubleshooting
@@ -261,7 +297,7 @@ com.eval/
 - Install "Stockfish 17.1 Chess Engine" from Google Play Store (package: com.stockfish141)
 
 **AI Analysis not working**
-- Check that API key is correctly entered in Settings > AI Analysis
+- Check that API key is correctly entered in Settings > AI Setup > AI Agents
 - Verify the API key is valid and has sufficient credits
 - Check internet connection
 
@@ -280,11 +316,11 @@ This project is provided as-is for personal use in analyzing chess games.
 
 ## Acknowledgments
 
-- **Lichess.org** - Excellent free API
+- **Lichess.org** - Excellent free API and opening database
 - **Chess.com** - Public game API
 - **Stockfish Team** - World's strongest open-source chess engine
 - **Jetpack Compose** - Modern Android UI
-- **OpenAI, Anthropic, Google, xAI, DeepSeek, Mistral** - AI analysis
+- **OpenAI, Anthropic, Google, xAI, DeepSeek, Mistral, Perplexity, Together AI, OpenRouter** - AI analysis services
 - **chessboard.js** - HTML board visualization
 
 ---

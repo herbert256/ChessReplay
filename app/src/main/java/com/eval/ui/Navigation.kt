@@ -24,9 +24,16 @@ object NavRoutes {
     const val AI = "ai"
     const val AI_HISTORY = "ai_history"
     const val AI_NEW_REPORT = "ai_new_report"
+    const val AI_NEW_REPORT_WITH_PARAMS = "ai_new_report/{title}/{prompt}"
+    const val AI_PROMPT_HISTORY = "ai_prompt_history"
     const val PLAYER_INFO = "player_info"
 
     fun traceDetail(filename: String) = "trace_detail/$filename"
+    fun aiNewReportWithParams(title: String, prompt: String): String {
+        val encodedTitle = java.net.URLEncoder.encode(title, "UTF-8")
+        val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")
+        return "ai_new_report/$encodedTitle/$encodedPrompt"
+    }
 }
 
 /**
@@ -101,7 +108,8 @@ fun EvalNavHost(
             AiHubScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToHistory = { navController.navigate(NavRoutes.AI_HISTORY) },
-                onNavigateToNewReport = { navController.navigate(NavRoutes.AI_NEW_REPORT) }
+                onNavigateToNewReport = { navController.navigate(NavRoutes.AI_NEW_REPORT) },
+                onNavigateToPromptHistory = { navController.navigate(NavRoutes.AI_PROMPT_HISTORY) }
             )
         }
 
@@ -115,6 +123,28 @@ fun EvalNavHost(
             AiNewReportScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(NavRoutes.AI_NEW_REPORT_WITH_PARAMS) { backStackEntry ->
+            val encodedTitle = backStackEntry.arguments?.getString("title") ?: ""
+            val encodedPrompt = backStackEntry.arguments?.getString("prompt") ?: ""
+            val title = try { java.net.URLDecoder.decode(encodedTitle, "UTF-8") } catch (e: Exception) { encodedTitle }
+            val prompt = try { java.net.URLDecoder.decode(encodedPrompt, "UTF-8") } catch (e: Exception) { encodedPrompt }
+            AiNewReportScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                initialTitle = title,
+                initialPrompt = prompt
+            )
+        }
+
+        composable(NavRoutes.AI_PROMPT_HISTORY) {
+            PromptHistoryScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onSelectEntry = { entry ->
+                    navController.navigate(NavRoutes.aiNewReportWithParams(entry.title, entry.prompt))
+                }
             )
         }
 

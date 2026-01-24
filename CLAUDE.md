@@ -22,7 +22,7 @@ cp app/build/outputs/apk/debug/app-debug.apk /Users/herbert/cloud/
 
 ## Project Overview
 
-Eval is an Android app for fetching and analyzing chess games from Lichess.org and Chess.com using the Stockfish 17.1 chess engine and 6 AI services (ChatGPT, Claude, Gemini, Grok, DeepSeek, Mistral). The app retrieves games via APIs, parses PGN notation, and provides multi-stage computer analysis with an interactive board display.
+Eval is an Android app for fetching and analyzing chess games from Lichess.org and Chess.com using the Stockfish 17.1 chess engine and 9 AI services (ChatGPT, Claude, Gemini, Grok, DeepSeek, Mistral, Perplexity, Together AI, OpenRouter). The app retrieves games via APIs, parses PGN notation, and provides multi-stage computer analysis with an interactive board display.
 
 **Key Dependencies:**
 - External app required: "Stockfish 17.1 Chess Engine" (com.stockfish141) from Google Play Store
@@ -32,7 +32,7 @@ Eval is an Android app for fetching and analyzing chess games from Lichess.org a
 
 ## Architecture
 
-### Package Structure (46 Kotlin files, ~26,600 lines)
+### Package Structure (46 Kotlin files, ~33,500 lines)
 
 ```
 com.eval/
@@ -45,8 +45,9 @@ com.eval/
 │   ├── ChessComApi.kt (335 lines) - Retrofit interface for Chess.com API
 │   ├── LichessModels.kt (40 lines) - Data classes: LichessGame, Players, Clock
 │   ├── LichessRepository.kt (1,420 lines) - Repository with ChessServer enum, dual-server support
-│   ├── AiAnalysisApi.kt (315 lines) - Retrofit interfaces for 6 AI services + DUMMY
-│   ├── AiAnalysisRepository.kt (422 lines) - AI position analysis with model fetching
+│   ├── AiAnalysisApi.kt (444 lines) - Retrofit interfaces for 9 AI services + DUMMY
+│   ├── AiAnalysisRepository.kt (925 lines) - AI position analysis with model fetching
+│   ├── AiHistoryManager.kt (156 lines) - HTML report storage and history management
 │   ├── OpeningBook.kt (225 lines) - ECO opening identification by move sequences
 │   ├── OpeningExplorerApi.kt (61 lines) - Opening statistics API
 │   └── ApiTracer.kt (290 lines) - API request/response tracing and storage
@@ -59,34 +60,37 @@ com.eval/
 ├── audio/
 │   └── MoveSoundPlayer.kt (84 lines) - Move sound effects
 └── ui/
-    ├── GameViewModel.kt (1,300 lines) - Central state management, orchestration hub
+    ├── GameViewModel.kt (1,850 lines) - Central state management, orchestration hub
     ├── AnalysisOrchestrator.kt (632 lines) - 3-stage analysis pipeline
     ├── GameLoader.kt (787 lines) - Game loading from APIs, files, storage
     ├── BoardNavigationManager.kt (376 lines) - Move navigation and line exploration
-    ├── ContentSourceManager.kt (678 lines) - Tournaments, broadcasts, TV, streamers, puzzle
+    ├── ContentSourceManager.kt (707 lines) - Tournaments, broadcasts, TV, streamers, puzzle
     ├── LiveGameManager.kt (199 lines) - Real-time game following via streaming
-    ├── GameScreen.kt (3,447 lines) - Main screen, dialogs, AI analysis, HTML export
+    ├── GameScreen.kt (5,116 lines) - Main screen, dialogs, AI analysis, HTML export
     ├── GameContent.kt (1,759 lines) - Game display: board, players, moves, result bar, eval bar
     ├── ChessBoardView.kt (546 lines) - Canvas-based interactive chess board with arrows
     ├── AnalysisComponents.kt (850 lines) - Evaluation graphs, analysis panel
     ├── MovesDisplay.kt (222 lines) - Move list with scores and piece symbols
     ├── OpeningExplorerPanel.kt (235 lines) - Opening statistics display
     ├── GameSelectionDialog.kt (688 lines) - Dialog for selecting from multiple games
-    ├── RetrieveScreen.kt (2,422 lines) - Game retrieval UI with all content sources
-    ├── SettingsScreen.kt (364 lines) - Settings navigation hub
-    ├── StockfishSettingsScreen.kt (447 lines) - Engine settings for all 3 stages
-    ├── ArrowSettingsScreen.kt (336 lines) - Arrow display configuration
-    ├── BoardLayoutSettingsScreen.kt (507 lines) - Board colors, pieces, coordinates, eval bar
-    ├── InterfaceSettingsScreen.kt (412 lines) - UI visibility settings per stage
-    ├── GraphSettingsScreen.kt (371 lines) - Evaluation graph color and range settings
-    ├── AiSettingsScreen.kt (1,465 lines) - AI service settings (keys, prompts, models, export)
-    ├── GeneralSettingsScreen.kt (210 lines) - General app settings (fullscreen, pagination, sounds, API tracing)
-    ├── HelpScreen.kt (221 lines) - In-app help documentation
-    ├── TraceScreen.kt (445 lines) - API trace log viewer and detail screens
+    ├── RetrieveScreen.kt (2,379 lines) - Game retrieval UI with all content sources
+    ├── SettingsScreen.kt (426 lines) - Settings navigation hub
+    ├── StockfishSettingsScreen.kt (441 lines) - Engine settings for all 3 stages
+    ├── ArrowSettingsScreen.kt (330 lines) - Arrow display configuration
+    ├── BoardLayoutSettingsScreen.kt (501 lines) - Board colors, pieces, coordinates, eval bar
+    ├── InterfaceSettingsScreen.kt (406 lines) - UI visibility settings per stage
+    ├── GraphSettingsScreen.kt (365 lines) - Evaluation graph color and range settings
+    ├── AiSettingsScreen.kt (3,380 lines) - AI service settings, three-tier architecture
+    ├── AiScreens.kt (936 lines) - AI hub, history, new report, prompt history screens
+    ├── GeneralSettingsScreen.kt (190 lines) - General app settings
+    ├── HelpScreen.kt (317 lines) - In-app help documentation
+    ├── TraceScreen.kt (562 lines) - API trace log viewer and detail screens
     ├── ColorPickerDialog.kt (254 lines) - HSV color picker for colors
-    ├── GameModels.kt (430 lines) - Data classes and enums (core domain models)
-    ├── SettingsPreferences.kt (647 lines) - SharedPreferences persistence layer
+    ├── GameModels.kt (470 lines) - Data classes and enums (core domain models)
+    ├── SettingsPreferences.kt (1,176 lines) - SharedPreferences persistence layer
     ├── GameStorageManager.kt (216 lines) - Game persistence and retrieval
+    ├── SharedComponents.kt (106 lines) - Reusable Compose components (EvalTitleBar, etc.)
+    ├── Navigation.kt (230 lines) - Jetpack Navigation routes and composables
     └── theme/Theme.kt (32 lines) - Material3 dark theme
 ```
 
@@ -111,7 +115,7 @@ enum class EvalBarPosition { NONE, LEFT, RIGHT }
 // Move quality assessment
 enum class MoveQuality { BRILLIANT, GOOD, INTERESTING, DUBIOUS, MISTAKE, BLUNDER, BOOK, NORMAL }
 
-// AI Services (6 services + DUMMY for testing)
+// AI Services (9 services + DUMMY for testing)
 enum class AiService(displayName, baseUrl) {
     CHATGPT("ChatGPT", "https://api.openai.com/"),
     CLAUDE("Claude", "https://api.anthropic.com/"),
@@ -119,8 +123,36 @@ enum class AiService(displayName, baseUrl) {
     GROK("Grok", "https://api.x.ai/"),
     DEEPSEEK("DeepSeek", "https://api.deepseek.com/"),
     MISTRAL("Mistral", "https://api.mistral.ai/"),
+    PERPLEXITY("Perplexity", "https://api.perplexity.ai/"),
+    TOGETHER("Together", "https://api.together.xyz/"),
+    OPENROUTER("OpenRouter", "https://openrouter.ai/api/"),
     DUMMY("Dummy", "")  // For testing
 }
+
+// Three-tier AI Architecture
+data class AiPrompt(
+    val id: String,      // UUID
+    val name: String,    // User-defined name
+    val text: String     // Template with @FEN@, @PLAYER@, @SERVER@, @DATE@ placeholders
+)
+
+data class AiAgent(
+    val id: String,
+    val name: String,
+    val provider: AiService,
+    val model: String,
+    val apiKey: String,
+    val gamePromptId: String,
+    val serverPlayerPromptId: String,
+    val otherPlayerPromptId: String
+)
+
+// Prompt history entry
+data class PromptHistoryEntry(
+    val timestamp: Long,
+    val title: String,
+    val prompt: String
+)
 
 // Settings for each analysis stage
 data class PreviewStageSettings(
@@ -179,17 +211,6 @@ data class ManualStageVisibility(
     showMoveList, showGameInfo, showPgn
 )
 
-// AI Settings (6 services × 3 fields + dummyEnabled)
-data class AiSettings(
-    chatGptApiKey, chatGptModel = "gpt-4o-mini", chatGptPrompt,
-    claudeApiKey, claudeModel = "claude-sonnet-4-20250514", claudePrompt,
-    geminiApiKey, geminiModel = "gemini-2.0-flash", geminiPrompt,
-    grokApiKey, grokModel = "grok-3-mini", grokPrompt,
-    deepSeekApiKey, deepSeekModel = "deepseek-chat", deepSeekPrompt,
-    mistralApiKey, mistralModel = "mistral-small-latest", mistralPrompt,
-    dummyEnabled: Boolean = false
-)
-
 // General settings
 data class GeneralSettings(longTapFullscreen, paginationPageSize, moveSoundsEnabled, trackApiCalls)
 
@@ -200,31 +221,6 @@ data class AnalysedGame(timestamp, whiteName, blackName, result, pgn, moves, mov
 // Move analysis
 data class MoveScore(score, isMate, mateIn, depth, nodes, nps)
 data class MoveDetails(san, from, to, isCapture, pieceType, clockTime)
-
-// UI state (60+ fields) - central state holder
-data class GameUiState(
-    // Core state
-    stockfishInstalled, isLoading, game, currentBoard, currentMoveIndex,
-    analysisResult, currentStage, previewScores, analyseScores,
-    isExploringLine, stockfishSettings, boardLayoutSettings, graphSettings,
-    interfaceVisibility, aiSettings, showAiAnalysisDialog, aiAnalysisResult,
-    // Content sources
-    showTournaments, tournaments, showBroadcasts, broadcasts,
-    showTvChannels, tvChannels, showStreamers, streamers,
-    showDailyPuzzle, dailyPuzzle,
-    // Player info & rankings
-    playerInfo, topRankings, playerGames,
-    // Live game following
-    isFollowingLive, liveGameId, autoFollowLive, liveStreamConnected,
-    // AI Reports (multi-position, multi-service)
-    showAiReportsSelectionDialog, showAiReportsDialog,
-    aiReportsProgress, aiReportsTotal, aiReportsResults, aiReportsSelectedServices,
-    // ECO Opening selection
-    showOpeningSelection, ecoOpenings, ecoOpeningsLoading,
-    // GIF export
-    gifExportProgress, showGifExportDialog,
-    ...
-)
 ```
 
 ### Key Design Patterns
@@ -247,13 +243,14 @@ data class GameUiState(
    - MAIN_LINE: Multiple arrows from PV line (1-8 arrows, colored by side, numbered)
    - MULTI_LINES: One arrow per Stockfish line with evaluation score displayed
 
-5. **Player Bar Modes**: NONE / TOP / BOTTOM / BOTH
+5. **Three-Tier AI Architecture**:
+   - Providers: AI service definitions (9 services) with model source settings
+   - Prompts: Reusable prompt templates with placeholders
+   - Agents: User-configured combinations (provider + model + API key + prompt refs)
 
-6. **Evaluation Bar**: Vertical bar showing position evaluation (LEFT, RIGHT, or NONE)
+6. **Result Type Pattern**: `sealed class Result<T> { Success, Error }` for API responses
 
-7. **AI Analysis Integration**: 6 AI services with custom prompts using @FEN@ placeholder
-
-8. **Result Type Pattern**: `sealed class Result<T> { Success, Error }` for API responses
+7. **Jetpack Navigation**: Type-safe navigation with `NavHost` and route definitions
 
 ## Analysis Stages
 
@@ -269,18 +266,18 @@ data class GameUiState(
 - **Purpose**: Deep analysis focusing on critical positions
 - **Timing**: 1 second per move (configurable: 500ms-10s)
 - **Direction**: Backward through game (end → move 0)
-- **Settings**: 2 threads, 32MB hash (default), NNUE enabled
+- **Settings**: 2 threads, 64MB hash (default), NNUE enabled
 - **UI**: "Analysis running - tap to end" banner (yellow text on blue)
 - **Interruptible**: Yes (tap to enter Manual at biggest evaluation change)
 
 ### 3. Manual Stage
 - **Purpose**: Interactive exploration with real-time analysis
 - **Analysis**: Depth-based (default 32), MultiPV support (1-32 lines)
-- **Settings**: 4 threads, 64MB hash (default), NNUE enabled
+- **Settings**: 4 threads, 128MB hash (default), NNUE enabled
 - **Features**:
   - Navigation buttons: ⏮ ◀ ▶ ⏭ ↻ (flip)
   - Three arrow modes (cycle with ↗ icon)
-  - AI logos for position analysis (6 services)
+  - AI logos for position analysis (9 services)
   - Line exploration (click PV moves to explore variations)
   - "Back to game" button when exploring
   - Evaluation graph with tap/drag navigation
@@ -312,28 +309,62 @@ data class GameUiState(
 
 ## AI Analysis Feature
 
-### Supported Services (6 + DUMMY)
+### Supported Services (9 + DUMMY)
 | Service | Default Model | API Endpoint | Auth Method |
 |---------|--------------|--------------|-------------|
-| ChatGPT | gpt-4o-mini | `api.openai.com/v1/chat/completions` | Bearer token |
+| ChatGPT | gpt-4o-mini | `api.openai.com/v1/chat/completions` or `/v1/responses` | Bearer token |
 | Claude | claude-sonnet-4-20250514 | `api.anthropic.com/v1/messages` | x-api-key header |
 | Gemini | gemini-2.0-flash | `generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` | Query param |
 | Grok | grok-3-mini | `api.x.ai/v1/chat/completions` | Bearer token |
 | DeepSeek | deepseek-chat | `api.deepseek.com/chat/completions` | Bearer token |
 | Mistral | mistral-small-latest | `api.mistral.ai/v1/chat/completions` | Bearer token |
-| DUMMY | N/A | N/A | For testing |
+| Perplexity | sonar | `api.perplexity.ai/chat/completions` | Bearer token |
+| Together | meta-llama/Llama-3.3-70B-Instruct-Turbo | `api.together.xyz/v1/chat/completions` | Bearer token |
+| OpenRouter | anthropic/claude-3.5-sonnet | `openrouter.ai/api/v1/chat/completions` | Bearer token |
+| DUMMY | dummy-model | N/A | For testing |
+
+**Special Implementations:**
+- **OpenAI**: Supports both Chat Completions API (gpt-4o, etc.) and Responses API (gpt-5.x, o3, o4)
+- **DeepSeek**: Handles `reasoning_content` field for o1-style reasoning models
+- **Together AI**: Custom response parsing (raw array vs wrapped `{data: [...]}`)
 
 ### Features
-- **AI Logos**: Displayed next to board in Manual stage (configurable visibility)
-- **Custom Prompts**: Template with @FEN@ placeholder for position injection
+- **Three-tier Architecture**: Providers → Prompts → Agents for flexible configuration
+- **Prompt Placeholders**: @FEN@, @PLAYER@, @SERVER@, @DATE@ for dynamic content
+- **Model Sources**: API (fetch dynamically) or Manual (user-maintained list)
+- **AI Hub Screen**: Access to New AI Report, Prompt History, AI History
+- **Prompt History**: Saves submitted prompts for reuse
+- **AI History**: Stores generated HTML reports
+- **Custom Prompts**: Template with placeholders for position injection
 - **Dynamic Models**: Fetches available models from each service
 - **Analysis Dialog**: Shows AI response with markdown rendering
 - **View in Chrome**: Opens rich HTML report with chessboard.js, graphs, and move list
 - **Send by Email**: Emails HTML report as attachment (remembers email address)
-- **AI Reports**: Analyze multiple positions with multiple AI services, export as HTML
 - **Retry Logic**: Automatic retry with 500ms delay on API failures
-- **Export API Keys**: Export configured keys via email from settings
-- **Generated Footer**: All HTML reports include "Generated by Eval <version>" with timestamp
+- **Export/Import**: JSON export of providers, prompts, agents via share sheet
+
+## Navigation System
+
+### Routes (Navigation.kt)
+```
+game                           - Main game display screen
+settings                       - Settings hub
+help                           - In-app documentation
+trace_list                     - API trace log viewer
+trace_detail/{filename}        - Trace detail viewer
+retrieve                       - Game retrieval UI
+ai                             - AI hub screen
+ai_history                     - View previously generated reports
+ai_new_report                  - Create custom AI analysis
+ai_new_report/{title}/{prompt} - New AI report with pre-filled values
+ai_prompt_history              - View and reuse previous prompts
+player_info                    - Player information screen
+```
+
+### Screen Composables
+- All screens use `EvalTitleBar` for consistent header
+- Back navigation handled via `NavController.popBackStack()`
+- Parameter passing via URL-encoded route arguments
 
 ## UI Components
 
@@ -343,6 +374,7 @@ data class GameUiState(
 - **↗** : Arrow mode toggle (cycles: None → Main line → Multi lines)
 - **⚙** : Settings
 - **?** : Help screen
+- **🐛** : API trace viewer (when tracking enabled)
 
 ### Result Bar
 - Shows current move with piece symbol and coordinates
@@ -379,15 +411,11 @@ Settings (main menu)
 │   ├── Preview Stage: seconds, threads, hash, NNUE
 │   ├── Analyse Stage: seconds, threads, hash, NNUE
 │   └── Manual Stage: depth, threads, hash, multiPV, NNUE
-├── AI analysis
-│   ├── ChatGPT: API key, model, custom prompt
-│   ├── Claude: API key, model, custom prompt
-│   ├── Gemini: API key, model, custom prompt
-│   ├── Grok: API key, model, custom prompt
-│   ├── DeepSeek: API key, model, custom prompt
-│   ├── Mistral: API key, model, custom prompt
-│   ├── Dummy: enable/disable (for testing)
-│   └── Export API keys (button)
+├── AI Setup (three-tier architecture)
+│   ├── AI Providers (model source + models per provider)
+│   ├── AI Prompts (CRUD - name + template with placeholders)
+│   ├── AI Agents (CRUD - provider + model + API key + prompt refs)
+│   └── Export/Import configuration
 └── General
     ├── Long tap for fullscreen (toggle)
     ├── Pagination page size (5-50)
@@ -402,25 +430,6 @@ When "Track API calls" is enabled in General Settings:
 - Trace files stored in app's internal storage under "trace" directory
 - Filename format: `<hostname>_<timestamp>.json`
 - Debug icon (bug emoji) appears in top bar to access trace viewer
-
-### Trace File Contents
-```json
-{
-  "timestamp": 1234567890123,
-  "hostname": "api.openai.com",
-  "request": {
-    "url": "https://api.openai.com/v1/chat/completions",
-    "method": "POST",
-    "headers": {"Authorization": "Bea****key", ...},
-    "body": "{...}"
-  },
-  "response": {
-    "statusCode": 200,
-    "headers": {"Content-Type": "application/json", ...},
-    "body": "{...}"
-  }
-}
-```
 
 ### Trace Viewer Features
 - List view with pagination (25 per page)
@@ -477,9 +486,14 @@ data class PvLine(
 - HTML report with interactive chessboard (chessboard.js)
 - Evaluation graphs (line and bar)
 - Move list with scores
-- AI analysis for selected positions from multiple services
+- AI analysis for selected positions from multiple agents
 - View in Chrome or send via email
 - Footer: "Generated by Eval <version>" with timestamp
+
+### AI Configuration Export
+- JSON format (version 3) with providers, prompts, agents
+- Export via Android share sheet as .json file
+- Import from clipboard
 
 ## Settings Persistence
 
@@ -516,15 +530,16 @@ graph_line_range, graph_bar_range
 // Interface visibility (per stage)
 preview_vis_*, analyse_vis_*, manual_vis_*
 
-// AI settings (6 services + dummy)
+// AI settings (9 services)
 ai_report_email
-ai_chatgpt_api_key, ai_chatgpt_model, ai_chatgpt_prompt
-ai_claude_api_key, ai_claude_model, ai_claude_prompt
-ai_gemini_api_key, ai_gemini_model, ai_gemini_prompt
-ai_grok_api_key, ai_grok_model, ai_grok_prompt
-ai_deepseek_api_key, ai_deepseek_model, ai_deepseek_prompt
-ai_mistral_api_key, ai_mistral_model, ai_mistral_prompt
-ai_dummy_enabled
+ai_{service}_api_key, ai_{service}_model, ai_{service}_prompt (3 prompt variants)
+ai_{service}_model_source, ai_{service}_manual_models
+
+// AI three-tier architecture
+ai_prompts (JSON list), ai_agents (JSON list), ai_migration_done
+
+// Prompt history
+prompt_history (JSON list of PromptHistoryEntry)
 
 // General
 general_long_tap_fullscreen, general_pagination_page_size, general_move_sounds, track_api_calls
@@ -542,13 +557,15 @@ general_long_tap_fullscreen, general_pagination_page_size, general_move_sounds, 
 
 ### Adding a New AI Service
 1. Add enum value to `AiService` in `AiAnalysisApi.kt`
-2. Create Retrofit interface for the service in `AiAnalysisApi.kt`
-3. Add factory method in `AiApiFactory`
-4. Add analysis method in `AiAnalysisRepository.kt`
-5. Add settings fields to `AiSettings` in `AiSettingsScreen.kt`
-6. Add UI in `AiSettingsScreen.kt` (navigation card + settings screen)
-7. Add SharedPreferences keys in `SettingsPreferences.kt`
-8. Update load/save methods for AI settings
+2. Create request/response data classes if format differs
+3. Create Retrofit interface for the service in `AiAnalysisApi.kt`
+4. Add factory method in `AiApiFactory`
+5. Add analysis method in `AiAnalysisRepository.kt`
+6. Add settings fields to `AiSettings` in `AiSettingsScreen.kt`
+7. Add UI in `AiSettingsScreen.kt` (navigation card + settings screen)
+8. Add SharedPreferences keys in `SettingsPreferences.kt`
+9. Update load/save methods for AI settings
+10. Update AI export/import if needed
 
 ### Adding a New Content Source
 1. Add API endpoints to `LichessApi.kt` or `ChessComApi.kt`
@@ -558,6 +575,13 @@ general_long_tap_fullscreen, general_pagination_page_size, general_move_sounds, 
 5. Add methods to `ContentSourceManager.kt`
 6. Add UI in `RetrieveScreen.kt`
 7. Connect to `GameLoader` if games need to be loaded
+
+### Adding a New Navigation Route
+1. Add route constant to `NavRoutes` in `Navigation.kt`
+2. Add helper function for parameterized routes if needed
+3. Add `composable()` block in `EvalNavHost`
+4. Create or update screen composable
+5. Pass navigation callbacks from parent screens
 
 ### Modifying Arrow Behavior
 1. Check `ArrowMode` enum in `GameModels.kt`
@@ -571,7 +595,7 @@ general_long_tap_fullscreen, general_pagination_page_size, general_move_sounds, 
 3. `AnalysisComponents.kt` - Evaluation graphs, analysis panel
 
 ### Modifying HTML Report (View in Chrome)
-1. Update `convertMarkdownToHtml()` or `convertAiReportsToHtml()` in `GameScreen.kt`
+1. Update `convertMarkdownToHtml()` or `convertAiReportsToHtml()` or `convertGenericAiReportsToHtml()` in `GameScreen.kt`
 2. HTML uses chessboard.js and chess.js from CDN
 3. Includes: board with eval bar, player bars, AI analysis, graphs, move list, Stockfish analysis
 4. Footer shows "Generated by Eval <version>" with timestamp
@@ -585,9 +609,9 @@ Use `restartAnalysisForExploringLine()` in `AnalysisOrchestrator` for proper res
 
 ## File Provider Configuration
 
-For sharing HTML reports via email, the app uses FileProvider configured in:
+For sharing HTML reports via email and AI config export, the app uses FileProvider configured in:
 - `AndroidManifest.xml` - Provider declaration
-- `res/xml/file_paths.xml` - Cache directory paths
+- `res/xml/file_paths.xml` - Cache directory paths (`ai_analysis/` subdirectory)
 
 ## Testing Checklist
 
@@ -599,8 +623,11 @@ After making changes, verify:
 - [ ] Navigate through moves
 - [ ] Arrow modes work (None → Main line → Multi lines)
 - [ ] AI analysis works (if API keys configured)
-- [ ] AI Reports with multiple services work
+- [ ] AI Agents with three-tier architecture work
+- [ ] AI Reports with multiple agents work
+- [ ] AI Hub screens work (New Report, Prompt History, AI History)
 - [ ] Settings changes persist
-- [ ] Export features work (PGN, GIF, HTML)
+- [ ] Export features work (PGN, GIF, HTML, AI Config)
 - [ ] Live game following works
 - [ ] Opening explorer displays statistics
+- [ ] Player info screen works
