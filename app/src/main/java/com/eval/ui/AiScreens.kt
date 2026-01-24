@@ -363,8 +363,8 @@ private fun extractPromptFromHtmlFile(file: java.io.File): String {
             .replace("<br/>", "\n")
             .replace("<br />", "\n")
 
-        // Get first 3 lines
-        val lines = prompt.trim().lines().take(3)
+        // Get first 3 non-empty lines
+        val lines = prompt.trim().lines().filter { it.isNotBlank() }.take(3)
         lines.joinToString("\n")
     } catch (e: Exception) {
         ""
@@ -634,7 +634,7 @@ private fun GenericAiReportsDialog(
                             containerColor = Color(0xFF8B5CF6)
                         )
                     ) {
-                        Text("View in Chrome")
+                        Text("Browser")
                     }
                 }
             }

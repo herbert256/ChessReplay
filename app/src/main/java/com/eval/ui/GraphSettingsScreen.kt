@@ -33,6 +33,10 @@ fun GraphSettingsScreen(
     var verticalLineColor by remember { mutableStateOf(graphSettings.verticalLineColor) }
     var lineGraphRange by remember { mutableStateOf(graphSettings.lineGraphRange) }
     var barGraphRange by remember { mutableStateOf(graphSettings.barGraphRange) }
+    var lineGraphScale by remember { mutableStateOf(graphSettings.lineGraphScale) }
+    var barGraphScale by remember { mutableStateOf(graphSettings.barGraphScale) }
+
+    val scaleValues = listOf(50, 75, 100, 150, 200, 250, 300)
 
     var showPlusScoreColorPicker by remember { mutableStateOf(false) }
     var showNegativeScoreColorPicker by remember { mutableStateOf(false) }
@@ -47,7 +51,9 @@ fun GraphSettingsScreen(
         newAnalyseLineColor: Long = analyseLineColor,
         newVerticalLineColor: Long = verticalLineColor,
         newLineGraphRange: Int = lineGraphRange,
-        newBarGraphRange: Int = barGraphRange
+        newBarGraphRange: Int = barGraphRange,
+        newLineGraphScale: Int = lineGraphScale,
+        newBarGraphScale: Int = barGraphScale
     ) {
         onSave(GraphSettings(
             plusScoreColor = newPlusScoreColor,
@@ -56,7 +62,9 @@ fun GraphSettingsScreen(
             analyseLineColor = newAnalyseLineColor,
             verticalLineColor = newVerticalLineColor,
             lineGraphRange = newLineGraphRange,
-            barGraphRange = newBarGraphRange
+            barGraphRange = newBarGraphRange,
+            lineGraphScale = newLineGraphScale,
+            barGraphScale = newBarGraphScale
         ))
     }
 
@@ -249,6 +257,128 @@ fun GraphSettingsScreen(
             }
         }
 
+        // Scale card
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Scale",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                // Line graph scale
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Graph one (line) scale",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                val currentIndex = scaleValues.indexOf(lineGraphScale)
+                                if (currentIndex > 0) {
+                                    lineGraphScale = scaleValues[currentIndex - 1]
+                                    saveSettings(newLineGraphScale = lineGraphScale)
+                                }
+                            },
+                            enabled = lineGraphScale > scaleValues.first(),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("-")
+                        }
+                        Text(
+                            text = "$lineGraphScale%",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.width(48.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(
+                            onClick = {
+                                val currentIndex = scaleValues.indexOf(lineGraphScale)
+                                if (currentIndex < scaleValues.size - 1) {
+                                    lineGraphScale = scaleValues[currentIndex + 1]
+                                    saveSettings(newLineGraphScale = lineGraphScale)
+                                }
+                            },
+                            enabled = lineGraphScale < scaleValues.last(),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("+")
+                        }
+                    }
+                }
+
+                // Bar graph scale
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Graph two (bar) scale",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                val currentIndex = scaleValues.indexOf(barGraphScale)
+                                if (currentIndex > 0) {
+                                    barGraphScale = scaleValues[currentIndex - 1]
+                                    saveSettings(newBarGraphScale = barGraphScale)
+                                }
+                            },
+                            enabled = barGraphScale > scaleValues.first(),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("-")
+                        }
+                        Text(
+                            text = "$barGraphScale%",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.width(48.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(
+                            onClick = {
+                                val currentIndex = scaleValues.indexOf(barGraphScale)
+                                if (currentIndex < scaleValues.size - 1) {
+                                    barGraphScale = scaleValues[currentIndex + 1]
+                                    saveSettings(newBarGraphScale = barGraphScale)
+                                }
+                            },
+                            enabled = barGraphScale < scaleValues.last(),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("+")
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Reset to defaults button
@@ -261,6 +391,8 @@ fun GraphSettingsScreen(
                 verticalLineColor = DEFAULT_GRAPH_VERTICAL_LINE_COLOR
                 lineGraphRange = 7
                 barGraphRange = 3
+                lineGraphScale = 100
+                barGraphScale = 100
                 onSave(GraphSettings())
             },
             colors = ButtonDefaults.buttonColors(

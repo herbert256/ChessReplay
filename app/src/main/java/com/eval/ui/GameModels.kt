@@ -105,7 +105,9 @@ data class GraphSettings(
     val analyseLineColor: Long = DEFAULT_GRAPH_ANALYSE_LINE_COLOR,
     val verticalLineColor: Long = DEFAULT_GRAPH_VERTICAL_LINE_COLOR,
     val lineGraphRange: Int = 7,    // Range for line graph (-7 to +7)
-    val barGraphRange: Int = 3      // Range for bar graph (-3 to +3)
+    val barGraphRange: Int = 3,     // Range for bar graph (-3 to +3)
+    val lineGraphScale: Int = 100,  // Scale/height for line graph in percent (50-300%)
+    val barGraphScale: Int = 100    // Scale/height for bar graph in percent (50-300%)
 )
 
 // Player bar display mode
@@ -189,6 +191,7 @@ data class GeneralSettings(
     val longTapForFullScreen: Boolean = false,
     val paginationPageSize: Int = 10,
     val moveSoundsEnabled: Boolean = true,
+    val developerMode: Boolean = false,
     val trackApiCalls: Boolean = false
 )
 

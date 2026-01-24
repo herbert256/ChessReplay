@@ -3,6 +3,7 @@ package com.eval.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -15,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import com.eval.data.AiService
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 /**
  * Data class for provider settings in JSON export/import.
@@ -334,7 +337,155 @@ fun importAiConfigFromClipboard(context: Context, currentSettings: AiSettings): 
 }
 
 /**
+ * Import AI configuration from a file URI.
+ * Supports version 3 format (providers, prompts, agents).
+ */
+fun importAiConfigFromFile(context: Context, uri: Uri, currentSettings: AiSettings): AiSettings? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        if (inputStream == null) {
+            Toast.makeText(context, "Could not open file", Toast.LENGTH_SHORT).show()
+            return null
+        }
+
+        val json = BufferedReader(InputStreamReader(inputStream)).use { reader ->
+            reader.readText()
+        }
+
+        if (json.isBlank()) {
+            Toast.makeText(context, "File is empty", Toast.LENGTH_SHORT).show()
+            return null
+        }
+
+        val gson = Gson()
+        val export = gson.fromJson(json, AiConfigExportV3::class.java)
+
+        if (export.version != 3) {
+            Toast.makeText(context, "Unsupported configuration version: ${export.version}. Expected version 3.", Toast.LENGTH_LONG).show()
+            return null
+        }
+
+        // Import prompts
+        val prompts = export.prompts.map { promptExport ->
+            AiPrompt(
+                id = promptExport.id,
+                name = promptExport.name,
+                text = promptExport.text
+            )
+        }
+
+        // Import agents
+        val agents = export.agents.mapNotNull { agentExport ->
+            val provider = try {
+                AiService.valueOf(agentExport.provider)
+            } catch (e: IllegalArgumentException) {
+                null  // Skip agents with unknown providers
+            }
+            provider?.let {
+                AiAgent(
+                    id = agentExport.id,
+                    name = agentExport.name,
+                    provider = it,
+                    model = agentExport.model,
+                    apiKey = agentExport.apiKey,
+                    gamePromptId = agentExport.gamePromptId,
+                    serverPlayerPromptId = agentExport.serverPlayerPromptId,
+                    otherPlayerPromptId = agentExport.otherPlayerPromptId
+                )
+            }
+        }
+
+        // Import provider settings
+        var settings = currentSettings.copy(
+            prompts = prompts,
+            agents = agents
+        )
+
+        // Update provider model sources, manual models, and API keys
+        export.providers["CHATGPT"]?.let { p ->
+            settings = settings.copy(
+                chatGptModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                chatGptManualModels = p.manualModels,
+                chatGptApiKey = p.apiKey
+            )
+        }
+        export.providers["CLAUDE"]?.let { p ->
+            settings = settings.copy(
+                claudeManualModels = p.manualModels,
+                claudeApiKey = p.apiKey
+            )
+        }
+        export.providers["GEMINI"]?.let { p ->
+            settings = settings.copy(
+                geminiModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                geminiManualModels = p.manualModels,
+                geminiApiKey = p.apiKey
+            )
+        }
+        export.providers["GROK"]?.let { p ->
+            settings = settings.copy(
+                grokModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                grokManualModels = p.manualModels,
+                grokApiKey = p.apiKey
+            )
+        }
+        export.providers["DEEPSEEK"]?.let { p ->
+            settings = settings.copy(
+                deepSeekModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                deepSeekManualModels = p.manualModels,
+                deepSeekApiKey = p.apiKey
+            )
+        }
+        export.providers["MISTRAL"]?.let { p ->
+            settings = settings.copy(
+                mistralModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                mistralManualModels = p.manualModels,
+                mistralApiKey = p.apiKey
+            )
+        }
+        export.providers["PERPLEXITY"]?.let { p ->
+            settings = settings.copy(
+                perplexityManualModels = p.manualModels,
+                perplexityApiKey = p.apiKey
+            )
+        }
+        export.providers["TOGETHER"]?.let { p ->
+            settings = settings.copy(
+                togetherModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                togetherManualModels = p.manualModels,
+                togetherApiKey = p.apiKey
+            )
+        }
+        export.providers["OPENROUTER"]?.let { p ->
+            settings = settings.copy(
+                openRouterModelSource = try { ModelSource.valueOf(p.modelSource) } catch (e: Exception) { ModelSource.API },
+                openRouterManualModels = p.manualModels,
+                openRouterApiKey = p.apiKey
+            )
+        }
+        export.providers["DUMMY"]?.let { p ->
+            settings = settings.copy(
+                dummyManualModels = p.manualModels,
+                dummyApiKey = p.apiKey
+            )
+        }
+
+        // Count imported API keys
+        val importedApiKeys = export.providers.values.count { it.apiKey.isNotBlank() }
+        Toast.makeText(context, "Imported ${prompts.size} prompts, ${agents.size} agents, $importedApiKeys API keys", Toast.LENGTH_SHORT).show()
+        settings
+    } catch (e: JsonSyntaxException) {
+        Toast.makeText(context, "Invalid AI configuration format", Toast.LENGTH_SHORT).show()
+        null
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error importing configuration: ${e.message}", Toast.LENGTH_SHORT).show()
+        null
+    }
+}
+
+/**
  * Dialog for importing AI configuration from clipboard.
+ * @deprecated Use file picker with importAiConfigFromFile instead.
  */
 @Composable
 fun ImportAiConfigDialog(

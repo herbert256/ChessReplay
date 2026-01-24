@@ -21,6 +21,7 @@ import com.eval.data.AiService
 enum class SettingsSubScreen {
     MAIN,
     GENERAL_SETTINGS,
+    DEVELOPER_SETTINGS,
     ARROW_SETTINGS,
     STOCKFISH,
     BOARD_LAYOUT,
@@ -80,6 +81,7 @@ fun SettingsScreen(
     onSaveInterfaceVisibility: (InterfaceVisibilitySettings) -> Unit,
     onSaveGeneral: (GeneralSettings) -> Unit,
     onTrackApiCallsChanged: (Boolean) -> Unit = {},
+    onDeveloperModeChanged: () -> Unit = {},
     onSaveAi: (AiSettings) -> Unit,
     onFetchChatGptModels: (String) -> Unit,
     onFetchGeminiModels: (String) -> Unit,
@@ -124,8 +126,15 @@ fun SettingsScreen(
             generalSettings = generalSettings,
             onBackToSettings = { currentSubScreen = SettingsSubScreen.MAIN },
             onBackToGame = onBack,
+            onSave = onSaveGeneral
+        )
+        SettingsSubScreen.DEVELOPER_SETTINGS -> DeveloperSettingsScreen(
+            generalSettings = generalSettings,
+            onBackToSettings = { currentSubScreen = SettingsSubScreen.MAIN },
+            onBackToGame = onBack,
             onSave = onSaveGeneral,
-            onTrackApiCallsChanged = onTrackApiCallsChanged
+            onTrackApiCallsChanged = onTrackApiCallsChanged,
+            onDeveloperModeChanged = onDeveloperModeChanged
         )
         SettingsSubScreen.ARROW_SETTINGS -> ArrowSettingsScreen(
             stockfishSettings = stockfishSettings,
@@ -159,6 +168,7 @@ fun SettingsScreen(
         )
         SettingsSubScreen.AI_SETTINGS -> AiSettingsScreen(
             aiSettings = aiSettings,
+            developerMode = generalSettings.developerMode,
             onBackToSettings = { currentSubScreen = SettingsSubScreen.MAIN },
             onBackToGame = onBack,
             onNavigate = { currentSubScreen = it },
@@ -253,14 +263,15 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             onBackToSettings = { currentSubScreen = SettingsSubScreen.MAIN },
             onBackToGame = onBack,
-            onNavigate = { currentSubScreen = it }
+            onNavigate = { currentSubScreen = it },
+            onSave = onSaveAi
         )
         SettingsSubScreen.AI_PROVIDERS -> AiProvidersScreen(
             aiSettings = aiSettings,
+            developerMode = generalSettings.developerMode,
             onBackToAiSetup = { currentSubScreen = SettingsSubScreen.AI_SETUP },
             onBackToGame = onBack,
-            onNavigate = { currentSubScreen = it },
-            onSave = onSaveAi
+            onNavigate = { currentSubScreen = it }
         )
         SettingsSubScreen.AI_PROMPTS -> AiPromptsScreen(
             aiSettings = aiSettings,
@@ -270,6 +281,7 @@ fun SettingsScreen(
         )
         SettingsSubScreen.AI_AGENTS -> AiAgentsScreen(
             aiSettings = aiSettings,
+            developerMode = generalSettings.developerMode,
             availableChatGptModels = availableChatGptModels,
             availableGeminiModels = availableGeminiModels,
             availableGrokModels = availableGrokModels,
@@ -358,6 +370,13 @@ private fun SettingsMainScreen(
             title = "AI Setup",
             description = "Providers, prompts, and agents",
             onClick = { onNavigate(SettingsSubScreen.AI_SETUP) }
+        )
+
+        // Developer settings card
+        SettingsNavigationCard(
+            title = "Developer settings",
+            description = "Developer mode, API tracking",
+            onClick = { onNavigate(SettingsSubScreen.DEVELOPER_SETTINGS) }
         )
 
     }

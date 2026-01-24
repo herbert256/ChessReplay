@@ -337,6 +337,7 @@ fun GameContent(
             if (uiState.moveDetails.isNotEmpty()) {
                 // Line graph
                 if (showScoreLineGraph) {
+                    val lineGraphHeight = (120 * uiState.graphSettings.lineGraphScale / 100).dp
                     key(uiState.previewScores.size, uiState.analyseScores.size) {
                         EvaluationGraph(
                             previewScores = uiState.previewScores,
@@ -356,7 +357,7 @@ fun GameContent(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(120.dp)
+                                .height(lineGraphHeight)
                         )
                     }
                 }
@@ -364,6 +365,7 @@ fun GameContent(
                 // Score difference graph (bars) - only show during Analyse and Manual stages when we have scores
                 if (showScoreBarsGraph && uiState.currentStage != AnalysisStage.PREVIEW) {
                     if (showScoreLineGraph) Spacer(modifier = Modifier.height(8.dp))
+                    val barGraphHeight = (120 * uiState.graphSettings.barGraphScale / 100).dp
                     key(uiState.previewScores.size, uiState.analyseScores.size) {
                         ScoreDifferenceGraph(
                             previewScores = uiState.previewScores,
@@ -382,7 +384,7 @@ fun GameContent(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(120.dp)
+                                .height(barGraphHeight)
                         )
                     }
                 }
@@ -1062,9 +1064,12 @@ fun GameContent(
         }
     }
 
-    // Raw Stockfish scores card (Manual stage only, shows all moves with their analyse scores)
+    // Raw Stockfish scores cards (Manual stage only, developer mode only)
     val showRawStockfishScore = uiState.interfaceVisibility.manualStage.showRawStockfishScore
-    if (uiState.currentStage == AnalysisStage.MANUAL && showRawStockfishScore && uiState.analyseScores.isNotEmpty()) {
+    val developerMode = uiState.generalSettings.developerMode
+
+    // Raw Stockfish Scores - Preview stage
+    if (uiState.currentStage == AnalysisStage.MANUAL && showRawStockfishScore && developerMode && uiState.previewScores.isNotEmpty()) {
         Spacer(modifier = Modifier.height(12.dp))
         Card(
             colors = CardDefaults.cardColors(
@@ -1077,7 +1082,82 @@ fun GameContent(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Raw Stockfish Scores",
+                    text = "Raw Stockfish Scores - Preview stage",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF90CAF9),  // Light blue for Preview
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Display all moves with their preview scores
+                val moves = uiState.moves
+                val currentMoveIndex = uiState.currentMoveIndex
+
+                moves.forEachIndexed { index, move ->
+                    val previewScore = uiState.previewScores[index]
+                    val isWhiteMove = index % 2 == 0
+                    val moveNumber = (index / 2) + 1
+                    val moveNotation = if (isWhiteMove) {
+                        "$moveNumber. $move"
+                    } else {
+                        "$moveNumber... $move"
+                    }
+
+                    val scoreText = previewScore?.let { score ->
+                        if (score.isMate) {
+                            if (score.mateIn > 0) "M${score.mateIn}" else "-M${kotlin.math.abs(score.mateIn)}"
+                        } else {
+                            if (score.score >= 0) "+%.2f".format(score.score) else "%.2f".format(score.score)
+                        }
+                    } ?: "—"
+
+                    val isCurrentMove = index == currentMoveIndex
+                    val backgroundColor = if (isCurrentMove) Color(0xFF4A4A5A) else Color.Transparent
+                    val textColor = if (isCurrentMove) Color.White else Color(0xFFBBBBBB)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(backgroundColor, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = moveNotation,
+                            fontSize = 12.sp,
+                            color = textColor,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                        Text(
+                            text = scoreText,
+                            fontSize = 12.sp,
+                            color = if (previewScore != null) Color(0xFF90CAF9) else Color(0xFF666666),
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Raw Stockfish Scores - Analyse stage
+    if (uiState.currentStage == AnalysisStage.MANUAL && showRawStockfishScore && developerMode && uiState.analyseScores.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF2D2D3D)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Raw Stockfish Scores - Analyse stage",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFFFD700),
@@ -1086,7 +1166,7 @@ fun GameContent(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Display all moves with their scores
+                // Display all moves with their analyse scores
                 val moves = uiState.moves
                 val currentMoveIndex = uiState.currentMoveIndex
 

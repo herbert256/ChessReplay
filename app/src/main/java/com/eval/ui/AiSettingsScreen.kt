@@ -1,5 +1,7 @@
 package com.eval.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,13 +23,25 @@ import com.eval.data.AiService
 @Composable
 fun AiSettingsScreen(
     aiSettings: AiSettings,
+    developerMode: Boolean,
     onBackToSettings: () -> Unit,
     onBackToGame: () -> Unit,
     onNavigate: (SettingsSubScreen) -> Unit,
     onSave: (AiSettings) -> Unit
 ) {
-    var showImportDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    // File picker launcher for importing AI configuration
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val imported = importAiConfigFromFile(context, it, aiSettings)
+            if (imported != null) {
+                onSave(imported)
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -107,12 +121,15 @@ fun AiSettingsScreen(
             accentColor = Color(0xFF6B5AED),
             onClick = { onNavigate(SettingsSubScreen.AI_OPENROUTER) }
         )
-        AiServiceNavigationCard(
-            title = "Dummy",
-            subtitle = "For testing",
-            accentColor = Color(0xFF888888),
-            onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
-        )
+        // Dummy provider only visible in developer mode
+        if (developerMode) {
+            AiServiceNavigationCard(
+                title = "Dummy",
+                subtitle = "For testing",
+                accentColor = Color(0xFF888888),
+                onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
+            )
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -148,9 +165,11 @@ fun AiSettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Import AI configuration button
+        // Import AI configuration button (opens file picker)
         Button(
-            onClick = { showImportDialog = true },
+            onClick = {
+                filePickerLauncher.launch(arrayOf("application/json", "*/*"))
+            },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF4CAF50)
@@ -159,18 +178,6 @@ fun AiSettingsScreen(
             Text("Import AI configuration")
         }
 
-    }
-
-    // Import AI configuration dialog
-    if (showImportDialog) {
-        ImportAiConfigDialog(
-            currentSettings = aiSettings,
-            onImport = { importedSettings ->
-                onSave(importedSettings)
-                showImportDialog = false
-            },
-            onDismiss = { showImportDialog = false }
-        )
     }
 }
 
@@ -182,8 +189,23 @@ fun AiSetupScreen(
     aiSettings: AiSettings,
     onBackToSettings: () -> Unit,
     onBackToGame: () -> Unit,
-    onNavigate: (SettingsSubScreen) -> Unit
+    onNavigate: (SettingsSubScreen) -> Unit,
+    onSave: (AiSettings) -> Unit
 ) {
+    val context = LocalContext.current
+
+    // File picker launcher for importing AI configuration
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val imported = importAiConfigFromFile(context, it, aiSettings)
+            if (imported != null) {
+                onSave(imported)
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -239,6 +261,29 @@ fun AiSetupScreen(
             onClick = { onNavigate(SettingsSubScreen.AI_AGENTS) }
         )
 
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Export AI configuration button
+        Button(
+            onClick = {
+                exportAiConfigToFile(context, aiSettings)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+        ) {
+            Text("Export AI configuration")
+        }
+
+        // Import AI configuration button (opens file picker)
+        Button(
+            onClick = {
+                filePickerLauncher.launch(arrayOf("application/json", "*/*"))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+        ) {
+            Text("Import AI configuration")
+        }
     }
 }
 
@@ -309,14 +354,11 @@ private fun AiSetupNavigationCard(
 @Composable
 fun AiProvidersScreen(
     aiSettings: AiSettings,
+    developerMode: Boolean,
     onBackToAiSetup: () -> Unit,
     onBackToGame: () -> Unit,
-    onNavigate: (SettingsSubScreen) -> Unit,
-    onSave: (AiSettings) -> Unit
+    onNavigate: (SettingsSubScreen) -> Unit
 ) {
-    val context = LocalContext.current
-    var showImportDialog by remember { mutableStateOf(false) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -386,45 +428,14 @@ fun AiProvidersScreen(
             accentColor = Color(0xFF6B5AED),
             onClick = { onNavigate(SettingsSubScreen.AI_OPENROUTER) }
         )
-        AiServiceNavigationCard(
-            title = "Dummy",
-            subtitle = "For testing",
-            accentColor = Color(0xFF888888),
-            onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Export AI configuration button
-        Button(
-            onClick = {
-                exportAiConfigToFile(context, aiSettings)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-        ) {
-            Text("Export AI configuration")
+        // Dummy provider only visible in developer mode
+        if (developerMode) {
+            AiServiceNavigationCard(
+                title = "Dummy",
+                subtitle = "For testing",
+                accentColor = Color(0xFF888888),
+                onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
+            )
         }
-
-        // Import AI configuration button
-        Button(
-            onClick = { showImportDialog = true },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
-        ) {
-            Text("Import AI configuration")
-        }
-    }
-
-    // Import AI configuration dialog
-    if (showImportDialog) {
-        ImportAiConfigDialog(
-            currentSettings = aiSettings,
-            onImport = { importedSettings ->
-                onSave(importedSettings)
-                showImportDialog = false
-            },
-            onDismiss = { showImportDialog = false }
-        )
     }
 }

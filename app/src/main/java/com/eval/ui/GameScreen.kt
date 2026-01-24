@@ -326,7 +326,7 @@ fun GameScreenContent(
                                 containerColor = Color(0xFF8B5CF6)
                             )
                         ) {
-                            Text("View in Chrome")
+                            Text("Browser")
                         }
                     }
                 }
@@ -471,7 +471,7 @@ fun GameScreenContent(
                                 containerColor = Color(0xFF8B5CF6)
                             )
                         ) {
-                            Text("View in Chrome")
+                            Text("Browser")
                         }
                     }
                 }
@@ -577,7 +577,7 @@ fun GameScreenContent(
                                 containerColor = Color(0xFF8B5CF6)
                             )
                         ) {
-                            Text("View in Chrome")
+                            Text("Browser")
                         }
                     }
                 }
@@ -688,8 +688,8 @@ fun GameScreenContent(
                             offsetY = -12
                         )
                     }
-                    // Debug trace icon (only when tracking is enabled)
-                    if (uiState.generalSettings.trackApiCalls) {
+                    // Debug trace icon (only when developer mode and tracking are enabled)
+                    if (uiState.generalSettings.developerMode && uiState.generalSettings.trackApiCalls) {
                         TitleBarIcon(
                             icon = "\uD83D\uDC1E",
                             onClick = { onNavigateToTrace() },
@@ -1146,7 +1146,7 @@ fun AiAnalysisScreen(
                         containerColor = Color(0xFF4A6A8C)
                     )
                 ) {
-                    Text("View in Chrome", fontSize = 14.sp)
+                    Text("Browser", fontSize = 14.sp)
                 }
                 Button(
                     onClick = { showEmailDialog = true },

@@ -197,6 +197,10 @@ fun SettingsScreenNav(
         onSaveInterfaceVisibility = { viewModel.updateInterfaceVisibilitySettings(it) },
         onSaveGeneral = { viewModel.updateGeneralSettings(it) },
         onTrackApiCallsChanged = { viewModel.updateTrackApiCalls(it) },
+        onDeveloperModeChanged = {
+            viewModel.resetToHomepage()
+            onNavigateBack()
+        },
         onSaveAi = { viewModel.updateAiSettings(it) },
         onFetchChatGptModels = { viewModel.fetchChatGptModels(it) },
         onFetchGeminiModels = { viewModel.fetchGeminiModels(it) },

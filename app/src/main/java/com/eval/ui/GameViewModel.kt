@@ -210,8 +210,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val interfaceVisibility = loadInterfaceVisibilitySettings()
             val generalSettings = loadGeneralSettings()
 
-            // Configure ApiTracer based on settings
-            ApiTracer.isTracingEnabled = generalSettings.trackApiCalls
+            // Configure ApiTracer based on settings (requires both developer mode and track API calls)
+            ApiTracer.isTracingEnabled = generalSettings.developerMode && generalSettings.trackApiCalls
             val aiSettings = loadAiSettings()
             val lichessMaxGames = settingsPrefs.lichessMaxGames
             val chessComMaxGames = settingsPrefs.chessComMaxGames
@@ -659,7 +659,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun exportAsGif(context: android.content.Context) {
         if (_uiState.value.game == null) return
         val moveDetails = _uiState.value.moveDetails
-        val analyseScores = _uiState.value.analyseScores.ifEmpty { _uiState.value.previewScores }
+        // Merge scores: use analyseScores where available, otherwise previewScores
+        val analyseScores = if (_uiState.value.analyseScores.isNotEmpty()) {
+            _uiState.value.previewScores + _uiState.value.analyseScores
+        } else {
+            _uiState.value.previewScores
+        }
 
         _uiState.value = _uiState.value.copy(
             showGifExportDialog = true,
@@ -960,6 +965,7 @@ ${opening.moves} *
         val isWhiteToMove = board.getTurn() == com.eval.chess.PieceColor.WHITE
 
         // Hide retrieve screen and go directly to Manual stage
+        // Clear activePlayer and activeServer for FEN positions
         _uiState.value = _uiState.value.copy(
             showRetrieveScreen = false,
             isLoading = false,
@@ -981,7 +987,9 @@ ${opening.moves} *
             exploringLineMoveIndex = -1,
             savedGameMoveIndex = -1,
             analysisResult = null,
-            analysisResultFen = null
+            analysisResultFen = null,
+            activePlayer = null,
+            activeServer = null
         )
 
         // Configure Stockfish for Manual stage and start analysis
@@ -1055,14 +1063,61 @@ ${opening.moves} *
             playerGamesPageSize = settings.paginationPageSize,
             gameSelectionPageSize = settings.paginationPageSize
         )
+        // Update ApiTracer when developer mode changes
+        ApiTracer.isTracingEnabled = settings.developerMode && settings.trackApiCalls
+        if (!settings.developerMode) {
+            // Clear traces when developer mode is disabled
+            ApiTracer.clearTraces()
+        }
     }
 
     fun updateTrackApiCalls(enabled: Boolean) {
-        ApiTracer.isTracingEnabled = enabled
+        // Only enable tracing if both developer mode and track API calls are enabled
+        val developerMode = _uiState.value.generalSettings.developerMode
+        ApiTracer.isTracingEnabled = developerMode && enabled
         if (!enabled) {
             // Clear traces when tracking is disabled
             ApiTracer.clearTraces()
         }
+    }
+
+    /**
+     * Reset the app to the homepage (logo only), clearing all game state.
+     * Used when developer mode changes to ensure a clean slate.
+     */
+    fun resetToHomepage() {
+        // Stop any ongoing analysis
+        analysisOrchestrator.stop()
+
+        // Clear board histories
+        boardHistory.clear()
+        exploringLineHistory.clear()
+
+        // Reset UI state to show only the homepage with logo
+        _uiState.value = _uiState.value.copy(
+            game = null,
+            gameList = emptyList(),
+            showGameSelection = false,
+            showRetrieveScreen = false,  // Show homepage with logo only
+            currentBoard = ChessBoard(),
+            moves = emptyList(),
+            moveDetails = emptyList(),
+            currentMoveIndex = -1,
+            analysisResult = null,
+            analysisResultFen = null,
+            flippedBoard = false,
+            userPlayedBlack = false,
+            isExploringLine = false,
+            exploringLineMoves = emptyList(),
+            exploringLineMoveIndex = -1,
+            savedGameMoveIndex = -1,
+            currentStage = AnalysisStage.PREVIEW,
+            previewScores = emptyMap(),
+            analyseScores = emptyMap(),
+            autoAnalysisIndex = -1,
+            openingName = null,
+            currentOpeningName = null
+        )
     }
 
     fun updateAiSettings(settings: AiSettings) {

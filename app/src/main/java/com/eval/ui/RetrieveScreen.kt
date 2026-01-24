@@ -386,6 +386,87 @@ private fun RetrieveMainScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Lichess card - at the top
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onLichessClick() },
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF629924) // Lichess green
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "lichess.org",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = ">",
+                        fontSize = 24.sp,
+                        color = Color.White
+                    )
+                }
+            }
+
+            // Chess.com card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onChessComClick() },
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF769656) // Chess.com green
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "chess.com",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = ">",
+                        fontSize = 24.sp,
+                        color = Color.White
+                    )
+                }
+            }
+
+            HorizontalDivider(color = Color(0xFF404040), modifier = Modifier.padding(vertical = 8.dp))
+
+            // Error message
+            if (uiState.errorMessage != null) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = uiState.errorMessage ?: "",
+                        color = Color.White,
+                        modifier = Modifier.padding(12.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
             // Button to select from previous retrieves
             if (uiState.hasPreviousRetrieves) {
                 Button(
@@ -545,87 +626,6 @@ private fun RetrieveMainScreen(
                         }
                     }
                 )
-            }
-
-            HorizontalDivider(color = Color(0xFF404040), modifier = Modifier.padding(vertical = 8.dp))
-
-            // Error message
-            if (uiState.errorMessage != null) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = uiState.errorMessage ?: "",
-                        color = Color.White,
-                        modifier = Modifier.padding(12.dp),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            // Lichess card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onLichessClick() },
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF629924) // Lichess green
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "lichess.org",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = ">",
-                        fontSize = 24.sp,
-                        color = Color.White
-                    )
-                }
-            }
-
-            // Chess.com card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onChessComClick() },
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF769656) // Chess.com green
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "chess.com",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = ">",
-                        fontSize = 24.sp,
-                        color = Color.White
-                    )
-                }
             }
 
             // Loading indicator

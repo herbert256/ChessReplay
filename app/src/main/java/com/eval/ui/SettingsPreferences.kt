@@ -192,7 +192,9 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             analyseLineColor = prefs.getLong(KEY_GRAPH_ANALYSE_LINE_COLOR, DEFAULT_GRAPH_ANALYSE_LINE_COLOR),
             verticalLineColor = prefs.getLong(KEY_GRAPH_VERTICAL_LINE_COLOR, DEFAULT_GRAPH_VERTICAL_LINE_COLOR),
             lineGraphRange = prefs.getInt(KEY_GRAPH_LINE_RANGE, 7),
-            barGraphRange = prefs.getInt(KEY_GRAPH_BAR_RANGE, 3)
+            barGraphRange = prefs.getInt(KEY_GRAPH_BAR_RANGE, 3),
+            lineGraphScale = prefs.getInt(KEY_GRAPH_LINE_SCALE, 100),
+            barGraphScale = prefs.getInt(KEY_GRAPH_BAR_SCALE, 100)
         )
     }
 
@@ -205,6 +207,8 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             .putLong(KEY_GRAPH_VERTICAL_LINE_COLOR, settings.verticalLineColor)
             .putInt(KEY_GRAPH_LINE_RANGE, settings.lineGraphRange)
             .putInt(KEY_GRAPH_BAR_RANGE, settings.barGraphRange)
+            .putInt(KEY_GRAPH_LINE_SCALE, settings.lineGraphScale)
+            .putInt(KEY_GRAPH_BAR_SCALE, settings.barGraphScale)
             .apply()
     }
 
@@ -287,16 +291,18 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             longTapForFullScreen = false,
             paginationPageSize = prefs.getInt(KEY_PAGINATION_PAGE_SIZE, 10).coerceIn(5, 50),
             moveSoundsEnabled = prefs.getBoolean(KEY_MOVE_SOUNDS_ENABLED, true),
+            developerMode = prefs.getBoolean(KEY_DEVELOPER_MODE, false),
             trackApiCalls = prefs.getBoolean(KEY_TRACK_API_CALLS, false)
         )
     }
 
     fun saveGeneralSettings(settings: GeneralSettings) {
         // Full screen mode is not persistent - do not save
-        // But pagination page size, move sounds, and track API calls are saved
+        // But pagination page size, move sounds, developer mode, and track API calls are saved
         prefs.edit()
             .putInt(KEY_PAGINATION_PAGE_SIZE, settings.paginationPageSize.coerceIn(5, 50))
             .putBoolean(KEY_MOVE_SOUNDS_ENABLED, settings.moveSoundsEnabled)
+            .putBoolean(KEY_DEVELOPER_MODE, settings.developerMode)
             .putBoolean(KEY_TRACK_API_CALLS, settings.trackApiCalls)
             .apply()
     }
@@ -817,6 +823,8 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         private const val KEY_GRAPH_VERTICAL_LINE_COLOR = "graph_vertical_line_color"
         private const val KEY_GRAPH_LINE_RANGE = "graph_line_range"
         private const val KEY_GRAPH_BAR_RANGE = "graph_bar_range"
+        private const val KEY_GRAPH_LINE_SCALE = "graph_line_scale"
+        private const val KEY_GRAPH_BAR_SCALE = "graph_bar_scale"
 
         // Interface visibility settings - Preview stage
         private const val KEY_PREVIEW_VIS_SCOREBARSGRAPH = "preview_vis_scorebarsgraph"
@@ -853,6 +861,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         // General settings
         private const val KEY_PAGINATION_PAGE_SIZE = "pagination_page_size"
         private const val KEY_MOVE_SOUNDS_ENABLED = "move_sounds_enabled"
+        private const val KEY_DEVELOPER_MODE = "developer_mode"
         private const val KEY_TRACK_API_CALLS = "track_api_calls"
 
         // AI Analysis settings
