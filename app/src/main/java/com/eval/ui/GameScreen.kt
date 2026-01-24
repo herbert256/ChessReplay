@@ -558,13 +558,32 @@ fun GameScreen(
         )
     }
 
-    // Show Generic AI Prompt screen (full screen)
-    if (uiState.showGenericAiPromptScreen) {
-        GenericAiPromptScreen(
+    // Show AI hub screen (full screen)
+    if (uiState.showAiScreen) {
+        AiScreen(
+            onNewReport = { viewModel.showNewAiReportScreen() },
+            onHistory = { viewModel.showAiHistoryScreen() },
+            onDismiss = { viewModel.hideAiScreen() }
+        )
+        return
+    }
+
+    // Show AI History screen (full screen)
+    if (uiState.showAiHistoryScreen) {
+        AiHistoryScreen(
+            context = context,
+            onDismiss = { viewModel.hideAiHistoryScreen() }
+        )
+        return
+    }
+
+    // Show New AI Report screen (full screen)
+    if (uiState.showNewAiReportScreen) {
+        NewAiReportScreen(
             onSubmit = { title, prompt ->
                 viewModel.showGenericAiAgentSelection(title, prompt)
             },
-            onDismiss = { viewModel.hideGenericAiPromptScreen() }
+            onDismiss = { viewModel.hideNewAiReportScreen() }
         )
         return
     }
@@ -838,7 +857,7 @@ fun GameScreen(
                     Box(
                         modifier = Modifier
                             .size(44.dp)
-                            .clickable { viewModel.showGenericAiPromptScreen() },
+                            .clickable { viewModel.showAiScreen() },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("🤖", fontSize = 24.sp, color = Color.White, modifier = Modifier.offset(y = (-3).dp))
@@ -2798,14 +2817,353 @@ private fun convertPlayerAiReportsToHtml(uiState: GameUiState, appVersion: Strin
 }
 
 // ============================================================================
-// GENERIC AI PROMPT FEATURE
+// AI SCREENS
 // ============================================================================
 
 /**
- * Full-screen for entering a generic AI prompt.
+ * AI hub screen with links to New AI Report and AI History.
  */
 @Composable
-private fun GenericAiPromptScreen(
+private fun AiScreen(
+    onNewReport: () -> Unit,
+    onHistory: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "AI",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = Color(0xFF6B9BFF))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // New AI Report card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNewReport() },
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF2A3A4A)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "📝",
+                    fontSize = 24.sp
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "New AI Report",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Create a new AI report with custom prompt",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFAAAAAA)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // AI History card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onHistory() },
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF2A3A4A)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "📚",
+                    fontSize = 24.sp
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "AI History",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "View previously generated AI reports",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFAAAAAA)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * AI History screen showing generated reports with pagination.
+ */
+@Composable
+private fun AiHistoryScreen(
+    context: android.content.Context,
+    onDismiss: () -> Unit
+) {
+    val historyFiles = remember { mutableStateOf(AiHistoryManager.getHistoryFiles()) }
+    var currentPage by remember { mutableStateOf(0) }
+    val pageSize = 10
+
+    val totalPages = if (historyFiles.value.isEmpty()) 1 else (historyFiles.value.size + pageSize - 1) / pageSize
+    val startIndex = currentPage * pageSize
+    val endIndex = minOf(startIndex + pageSize, historyFiles.value.size)
+    val currentPageFiles = if (historyFiles.value.isNotEmpty()) {
+        historyFiles.value.subList(startIndex, endIndex)
+    } else {
+        emptyList()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "AI History",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = Color(0xFF6B9BFF))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (historyFiles.value.isEmpty()) {
+            // Empty state
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No AI reports yet",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF888888)
+                )
+            }
+        } else {
+            // History list
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                currentPageFiles.forEach { fileInfo ->
+                    AiHistoryRow(
+                        fileInfo = fileInfo,
+                        context = context
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Pagination
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = { if (currentPage > 0) currentPage-- },
+                    enabled = currentPage > 0
+                ) {
+                    Text(
+                        "Previous",
+                        color = if (currentPage > 0) Color(0xFF6B9BFF) else Color(0xFF444444)
+                    )
+                }
+
+                Text(
+                    text = "${currentPage + 1} / $totalPages",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = Color.White
+                )
+
+                TextButton(
+                    onClick = { if (currentPage < totalPages - 1) currentPage++ },
+                    enabled = currentPage < totalPages - 1
+                ) {
+                    Text(
+                        "Next",
+                        color = if (currentPage < totalPages - 1) Color(0xFF6B9BFF) else Color(0xFF444444)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Single row in AI History showing filename with share and chrome actions.
+ */
+@Composable
+private fun AiHistoryRow(
+    fileInfo: com.eval.data.AiHistoryFileInfo,
+    context: android.content.Context
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF2A3A4A)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Filename
+            Text(
+                text = fileInfo.filename,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White,
+                modifier = Modifier.weight(1f)
+            )
+
+            // Actions
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Share button
+                TextButton(
+                    onClick = { shareHistoryFile(context, fileInfo.file) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("share", color = Color(0xFF6B9BFF), fontSize = 14.sp)
+                }
+
+                // Chrome button
+                TextButton(
+                    onClick = { openHistoryFileInChrome(context, fileInfo.file) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("chrome", color = Color(0xFF6B9BFF), fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Share a history file via Android share sheet.
+ */
+private fun shareHistoryFile(context: android.content.Context, file: java.io.File) {
+    try {
+        val contentUri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/html"
+            putExtra(Intent.EXTRA_SUBJECT, "AI Report - ${file.nameWithoutExtension}")
+            putExtra(Intent.EXTRA_TEXT, "AI analysis report.\n\nOpen the attached HTML file in a browser to view the report.")
+            putExtra(Intent.EXTRA_STREAM, contentUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        context.startActivity(Intent.createChooser(intent, "Share AI Report"))
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(
+            context,
+            "Failed to share: ${e.message}",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+/**
+ * Open a history file in Chrome browser.
+ */
+private fun openHistoryFileInChrome(context: android.content.Context, file: java.io.File) {
+    try {
+        val contentUri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(contentUri, "text/html")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            setPackage("com.android.chrome")
+        }
+
+        try {
+            context.startActivity(intent)
+        } catch (e: android.content.ActivityNotFoundException) {
+            intent.setPackage(null)
+            context.startActivity(intent)
+        }
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(
+            context,
+            "Failed to open in Chrome: ${e.message}",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+/**
+ * Full-screen for entering a new AI report prompt.
+ */
+@Composable
+private fun NewAiReportScreen(
     onSubmit: (String, String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -2825,7 +3183,7 @@ private fun GenericAiPromptScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Enter AI Prompt",
+                text = "New AI Report",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color.White

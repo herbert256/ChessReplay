@@ -447,8 +447,10 @@ data class GameUiState(
     val playerAiReportsPlayerName: String = "",
     val playerAiReportsServer: String? = null,  // null for "other player" prompt
     val playerAiReportsPlayerInfo: com.eval.data.PlayerInfo? = null,  // Full player info for HTML
-    // Generic AI Prompt feature
-    val showGenericAiPromptScreen: Boolean = false,
+    // AI screens
+    val showAiScreen: Boolean = false,  // AI hub screen
+    val showAiHistoryScreen: Boolean = false,  // AI history screen
+    val showNewAiReportScreen: Boolean = false,  // New AI report screen (formerly GenericAiPromptScreen)
     val showGenericAiAgentSelection: Boolean = false,
     val showGenericAiReportsDialog: Boolean = false,
     val genericAiPromptTitle: String = "",

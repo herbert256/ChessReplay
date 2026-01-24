@@ -1555,25 +1555,51 @@ ${opening.moves} *
         )
     }
 
-    // ===== GENERIC AI PROMPT FEATURE =====
+    // ===== AI SCREENS =====
 
-    fun showGenericAiPromptScreen() {
+    fun showAiScreen() {
         _uiState.value = _uiState.value.copy(
-            showGenericAiPromptScreen = true,
+            showAiScreen = true
+        )
+    }
+
+    fun hideAiScreen() {
+        _uiState.value = _uiState.value.copy(
+            showAiScreen = false
+        )
+    }
+
+    fun showNewAiReportScreen() {
+        _uiState.value = _uiState.value.copy(
+            showAiScreen = false,
+            showNewAiReportScreen = true,
             genericAiPromptTitle = "",
             genericAiPromptText = ""
         )
     }
 
-    fun hideGenericAiPromptScreen() {
+    fun hideNewAiReportScreen() {
         _uiState.value = _uiState.value.copy(
-            showGenericAiPromptScreen = false
+            showNewAiReportScreen = false
+        )
+    }
+
+    fun showAiHistoryScreen() {
+        _uiState.value = _uiState.value.copy(
+            showAiScreen = false,
+            showAiHistoryScreen = true
+        )
+    }
+
+    fun hideAiHistoryScreen() {
+        _uiState.value = _uiState.value.copy(
+            showAiHistoryScreen = false
         )
     }
 
     fun showGenericAiAgentSelection(title: String, prompt: String) {
         _uiState.value = _uiState.value.copy(
-            showGenericAiPromptScreen = false,
+            showNewAiReportScreen = false,
             showGenericAiAgentSelection = true,
             genericAiPromptTitle = title,
             genericAiPromptText = prompt
