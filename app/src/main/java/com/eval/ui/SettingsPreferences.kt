@@ -296,6 +296,15 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
     // AI Settings
     // ============================================================================
 
+    /**
+     * Load AI settings with prompts and agents, performing migration if needed.
+     */
+    fun loadAiSettingsWithMigration(): AiSettings {
+        val baseSettings = loadAiSettings()
+        val (prompts, agents) = migrateToAgentsIfNeeded(baseSettings)
+        return baseSettings.copy(prompts = prompts, agents = agents)
+    }
+
     fun loadAiSettings(): AiSettings {
         return AiSettings(
             chatGptApiKey = prefs.getString(KEY_AI_CHATGPT_API_KEY, "") ?: "",
@@ -467,6 +476,235 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             .putString(KEY_AI_DUMMY_SERVER_PLAYER_PROMPT, settings.dummyServerPlayerPrompt)
             .putString(KEY_AI_DUMMY_OTHER_PLAYER_PROMPT, settings.dummyOtherPlayerPrompt)
             .apply()
+
+        // Also save prompts and agents if they exist
+        if (settings.prompts.isNotEmpty()) {
+            saveAiPrompts(settings.prompts)
+        }
+        if (settings.agents.isNotEmpty()) {
+            saveAiAgents(settings.agents)
+        }
+    }
+
+    // ============================================================================
+    // AI Prompts and Agents (Three-tier Architecture)
+    // ============================================================================
+
+    fun loadAiPrompts(): List<AiPrompt> {
+        val json = prefs.getString(KEY_AI_PROMPTS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<AiPrompt>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveAiPrompts(prompts: List<AiPrompt>) {
+        val json = gson.toJson(prompts)
+        prefs.edit().putString(KEY_AI_PROMPTS, json).apply()
+    }
+
+    fun loadAiAgents(): List<AiAgent> {
+        val json = prefs.getString(KEY_AI_AGENTS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<AiAgent>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveAiAgents(agents: List<AiAgent>) {
+        val json = gson.toJson(agents)
+        prefs.edit().putString(KEY_AI_AGENTS, json).apply()
+    }
+
+    /**
+     * Check if AI migration has been performed.
+     */
+    fun isAiMigrationDone(): Boolean {
+        return prefs.getBoolean(KEY_AI_MIGRATION_DONE, false)
+    }
+
+    /**
+     * Mark AI migration as done.
+     */
+    fun setAiMigrationDone() {
+        prefs.edit().putBoolean(KEY_AI_MIGRATION_DONE, true).apply()
+    }
+
+    /**
+     * Create default prompts if none exist.
+     * Returns the list of prompts (either existing or newly created defaults).
+     */
+    fun ensureDefaultPrompts(): List<AiPrompt> {
+        var prompts = loadAiPrompts()
+        if (prompts.isEmpty()) {
+            prompts = listOf(
+                AiPrompt(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = DEFAULT_GAME_PROMPT_NAME,
+                    text = DEFAULT_GAME_PROMPT
+                ),
+                AiPrompt(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = DEFAULT_SERVER_PLAYER_PROMPT_NAME,
+                    text = DEFAULT_SERVER_PLAYER_PROMPT
+                ),
+                AiPrompt(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = DEFAULT_OTHER_PLAYER_PROMPT_NAME,
+                    text = DEFAULT_OTHER_PLAYER_PROMPT
+                )
+            )
+            saveAiPrompts(prompts)
+        }
+        return prompts
+    }
+
+    /**
+     * Migrate existing provider configurations to agents.
+     * For each provider with a non-empty API key, creates an agent.
+     */
+    fun migrateToAgentsIfNeeded(aiSettings: AiSettings): Pair<List<AiPrompt>, List<AiAgent>> {
+        if (isAiMigrationDone()) {
+            return Pair(loadAiPrompts(), loadAiAgents())
+        }
+
+        // Ensure we have default prompts
+        val prompts = ensureDefaultPrompts()
+
+        // Find default prompt IDs
+        val gamePromptId = prompts.find { it.name == DEFAULT_GAME_PROMPT_NAME }?.id ?: ""
+        val serverPlayerPromptId = prompts.find { it.name == DEFAULT_SERVER_PLAYER_PROMPT_NAME }?.id ?: ""
+        val otherPlayerPromptId = prompts.find { it.name == DEFAULT_OTHER_PLAYER_PROMPT_NAME }?.id ?: ""
+
+        // Create agents for configured providers
+        val agents = mutableListOf<AiAgent>()
+
+        if (aiSettings.chatGptApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "ChatGPT",
+                provider = com.eval.data.AiService.CHATGPT,
+                model = aiSettings.chatGptModel,
+                apiKey = aiSettings.chatGptApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.claudeApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Claude",
+                provider = com.eval.data.AiService.CLAUDE,
+                model = aiSettings.claudeModel,
+                apiKey = aiSettings.claudeApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.geminiApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Gemini",
+                provider = com.eval.data.AiService.GEMINI,
+                model = aiSettings.geminiModel,
+                apiKey = aiSettings.geminiApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.grokApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Grok",
+                provider = com.eval.data.AiService.GROK,
+                model = aiSettings.grokModel,
+                apiKey = aiSettings.grokApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.deepSeekApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "DeepSeek",
+                provider = com.eval.data.AiService.DEEPSEEK,
+                model = aiSettings.deepSeekModel,
+                apiKey = aiSettings.deepSeekApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.mistralApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Mistral",
+                provider = com.eval.data.AiService.MISTRAL,
+                model = aiSettings.mistralModel,
+                apiKey = aiSettings.mistralApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.perplexityApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Perplexity",
+                provider = com.eval.data.AiService.PERPLEXITY,
+                model = aiSettings.perplexityModel,
+                apiKey = aiSettings.perplexityApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.togetherApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Together",
+                provider = com.eval.data.AiService.TOGETHER,
+                model = aiSettings.togetherModel,
+                apiKey = aiSettings.togetherApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        if (aiSettings.openRouterApiKey.isNotBlank()) {
+            agents.add(AiAgent(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "OpenRouter",
+                provider = com.eval.data.AiService.OPENROUTER,
+                model = aiSettings.openRouterModel,
+                apiKey = aiSettings.openRouterApiKey,
+                gamePromptId = gamePromptId,
+                serverPlayerPromptId = serverPlayerPromptId,
+                otherPlayerPromptId = otherPlayerPromptId
+            ))
+        }
+
+        // Save agents and mark migration as done
+        saveAiAgents(agents)
+        setAiMigrationDone()
+
+        return Pair(prompts, agents)
     }
 
     // ============================================================================
@@ -693,6 +931,12 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         // AI report email
         const val KEY_AI_REPORT_EMAIL = "ai_report_email"
 
+        // AI prompts and agents (three-tier architecture)
+        private const val KEY_AI_PROMPTS = "ai_prompts"
+        private const val KEY_AI_AGENTS = "ai_agents"
+        private const val KEY_AI_MIGRATION_DONE = "ai_migration_done"
+        private const val KEY_AI_REPORT_AGENTS = "ai_report_agents"
+
         // Cached AI models lists
         private const val KEY_CACHED_CHATGPT_MODELS = "cached_chatgpt_models"
         private const val KEY_CACHED_GEMINI_MODELS = "cached_gemini_models"
@@ -751,6 +995,21 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
     fun saveAiReportProviders(providers: Set<String>) {
         val json = gson.toJson(providers)
         prefs.edit().putString(KEY_AI_REPORT_PROVIDERS, json).apply()
+    }
+
+    fun loadAiReportAgents(): Set<String> {
+        val json = prefs.getString(KEY_AI_REPORT_AGENTS, null) ?: return emptySet()
+        return try {
+            val type = object : com.google.gson.reflect.TypeToken<Set<String>>() {}.type
+            gson.fromJson(json, type) ?: emptySet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+    }
+
+    fun saveAiReportAgents(agentIds: Set<String>) {
+        val json = gson.toJson(agentIds)
+        prefs.edit().putString(KEY_AI_REPORT_AGENTS, json).apply()
     }
 
     // ============================================================================

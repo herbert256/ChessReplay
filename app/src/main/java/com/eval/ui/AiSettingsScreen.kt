@@ -21,6 +21,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.eval.data.AiService
 import com.google.gson.Gson
+import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import com.google.gson.JsonSyntaxException
 
 /**
@@ -147,7 +149,10 @@ data class AiSettings(
     val dummyEnabled: Boolean = false,
     val dummyPrompt: String = DEFAULT_GAME_PROMPT,
     val dummyServerPlayerPrompt: String = DEFAULT_SERVER_PLAYER_PROMPT,
-    val dummyOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT
+    val dummyOtherPlayerPrompt: String = DEFAULT_OTHER_PLAYER_PROMPT,
+    // New three-tier architecture
+    val prompts: List<AiPrompt> = emptyList(),
+    val agents: List<AiAgent> = emptyList()
 ) {
     fun getApiKey(service: AiService): String {
         return when (service) {
@@ -287,7 +292,71 @@ data class AiSettings(
     fun getConfiguredServices(): List<AiService> {
         return AiService.entries.filter { getApiKey(it).isNotBlank() }
     }
+
+    // Helper methods for prompts
+    fun getPromptById(id: String): AiPrompt? = prompts.find { it.id == id }
+
+    fun getPromptByName(name: String): AiPrompt? = prompts.find { it.name == name }
+
+    // Helper methods for agents
+    fun getAgentById(id: String): AiAgent? = agents.find { it.id == id }
+
+    fun getConfiguredAgents(): List<AiAgent> = agents.filter { it.apiKey.isNotBlank() }
+
+    /**
+     * Get the prompt text for an agent's game analysis.
+     * Falls back to default if prompt not found.
+     */
+    fun getAgentGamePrompt(agent: AiAgent): String {
+        return getPromptById(agent.gamePromptId)?.text ?: DEFAULT_GAME_PROMPT
+    }
+
+    /**
+     * Get the prompt text for an agent's server player analysis.
+     * Falls back to default if prompt not found.
+     */
+    fun getAgentServerPlayerPrompt(agent: AiAgent): String {
+        return getPromptById(agent.serverPlayerPromptId)?.text ?: DEFAULT_SERVER_PLAYER_PROMPT
+    }
+
+    /**
+     * Get the prompt text for an agent's other player analysis.
+     * Falls back to default if prompt not found.
+     */
+    fun getAgentOtherPlayerPrompt(agent: AiAgent): String {
+        return getPromptById(agent.otherPlayerPromptId)?.text ?: DEFAULT_OTHER_PLAYER_PROMPT
+    }
 }
+
+/**
+ * AI Prompt - user-created prompt template for AI analysis.
+ */
+data class AiPrompt(
+    val id: String,    // UUID
+    val name: String,  // User-defined name
+    val text: String   // Prompt template with @FEN@, @PLAYER@, @SERVER@ placeholders
+)
+
+/**
+ * AI Agent - user-created configuration combining provider, model, API key, and prompts.
+ */
+data class AiAgent(
+    val id: String,                    // UUID
+    val name: String,                  // User-defined name
+    val provider: AiService,           // Reference to provider enum
+    val model: String,                 // Model name
+    val apiKey: String,                // API key for this agent
+    val gamePromptId: String,          // Reference to AiPrompt by ID
+    val serverPlayerPromptId: String,  // Reference to AiPrompt by ID
+    val otherPlayerPromptId: String    // Reference to AiPrompt by ID
+)
+
+/**
+ * Default prompt names for migration and initialization.
+ */
+const val DEFAULT_GAME_PROMPT_NAME = "Game Analysis"
+const val DEFAULT_SERVER_PLAYER_PROMPT_NAME = "Server Player"
+const val DEFAULT_OTHER_PLAYER_PROMPT_NAME = "Other Player"
 
 /**
  * Main AI settings screen with navigation cards for each AI service.
@@ -330,103 +399,64 @@ fun AiSettingsScreen(
             modifier = Modifier.padding(top = 8.dp)
         )
 
-        // ChatGPT
         AiServiceNavigationCard(
             title = "ChatGPT",
             subtitle = "OpenAI",
             accentColor = Color(0xFF10A37F),
-            isConfigured = aiSettings.chatGptApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.chatGptApiKey.isNotBlank()) aiSettings.chatGptModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_CHATGPT) }
         )
-
-        // Claude
         AiServiceNavigationCard(
             title = "Claude",
             subtitle = "Anthropic",
             accentColor = Color(0xFFD97706),
-            isConfigured = aiSettings.claudeApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.claudeApiKey.isNotBlank()) aiSettings.claudeModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_CLAUDE) }
         )
-
-        // Gemini
         AiServiceNavigationCard(
             title = "Gemini",
             subtitle = "Google",
             accentColor = Color(0xFF4285F4),
-            isConfigured = aiSettings.geminiApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.geminiApiKey.isNotBlank()) aiSettings.geminiModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_GEMINI) }
         )
-
-        // Grok
         AiServiceNavigationCard(
             title = "Grok",
             subtitle = "xAI",
             accentColor = Color(0xFFFFFFFF),
-            isConfigured = aiSettings.grokApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.grokApiKey.isNotBlank()) aiSettings.grokModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_GROK) }
         )
-
-        // DeepSeek
         AiServiceNavigationCard(
             title = "DeepSeek",
             subtitle = "DeepSeek AI",
             accentColor = Color(0xFF4D6BFE),
-            isConfigured = aiSettings.deepSeekApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.deepSeekApiKey.isNotBlank()) aiSettings.deepSeekModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_DEEPSEEK) }
         )
-
-        // Mistral
         AiServiceNavigationCard(
             title = "Mistral",
             subtitle = "Mistral AI",
             accentColor = Color(0xFFFF7000),
-            isConfigured = aiSettings.mistralApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.mistralApiKey.isNotBlank()) aiSettings.mistralModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_MISTRAL) }
         )
-
-        // Perplexity
         AiServiceNavigationCard(
             title = "Perplexity",
             subtitle = "Perplexity AI",
             accentColor = Color(0xFF20B2AA),
-            isConfigured = aiSettings.perplexityApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.perplexityApiKey.isNotBlank()) aiSettings.perplexityModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_PERPLEXITY) }
         )
-
-        // Together
         AiServiceNavigationCard(
             title = "Together",
             subtitle = "Together AI",
             accentColor = Color(0xFF6366F1),
-            isConfigured = aiSettings.togetherApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.togetherApiKey.isNotBlank()) aiSettings.togetherModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_TOGETHER) }
         )
-
-        // OpenRouter
         AiServiceNavigationCard(
             title = "OpenRouter",
             subtitle = "OpenRouter AI",
             accentColor = Color(0xFF6B5AED),
-            isConfigured = aiSettings.openRouterApiKey.isNotBlank(),
-            selectedModel = if (aiSettings.openRouterApiKey.isNotBlank()) aiSettings.openRouterModel else null,
             onClick = { onNavigate(SettingsSubScreen.AI_OPENROUTER) }
         )
-
-        // Dummy (for testing)
         AiServiceNavigationCard(
             title = "Dummy",
             subtitle = "For testing",
             accentColor = Color(0xFF888888),
-            isConfigured = aiSettings.dummyEnabled,
-            selectedModel = if (aiSettings.dummyEnabled) "Test mode" else null,
             onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
         )
 
@@ -875,8 +905,6 @@ private fun AiServiceNavigationCard(
     title: String,
     subtitle: String,
     accentColor: Color,
-    isConfigured: Boolean,
-    selectedModel: String?,
     onClick: () -> Unit
 ) {
     Card(
@@ -890,7 +918,7 @@ private fun AiServiceNavigationCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -901,34 +929,12 @@ private fun AiServiceNavigationCard(
                     .background(accentColor, shape = MaterialTheme.shapes.small)
             )
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFAAAAAA)
-                )
-                if (selectedModel != null) {
-                    Text(
-                        text = selectedModel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6B9BFF)
-                    )
-                }
-            }
-
-            if (isConfigured) {
-                Text(
-                    text = "Configured",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF00E676)
-                )
-            }
+            Text(
+                text = "$title / $subtitle",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White,
+                modifier = Modifier.weight(1f)
+            )
 
             Text(
                 text = ">",
@@ -980,83 +986,31 @@ fun ChatGptSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.chatGptApiKey) }
-    var selectedModel by remember { mutableStateOf(aiSettings.chatGptModel) }
     var modelSource by remember { mutableStateOf(aiSettings.chatGptModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.chatGptManualModels) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.chatGptPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.chatGptServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.chatGptOtherPlayerPrompt) }
-    var showKey by remember { mutableStateOf(false) }
 
     AiServiceSettingsScreenTemplate(
         title = "ChatGPT",
         subtitle = "OpenAI",
         accentColor = Color(0xFF10A37F),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(chatGptApiKey = it.trim()))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = availableModels,
-                isLoadingModels = isLoadingModels,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(chatGptModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(chatGptModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(chatGptManualModels = it))
-                },
-                onFetchModels = { onFetchModels(apiKey) }
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(chatGptPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(chatGptServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(chatGptOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(chatGptPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(chatGptServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(chatGptOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(chatGptModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(chatGptManualModels = it))
+            },
+            onFetchModels = { onFetchModels(aiSettings.chatGptApiKey) }
+        )
     }
 }
 
@@ -1070,83 +1024,31 @@ fun ClaudeSettingsScreen(
     onBackToGame: () -> Unit,
     onSave: (AiSettings) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.claudeApiKey) }
-    var selectedModel by remember { mutableStateOf(aiSettings.claudeModel) }
     var modelSource by remember { mutableStateOf(aiSettings.claudeModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.claudeManualModels) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.claudePrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.claudeServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.claudeOtherPlayerPrompt) }
-    var showKey by remember { mutableStateOf(false) }
 
     AiServiceSettingsScreenTemplate(
         title = "Claude",
         subtitle = "Anthropic",
         accentColor = Color(0xFFD97706),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(claudeApiKey = it.trim()))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = emptyList(), // Claude doesn't have API for listing models
-                isLoadingModels = false,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(claudeModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(claudeModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(claudeManualModels = it))
-                },
-                onFetchModels = { } // No-op for Claude
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(claudePrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(claudeServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(claudeOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(claudePrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(claudeServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(claudeOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = emptyList(), // Claude doesn't have API for listing models
+            isLoadingModels = false,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(claudeModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(claudeManualModels = it))
+            },
+            onFetchModels = { } // No-op for Claude
+        )
     }
 }
 
@@ -1163,83 +1065,31 @@ fun GeminiSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.geminiApiKey) }
-    var selectedModel by remember { mutableStateOf(aiSettings.geminiModel) }
     var modelSource by remember { mutableStateOf(aiSettings.geminiModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.geminiManualModels) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.geminiPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.geminiServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.geminiOtherPlayerPrompt) }
-    var showKey by remember { mutableStateOf(false) }
 
     AiServiceSettingsScreenTemplate(
         title = "Gemini",
         subtitle = "Google",
         accentColor = Color(0xFF4285F4),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(geminiApiKey = it.trim()))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = availableModels,
-                isLoadingModels = isLoadingModels,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(geminiModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(geminiModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(geminiManualModels = it))
-                },
-                onFetchModels = { onFetchModels(apiKey) }
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(geminiPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(geminiServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(geminiOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(geminiPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(geminiServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(geminiOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(geminiModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(geminiManualModels = it))
+            },
+            onFetchModels = { onFetchModels(aiSettings.geminiApiKey) }
+        )
     }
 }
 
@@ -1256,83 +1106,31 @@ fun GrokSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.grokApiKey) }
-    var selectedModel by remember { mutableStateOf(aiSettings.grokModel) }
     var modelSource by remember { mutableStateOf(aiSettings.grokModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.grokManualModels) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.grokPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.grokServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.grokOtherPlayerPrompt) }
-    var showKey by remember { mutableStateOf(false) }
 
     AiServiceSettingsScreenTemplate(
         title = "Grok",
         subtitle = "xAI",
         accentColor = Color(0xFFFFFFFF),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(grokApiKey = it.trim()))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = availableModels,
-                isLoadingModels = isLoadingModels,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(grokModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(grokModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(grokManualModels = it))
-                },
-                onFetchModels = { onFetchModels(apiKey) }
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(grokPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(grokServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(grokOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(grokPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(grokServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(grokOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(grokModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(grokManualModels = it))
+            },
+            onFetchModels = { onFetchModels(aiSettings.grokApiKey) }
+        )
     }
 }
 
@@ -1349,83 +1147,31 @@ fun DeepSeekSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.deepSeekApiKey) }
-    var selectedModel by remember { mutableStateOf(aiSettings.deepSeekModel) }
     var modelSource by remember { mutableStateOf(aiSettings.deepSeekModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.deepSeekManualModels) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.deepSeekPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.deepSeekServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.deepSeekOtherPlayerPrompt) }
-    var showKey by remember { mutableStateOf(false) }
 
     AiServiceSettingsScreenTemplate(
         title = "DeepSeek",
         subtitle = "DeepSeek AI",
         accentColor = Color(0xFF4D6BFE),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(deepSeekApiKey = it.trim()))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = availableModels,
-                isLoadingModels = isLoadingModels,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(deepSeekModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(deepSeekModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(deepSeekManualModels = it))
-                },
-                onFetchModels = { onFetchModels(apiKey) }
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(deepSeekPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(deepSeekServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(deepSeekOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(deepSeekPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(deepSeekServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(deepSeekOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(deepSeekModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(deepSeekManualModels = it))
+            },
+            onFetchModels = { onFetchModels(aiSettings.deepSeekApiKey) }
+        )
     }
 }
 
@@ -1442,83 +1188,31 @@ fun MistralSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.mistralApiKey) }
-    var selectedModel by remember { mutableStateOf(aiSettings.mistralModel) }
     var modelSource by remember { mutableStateOf(aiSettings.mistralModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.mistralManualModels) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.mistralPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.mistralServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.mistralOtherPlayerPrompt) }
-    var showKey by remember { mutableStateOf(false) }
 
     AiServiceSettingsScreenTemplate(
         title = "Mistral",
         subtitle = "Mistral AI",
         accentColor = Color(0xFFFF7000),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(mistralApiKey = it.trim()))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = availableModels,
-                isLoadingModels = isLoadingModels,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(mistralModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(mistralModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(mistralManualModels = it))
-                },
-                onFetchModels = { onFetchModels(apiKey) }
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(mistralPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(mistralServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(mistralOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(mistralPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(mistralServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(mistralOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(mistralModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(mistralManualModels = it))
+            },
+            onFetchModels = { onFetchModels(aiSettings.mistralApiKey) }
+        )
     }
 }
 
@@ -1535,83 +1229,31 @@ fun PerplexitySettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.perplexityApiKey) }
-    var selectedModel by remember { mutableStateOf(aiSettings.perplexityModel) }
     var modelSource by remember { mutableStateOf(aiSettings.perplexityModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.perplexityManualModels) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.perplexityPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.perplexityServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.perplexityOtherPlayerPrompt) }
-    var showKey by remember { mutableStateOf(false) }
 
     AiServiceSettingsScreenTemplate(
         title = "Perplexity",
         subtitle = "Perplexity AI",
         accentColor = Color(0xFF20B2AA),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(perplexityApiKey = it.trim()))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = availableModels,
-                isLoadingModels = isLoadingModels,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(perplexityModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(perplexityModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(perplexityManualModels = it))
-                },
-                onFetchModels = { onFetchModels(apiKey) }
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(perplexityPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(perplexityServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(perplexityOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(perplexityPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(perplexityServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(perplexityOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(perplexityModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(perplexityManualModels = it))
+            },
+            onFetchModels = { onFetchModels(aiSettings.perplexityApiKey) }
+        )
     }
 }
 
@@ -1628,12 +1270,6 @@ fun TogetherSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.togetherApiKey) }
-    var showKey by remember { mutableStateOf(false) }
-    var selectedModel by remember { mutableStateOf(aiSettings.togetherModel) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.togetherPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.togetherServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.togetherOtherPlayerPrompt) }
     var modelSource by remember { mutableStateOf(aiSettings.togetherModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.togetherManualModels) }
 
@@ -1641,70 +1277,24 @@ fun TogetherSettingsScreen(
         title = "Together",
         subtitle = "Together AI",
         accentColor = Color(0xFF6366F1),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(togetherApiKey = it))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = availableModels,
-                isLoadingModels = isLoadingModels,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(togetherModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(togetherModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(togetherManualModels = it))
-                },
-                onFetchModels = { onFetchModels(apiKey) }
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(togetherPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(togetherServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(togetherOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(togetherPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(togetherServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(togetherOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(togetherModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(togetherManualModels = it))
+            },
+            onFetchModels = { onFetchModels(aiSettings.togetherApiKey) }
+        )
     }
 }
 
@@ -1721,12 +1311,6 @@ fun OpenRouterSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onFetchModels: (String) -> Unit
 ) {
-    var apiKey by remember { mutableStateOf(aiSettings.openRouterApiKey) }
-    var showKey by remember { mutableStateOf(false) }
-    var selectedModel by remember { mutableStateOf(aiSettings.openRouterModel) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.openRouterPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.openRouterServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.openRouterOtherPlayerPrompt) }
     var modelSource by remember { mutableStateOf(aiSettings.openRouterModelSource) }
     var manualModels by remember { mutableStateOf(aiSettings.openRouterManualModels) }
 
@@ -1734,70 +1318,24 @@ fun OpenRouterSettingsScreen(
         title = "OpenRouter",
         subtitle = "OpenRouter AI",
         accentColor = Color(0xFF6B5AED),
-        apiKey = apiKey,
-        showKey = showKey,
-        onApiKeyChange = {
-            apiKey = it
-            onSave(aiSettings.copy(openRouterApiKey = it))
-        },
-        onToggleVisibility = { showKey = !showKey },
         onBackToAiSettings = onBackToAiSettings,
         onBackToGame = onBackToGame
     ) {
-        // Model selection
-        if (apiKey.isNotBlank()) {
-            UnifiedModelSelectionSection(
-                selectedModel = selectedModel,
-                modelSource = modelSource,
-                manualModels = manualModels,
-                availableApiModels = availableModels,
-                isLoadingModels = isLoadingModels,
-                onModelChange = {
-                    selectedModel = it
-                    onSave(aiSettings.copy(openRouterModel = it))
-                },
-                onModelSourceChange = {
-                    modelSource = it
-                    onSave(aiSettings.copy(openRouterModelSource = it))
-                },
-                onManualModelsChange = {
-                    manualModels = it
-                    onSave(aiSettings.copy(openRouterManualModels = it))
-                },
-                onFetchModels = { onFetchModels(apiKey) }
-            )
-
-            // All prompts editing
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(openRouterPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(openRouterServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(openRouterOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(openRouterPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(openRouterServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(openRouterOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
+        UnifiedModelSelectionSection(
+            modelSource = modelSource,
+            manualModels = manualModels,
+            availableApiModels = availableModels,
+            isLoadingModels = isLoadingModels,
+            onModelSourceChange = {
+                modelSource = it
+                onSave(aiSettings.copy(openRouterModelSource = it))
+            },
+            onManualModelsChange = {
+                manualModels = it
+                onSave(aiSettings.copy(openRouterManualModels = it))
+            },
+            onFetchModels = { onFetchModels(aiSettings.openRouterApiKey) }
+        )
     }
 }
 
@@ -1812,9 +1350,6 @@ fun DummySettingsScreen(
     onSave: (AiSettings) -> Unit
 ) {
     var enabled by remember { mutableStateOf(aiSettings.dummyEnabled) }
-    var gamePrompt by remember { mutableStateOf(aiSettings.dummyPrompt) }
-    var serverPlayerPrompt by remember { mutableStateOf(aiSettings.dummyServerPlayerPrompt) }
-    var otherPlayerPrompt by remember { mutableStateOf(aiSettings.dummyOtherPlayerPrompt) }
 
     Column(
         modifier = Modifier
@@ -1836,7 +1371,7 @@ fun DummySettingsScreen(
             )
             Column {
                 Text(
-                    text = "Dummy",
+                    text = "AI Provider: Dummy",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -1854,7 +1389,7 @@ fun DummySettingsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(onClick = onBackToAiSettings) {
-                Text("< AI Settings")
+                Text("< AI Providers")
             }
             OutlinedButton(onClick = onBackToGame) {
                 Text("< Back to game")
@@ -1913,39 +1448,6 @@ fun DummySettingsScreen(
             }
         }
 
-        // Show prompts when enabled (for testing prompt selection)
-        if (enabled) {
-            AllPromptsSection(
-                gamePrompt = gamePrompt,
-                serverPlayerPrompt = serverPlayerPrompt,
-                otherPlayerPrompt = otherPlayerPrompt,
-                onGamePromptChange = {
-                    gamePrompt = it
-                    onSave(aiSettings.copy(dummyPrompt = it))
-                },
-                onServerPlayerPromptChange = {
-                    serverPlayerPrompt = it
-                    onSave(aiSettings.copy(dummyServerPlayerPrompt = it))
-                },
-                onOtherPlayerPromptChange = {
-                    otherPlayerPrompt = it
-                    onSave(aiSettings.copy(dummyOtherPlayerPrompt = it))
-                },
-                onResetGamePrompt = {
-                    gamePrompt = DEFAULT_GAME_PROMPT
-                    onSave(aiSettings.copy(dummyPrompt = DEFAULT_GAME_PROMPT))
-                },
-                onResetServerPlayerPrompt = {
-                    serverPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(dummyServerPlayerPrompt = DEFAULT_SERVER_PLAYER_PROMPT))
-                },
-                onResetOtherPlayerPrompt = {
-                    otherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT
-                    onSave(aiSettings.copy(dummyOtherPlayerPrompt = DEFAULT_OTHER_PLAYER_PROMPT))
-                }
-            )
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
 
         // Bottom back buttons
@@ -1953,7 +1455,7 @@ fun DummySettingsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(onClick = onBackToAiSettings) {
-                Text("< AI Settings")
+                Text("< AI Providers")
             }
             OutlinedButton(onClick = onBackToGame) {
                 Text("< Back to game")
@@ -1974,10 +1476,6 @@ private fun AiServiceSettingsScreenTemplate(
     title: String,
     subtitle: String,
     accentColor: Color,
-    apiKey: String,
-    showKey: Boolean,
-    onApiKeyChange: (String) -> Unit,
-    onToggleVisibility: () -> Unit,
     onBackToAiSettings: () -> Unit,
     onBackToGame: () -> Unit,
     additionalContent: @Composable ColumnScope.() -> Unit
@@ -2002,7 +1500,7 @@ private fun AiServiceSettingsScreenTemplate(
             )
             Column {
                 Text(
-                    text = title,
+                    text = "AI Provider: $title",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -2020,7 +1518,7 @@ private fun AiServiceSettingsScreenTemplate(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(onClick = onBackToAiSettings) {
-                Text("< AI Settings")
+                Text("< AI Providers")
             }
             OutlinedButton(onClick = onBackToGame) {
                 Text("< Back to game")
@@ -2028,72 +1526,6 @@ private fun AiServiceSettingsScreenTemplate(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-
-        // API Key card
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "API Key",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
-
-                if (apiKey.isNotBlank()) {
-                    Text(
-                        text = "Configured",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF00E676)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = apiKey,
-                        onValueChange = onApiKeyChange,
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
-                        placeholder = {
-                            Text(
-                                text = "Enter API key...",
-                                color = Color(0xFF666666)
-                            )
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = accentColor,
-                            unfocusedBorderColor = Color(0xFF555555)
-                        )
-                    )
-                    TextButton(onClick = onToggleVisibility) {
-                        Text(
-                            text = if (showKey) "Hide" else "Show",
-                            color = Color(0xFF6B9BFF)
-                        )
-                    }
-                }
-
-                Text(
-                    text = "Your API key is stored locally on your device.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF888888)
-                )
-            }
-        }
 
         // Additional content (model selection, etc.)
         additionalContent()
@@ -2105,7 +1537,7 @@ private fun AiServiceSettingsScreenTemplate(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(onClick = onBackToAiSettings) {
-                Text("< AI Settings")
+                Text("< AI Providers")
             }
             OutlinedButton(onClick = onBackToGame) {
                 Text("< Back to game")
@@ -2160,7 +1592,7 @@ private fun ModelSelectionSection(
             }
 
             Text(
-                text = "Selected model:",
+                text = "List of models:",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFFAAAAAA)
             )
@@ -2235,7 +1667,7 @@ private fun HardcodedModelSelectionSection(
             )
 
             Text(
-                text = "Selected model:",
+                text = "List of models:",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFFAAAAAA)
             )
@@ -2283,12 +1715,10 @@ private fun HardcodedModelSelectionSection(
  */
 @Composable
 private fun UnifiedModelSelectionSection(
-    selectedModel: String,
     modelSource: ModelSource,
     manualModels: List<String>,
     availableApiModels: List<String>,
     isLoadingModels: Boolean,
-    onModelChange: (String) -> Unit,
     onModelSourceChange: (ModelSource) -> Unit,
     onManualModelsChange: (List<String>) -> Unit,
     onFetchModels: () -> Unit
@@ -2308,23 +1738,23 @@ private fun UnifiedModelSelectionSection(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Model Selection",
+                text = "Models",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
             )
 
             // Model source toggle
-            Text(
-                text = "Model source:",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFAAAAAA)
-            )
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(
+                    text = "Model source:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFAAAAAA)
+                )
                 FilterChip(
                     selected = modelSource == ModelSource.API,
                     onClick = { onModelSourceChange(ModelSource.API) },
@@ -2345,7 +1775,7 @@ private fun UnifiedModelSelectionSection(
                 )
             }
 
-            // API mode: Fetch button
+            // API mode: Fetch button and model list
             if (modelSource == ModelSource.API) {
                 Button(
                     onClick = onFetchModels,
@@ -2361,6 +1791,31 @@ private fun UnifiedModelSelectionSection(
                         Text("Loading...")
                     } else {
                         Text("Retrieve models")
+                    }
+                }
+
+                if (availableApiModels.isNotEmpty()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        availableApiModels.forEach { model ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        Color(0xFF2A3A4A),
+                                        shape = MaterialTheme.shapes.small
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = model,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -2386,7 +1841,7 @@ private fun UnifiedModelSelectionSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(
-                                        if (model == selectedModel) Color(0xFF3A4A5A) else Color.Transparent,
+                                        Color(0xFF2A3A4A),
                                         shape = MaterialTheme.shapes.small
                                     )
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -2411,10 +1866,6 @@ private fun UnifiedModelSelectionSection(
                                     onClick = {
                                         val newList = manualModels.filter { it != model }
                                         onManualModelsChange(newList)
-                                        // If deleted model was selected, select first available
-                                        if (model == selectedModel && newList.isNotEmpty()) {
-                                            onModelChange(newList.first())
-                                        }
                                     },
                                     modifier = Modifier.size(32.dp)
                                 ) {
@@ -2422,53 +1873,6 @@ private fun UnifiedModelSelectionSection(
                                 }
                             }
                         }
-                    }
-                }
-            }
-
-            // Model dropdown
-            Text(
-                text = "Selected model:",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFAAAAAA)
-            )
-
-            var expanded by remember { mutableStateOf(false) }
-            val modelsToShow = if (modelSource == ModelSource.MANUAL) {
-                manualModels.ifEmpty { listOf(selectedModel) }
-            } else {
-                availableApiModels.ifEmpty { listOf(selectedModel) }
-            }
-
-            Box {
-                OutlinedButton(
-                    onClick = { expanded = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = selectedModel,
-                        color = Color.White,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = if (expanded) "▲" else "▼",
-                        color = Color.White
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f)
-                ) {
-                    modelsToShow.forEach { model ->
-                        DropdownMenuItem(
-                            text = { Text(model) },
-                            onClick = {
-                                onModelChange(model)
-                                expanded = false
-                            }
-                        )
                     }
                 }
             }
@@ -2507,14 +1911,6 @@ private fun UnifiedModelSelectionSection(
                                 manualModels + newModelName.trim()
                             }
                             onManualModelsChange(newList)
-                            // If editing the selected model, update selection
-                            if (editingModel == selectedModel) {
-                                onModelChange(newModelName.trim())
-                            }
-                            // If adding first model, select it
-                            if (manualModels.isEmpty()) {
-                                onModelChange(newModelName.trim())
-                            }
                         }
                         showAddDialog = false
                         editingModel = null
@@ -2698,4 +2094,1190 @@ fun PromptEditSection(
         onPromptChange = onPromptChange,
         onResetToDefault = onResetToDefault
     )
+}
+
+// ============================================================================
+// Three-Tier AI Architecture Screens
+// ============================================================================
+
+/**
+ * AI Setup hub screen with navigation cards for Providers, Prompts, and Agents.
+ */
+@Composable
+fun AiSetupScreen(
+    aiSettings: AiSettings,
+    onBackToSettings: () -> Unit,
+    onBackToGame: () -> Unit,
+    onNavigate: (SettingsSubScreen) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "AI Setup",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Summary info
+        val configuredAgents = aiSettings.agents.count { it.apiKey.isNotBlank() }
+        val totalPrompts = aiSettings.prompts.size
+
+        Text(
+            text = "Configure AI services in three steps:",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFAAAAAA)
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // AI Providers card
+        AiSetupNavigationCard(
+            title = "AI Providers",
+            description = "Configure model sources for each AI service",
+            icon = "⚙",
+            count = "${AiService.entries.size - 1} providers",  // Exclude DUMMY
+            onClick = { onNavigate(SettingsSubScreen.AI_PROVIDERS) }
+        )
+
+        // AI Prompts card
+        AiSetupNavigationCard(
+            title = "AI Prompts",
+            description = "Create and manage prompt templates",
+            icon = "📝",
+            count = "$totalPrompts prompts",
+            onClick = { onNavigate(SettingsSubScreen.AI_PROMPTS) }
+        )
+
+        // AI Agents card
+        AiSetupNavigationCard(
+            title = "AI Agents",
+            description = "Configure agents with provider, model, key, and prompts",
+            icon = "🤖",
+            count = "$configuredAgents configured",
+            onClick = { onNavigate(SettingsSubScreen.AI_AGENTS) }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        SettingsBackButtons(onBackToSettings = onBackToSettings, onBackToGame = onBackToGame)
+    }
+}
+
+/**
+ * Navigation card for AI Setup screen.
+ */
+@Composable
+private fun AiSetupNavigationCard(
+    title: String,
+    description: String,
+    icon: String,
+    count: String,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFAAAAAA)
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = count,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF00E676)
+                )
+                Text(
+                    text = ">",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color(0xFF888888)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * AI Providers screen - configure model source for each provider.
+ * This is the renamed/refactored version of the old AiSettingsScreen.
+ */
+@Composable
+fun AiProvidersScreen(
+    aiSettings: AiSettings,
+    onBackToAiSetup: () -> Unit,
+    onBackToGame: () -> Unit,
+    onNavigate: (SettingsSubScreen) -> Unit,
+    onSave: (AiSettings) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "AI Providers",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        // Back buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onBackToAiSetup) {
+                Text("< AI Setup")
+            }
+            OutlinedButton(onClick = onBackToGame) {
+                Text("< Back to game")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Provider cards - navigate to individual provider screens for model config
+        AiServiceNavigationCard(
+            title = "ChatGPT",
+            subtitle = "OpenAI",
+            accentColor = Color(0xFF10A37F),
+            onClick = { onNavigate(SettingsSubScreen.AI_CHATGPT) }
+        )
+        AiServiceNavigationCard(
+            title = "Claude",
+            subtitle = "Anthropic",
+            accentColor = Color(0xFFD97706),
+            onClick = { onNavigate(SettingsSubScreen.AI_CLAUDE) }
+        )
+        AiServiceNavigationCard(
+            title = "Gemini",
+            subtitle = "Google",
+            accentColor = Color(0xFF4285F4),
+            onClick = { onNavigate(SettingsSubScreen.AI_GEMINI) }
+        )
+        AiServiceNavigationCard(
+            title = "Grok",
+            subtitle = "xAI",
+            accentColor = Color(0xFFFFFFFF),
+            onClick = { onNavigate(SettingsSubScreen.AI_GROK) }
+        )
+        AiServiceNavigationCard(
+            title = "DeepSeek",
+            subtitle = "DeepSeek AI",
+            accentColor = Color(0xFF4D6BFE),
+            onClick = { onNavigate(SettingsSubScreen.AI_DEEPSEEK) }
+        )
+        AiServiceNavigationCard(
+            title = "Mistral",
+            subtitle = "Mistral AI",
+            accentColor = Color(0xFFFF7000),
+            onClick = { onNavigate(SettingsSubScreen.AI_MISTRAL) }
+        )
+        AiServiceNavigationCard(
+            title = "Perplexity",
+            subtitle = "Perplexity AI",
+            accentColor = Color(0xFF20B2AA),
+            onClick = { onNavigate(SettingsSubScreen.AI_PERPLEXITY) }
+        )
+        AiServiceNavigationCard(
+            title = "Together",
+            subtitle = "Together AI",
+            accentColor = Color(0xFF6366F1),
+            onClick = { onNavigate(SettingsSubScreen.AI_TOGETHER) }
+        )
+        AiServiceNavigationCard(
+            title = "OpenRouter",
+            subtitle = "OpenRouter AI",
+            accentColor = Color(0xFF6B5AED),
+            onClick = { onNavigate(SettingsSubScreen.AI_OPENROUTER) }
+        )
+        AiServiceNavigationCard(
+            title = "Dummy",
+            subtitle = "For testing",
+            accentColor = Color(0xFF888888),
+            onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Back buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onBackToAiSetup) {
+                Text("< AI Setup")
+            }
+            OutlinedButton(onClick = onBackToGame) {
+                Text("< Back to game")
+            }
+        }
+    }
+}
+
+/**
+ * AI Prompts screen - CRUD for prompt templates.
+ */
+@Composable
+fun AiPromptsScreen(
+    aiSettings: AiSettings,
+    onBackToAiSetup: () -> Unit,
+    onBackToGame: () -> Unit,
+    onSave: (AiSettings) -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingPrompt by remember { mutableStateOf<AiPrompt?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf<AiPrompt?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "AI Prompts",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        // Back buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onBackToAiSetup) {
+                Text("< AI Setup")
+            }
+            OutlinedButton(onClick = onBackToGame) {
+                Text("< Back to game")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Placeholder info
+        PromptPlaceholdersInfo()
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Add button
+        Button(
+            onClick = { showAddDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF4CAF50)
+            )
+        ) {
+            Text("+ Add Prompt")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Prompt list
+        if (aiSettings.prompts.isEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "No prompts configured",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFAAAAAA)
+                    )
+                    Text(
+                        text = "Add a prompt to get started",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF888888)
+                    )
+                }
+            }
+        } else {
+            aiSettings.prompts.forEach { prompt ->
+                PromptListItem(
+                    prompt = prompt,
+                    onEdit = { editingPrompt = prompt },
+                    onDelete = { showDeleteConfirm = prompt }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Back buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onBackToAiSetup) {
+                Text("< AI Setup")
+            }
+            OutlinedButton(onClick = onBackToGame) {
+                Text("< Back to game")
+            }
+        }
+    }
+
+    // Add/Edit dialog
+    if (showAddDialog || editingPrompt != null) {
+        PromptEditDialog(
+            prompt = editingPrompt,
+            existingNames = aiSettings.prompts.map { it.name }.toSet(),
+            onSave = { name, text ->
+                val newPrompts = if (editingPrompt != null) {
+                    aiSettings.prompts.map {
+                        if (it.id == editingPrompt!!.id) it.copy(name = name, text = text) else it
+                    }
+                } else {
+                    aiSettings.prompts + AiPrompt(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = name,
+                        text = text
+                    )
+                }
+                onSave(aiSettings.copy(prompts = newPrompts))
+                showAddDialog = false
+                editingPrompt = null
+            },
+            onDismiss = {
+                showAddDialog = false
+                editingPrompt = null
+            }
+        )
+    }
+
+    // Delete confirmation
+    showDeleteConfirm?.let { prompt ->
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = null },
+            title = { Text("Delete Prompt", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Are you sure you want to delete \"${prompt.name}\"?")
+
+                    // Check if any agents reference this prompt
+                    val referencingAgents = aiSettings.agents.filter {
+                        it.gamePromptId == prompt.id ||
+                        it.serverPlayerPromptId == prompt.id ||
+                        it.otherPlayerPromptId == prompt.id
+                    }
+                    if (referencingAgents.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Warning: ${referencingAgents.size} agent(s) reference this prompt.",
+                            color = Color(0xFFFF9800),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val newPrompts = aiSettings.prompts.filter { it.id != prompt.id }
+                        onSave(aiSettings.copy(prompts = newPrompts))
+                        showDeleteConfirm = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+/**
+ * Prompt list item card.
+ */
+@Composable
+private fun PromptListItem(
+    prompt: AiPrompt,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = prompt.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(onClick = onEdit) {
+                        Text("Edit", color = Color(0xFF6B9BFF))
+                    }
+                    TextButton(onClick = onDelete) {
+                        Text("Delete", color = Color(0xFFF44336))
+                    }
+                }
+            }
+            Text(
+                text = prompt.text.take(100) + if (prompt.text.length > 100) "..." else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFAAAAAA),
+                maxLines = 2
+            )
+        }
+    }
+}
+
+/**
+ * Prompt add/edit dialog.
+ */
+@Composable
+private fun PromptEditDialog(
+    prompt: AiPrompt?,
+    existingNames: Set<String>,
+    onSave: (name: String, text: String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(prompt?.name ?: "") }
+    var text by remember { mutableStateOf(prompt?.text ?: "") }
+    val isEditing = prompt != null
+
+    // Validation
+    val nameError = when {
+        name.isBlank() -> "Name is required"
+        !isEditing && existingNames.contains(name) -> "Name already exists"
+        isEditing && name != prompt?.name && existingNames.contains(name) -> "Name already exists"
+        else -> null
+    }
+    val textError = if (text.isBlank()) "Prompt text is required" else null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (isEditing) "Edit Prompt" else "Add Prompt",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    isError = nameError != null,
+                    supportingText = nameError?.let { { Text(it, color = Color(0xFFF44336)) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Prompt text") },
+                    isError = textError != null,
+                    supportingText = textError?.let { { Text(it, color = Color(0xFFF44336)) } },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    maxLines = 10
+                )
+
+                Text(
+                    text = "Use @FEN@, @PLAYER@, @SERVER@ as placeholders",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF888888)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(name.trim(), text) },
+                enabled = nameError == null && textError == null
+            ) {
+                Text(if (isEditing) "Save" else "Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/**
+ * AI Agents screen - CRUD for agent configurations.
+ */
+@Composable
+fun AiAgentsScreen(
+    aiSettings: AiSettings,
+    availableChatGptModels: List<String>,
+    availableGeminiModels: List<String>,
+    availableGrokModels: List<String>,
+    availableDeepSeekModels: List<String>,
+    availableMistralModels: List<String>,
+    availablePerplexityModels: List<String>,
+    availableTogetherModels: List<String>,
+    availableOpenRouterModels: List<String>,
+    onBackToAiSetup: () -> Unit,
+    onBackToGame: () -> Unit,
+    onSave: (AiSettings) -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingAgent by remember { mutableStateOf<AiAgent?>(null) }
+    var copyingAgent by remember { mutableStateOf<AiAgent?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf<AiAgent?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "AI Agents",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        // Back buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onBackToAiSetup) {
+                Text("< AI Setup")
+            }
+            OutlinedButton(onClick = onBackToGame) {
+                Text("< Back to game")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "Agents combine a provider, model, API key, and prompts.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFAAAAAA)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Add button
+        Button(
+            onClick = { showAddDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF4CAF50)
+            )
+        ) {
+            Text("+ Add Agent")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Agent list
+        if (aiSettings.agents.isEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "No agents configured",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFAAAAAA)
+                    )
+                    Text(
+                        text = "Add an agent to start using AI analysis",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF888888)
+                    )
+                }
+            }
+        } else {
+            aiSettings.agents.forEach { agent ->
+                AgentListItem(
+                    agent = agent,
+                    prompts = aiSettings.prompts,
+                    onEdit = { editingAgent = agent },
+                    onCopy = { copyingAgent = agent },
+                    onDelete = { showDeleteConfirm = agent }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Back buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onBackToAiSetup) {
+                Text("< AI Setup")
+            }
+            OutlinedButton(onClick = onBackToGame) {
+                Text("< Back to game")
+            }
+        }
+    }
+
+    // Add/Edit/Copy dialog
+    if (showAddDialog || editingAgent != null || copyingAgent != null) {
+        // For copy mode, create a template agent with new ID and "(Copy)" suffix
+        val dialogAgent = when {
+            copyingAgent != null -> copyingAgent!!.copy(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "${copyingAgent!!.name} (Copy)"
+            )
+            else -> editingAgent
+        }
+        val isEditMode = editingAgent != null
+
+        AgentEditDialog(
+            agent = dialogAgent,
+            aiSettings = aiSettings,
+            availableChatGptModels = availableChatGptModels,
+            availableGeminiModels = availableGeminiModels,
+            availableGrokModels = availableGrokModels,
+            availableDeepSeekModels = availableDeepSeekModels,
+            availableMistralModels = availableMistralModels,
+            availablePerplexityModels = availablePerplexityModels,
+            availableTogetherModels = availableTogetherModels,
+            availableOpenRouterModels = availableOpenRouterModels,
+            existingNames = aiSettings.agents.map { it.name }.toSet(),
+            onSave = { newAgent ->
+                val newAgents = if (isEditMode) {
+                    aiSettings.agents.map { if (it.id == editingAgent!!.id) newAgent else it }
+                } else {
+                    aiSettings.agents + newAgent
+                }
+                onSave(aiSettings.copy(agents = newAgents))
+                showAddDialog = false
+                editingAgent = null
+                copyingAgent = null
+            },
+            onDismiss = {
+                showAddDialog = false
+                editingAgent = null
+                copyingAgent = null
+            }
+        )
+    }
+
+    // Delete confirmation
+    showDeleteConfirm?.let { agent ->
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = null },
+            title = { Text("Delete Agent", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to delete \"${agent.name}\"?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val newAgents = aiSettings.agents.filter { it.id != agent.id }
+                        onSave(aiSettings.copy(agents = newAgents))
+                        showDeleteConfirm = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+/**
+ * Agent list item card.
+ */
+@Composable
+private fun AgentListItem(
+    agent: AiAgent,
+    prompts: List<AiPrompt>,
+    onEdit: () -> Unit,
+    onCopy: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val isConfigured = agent.apiKey.isNotBlank()
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = agent.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    if (isConfigured) {
+                        Text(
+                            text = "●",
+                            color = Color(0xFF00E676),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    TextButton(
+                        onClick = onEdit,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("Edit", color = Color(0xFF6B9BFF))
+                    }
+                    TextButton(
+                        onClick = onCopy,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("Copy", color = Color(0xFF9C27B0))
+                    }
+                    TextButton(
+                        onClick = onDelete,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("Delete", color = Color(0xFFF44336))
+                    }
+                }
+            }
+            Text(
+                text = "${agent.provider.displayName} / ${agent.model}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF6B9BFF)
+            )
+            if (!isConfigured) {
+                Text(
+                    text = "⚠ No API key configured",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFFF9800)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Agent add/edit dialog.
+ */
+@Composable
+private fun AgentEditDialog(
+    agent: AiAgent?,
+    aiSettings: AiSettings,
+    availableChatGptModels: List<String>,
+    availableGeminiModels: List<String>,
+    availableGrokModels: List<String>,
+    availableDeepSeekModels: List<String>,
+    availableMistralModels: List<String>,
+    availablePerplexityModels: List<String>,
+    availableTogetherModels: List<String>,
+    availableOpenRouterModels: List<String>,
+    existingNames: Set<String>,
+    onSave: (AiAgent) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isEditing = agent != null
+
+    // State
+    var name by remember { mutableStateOf(agent?.name ?: "") }
+    var selectedProvider by remember { mutableStateOf(agent?.provider ?: AiService.CHATGPT) }
+    var model by remember { mutableStateOf(agent?.model ?: "gpt-4o-mini") }
+    var apiKey by remember { mutableStateOf(agent?.apiKey ?: "") }
+    var showKey by remember { mutableStateOf(false) }
+    var gamePromptId by remember { mutableStateOf(agent?.gamePromptId ?: aiSettings.prompts.firstOrNull()?.id ?: "") }
+    var serverPlayerPromptId by remember { mutableStateOf(agent?.serverPlayerPromptId ?: aiSettings.prompts.firstOrNull()?.id ?: "") }
+    var otherPlayerPromptId by remember { mutableStateOf(agent?.otherPlayerPromptId ?: aiSettings.prompts.firstOrNull()?.id ?: "") }
+
+    // Get models for selected provider
+    val modelsForProvider = when (selectedProvider) {
+        AiService.CHATGPT -> {
+            val apiModels = if (aiSettings.chatGptModelSource == ModelSource.API) availableChatGptModels else emptyList()
+            val manualModels = if (aiSettings.chatGptModelSource == ModelSource.MANUAL) aiSettings.chatGptManualModels else emptyList()
+            (apiModels + manualModels).ifEmpty { listOf(model) }
+        }
+        AiService.CLAUDE -> aiSettings.claudeManualModels.ifEmpty { CLAUDE_MODELS }
+        AiService.GEMINI -> {
+            val apiModels = if (aiSettings.geminiModelSource == ModelSource.API) availableGeminiModels else emptyList()
+            val manualModels = if (aiSettings.geminiModelSource == ModelSource.MANUAL) aiSettings.geminiManualModels else emptyList()
+            (apiModels + manualModels).ifEmpty { listOf(model) }
+        }
+        AiService.GROK -> {
+            val apiModels = if (aiSettings.grokModelSource == ModelSource.API) availableGrokModels else emptyList()
+            val manualModels = if (aiSettings.grokModelSource == ModelSource.MANUAL) aiSettings.grokManualModels else emptyList()
+            (apiModels + manualModels).ifEmpty { listOf(model) }
+        }
+        AiService.DEEPSEEK -> {
+            val apiModels = if (aiSettings.deepSeekModelSource == ModelSource.API) availableDeepSeekModels else emptyList()
+            val manualModels = if (aiSettings.deepSeekModelSource == ModelSource.MANUAL) aiSettings.deepSeekManualModels else emptyList()
+            (apiModels + manualModels).ifEmpty { listOf(model) }
+        }
+        AiService.MISTRAL -> {
+            val apiModels = if (aiSettings.mistralModelSource == ModelSource.API) availableMistralModels else emptyList()
+            val manualModels = if (aiSettings.mistralModelSource == ModelSource.MANUAL) aiSettings.mistralManualModels else emptyList()
+            (apiModels + manualModels).ifEmpty { listOf(model) }
+        }
+        AiService.PERPLEXITY -> aiSettings.perplexityManualModels.ifEmpty { PERPLEXITY_MODELS }
+        AiService.TOGETHER -> {
+            val apiModels = if (aiSettings.togetherModelSource == ModelSource.API) availableTogetherModels else emptyList()
+            val manualModels = if (aiSettings.togetherModelSource == ModelSource.MANUAL) aiSettings.togetherManualModels else emptyList()
+            (apiModels + manualModels).ifEmpty { listOf(model) }
+        }
+        AiService.OPENROUTER -> {
+            val apiModels = if (aiSettings.openRouterModelSource == ModelSource.API) availableOpenRouterModels else emptyList()
+            val manualModels = if (aiSettings.openRouterModelSource == ModelSource.MANUAL) aiSettings.openRouterManualModels else emptyList()
+            (apiModels + manualModels).ifEmpty { listOf(model) }
+        }
+        AiService.DUMMY -> listOf("dummy")
+    }
+
+    // Update model when provider changes
+    LaunchedEffect(selectedProvider) {
+        if (!isEditing || agent?.provider != selectedProvider) {
+            model = modelsForProvider.firstOrNull() ?: getDefaultModelForProvider(selectedProvider)
+        }
+    }
+
+    // Validation
+    val nameError = when {
+        name.isBlank() -> "Name is required"
+        !isEditing && existingNames.contains(name) -> "Name already exists"
+        isEditing && name != agent?.name && existingNames.contains(name) -> "Name already exists"
+        else -> null
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (isEditing) "Edit Agent" else "Add Agent",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Name
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Agent Name") },
+                    isError = nameError != null,
+                    supportingText = nameError?.let { { Text(it, color = Color(0xFFF44336)) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                // Provider dropdown
+                Text(
+                    text = "Provider",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFAAAAAA)
+                )
+                var providerExpanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(
+                        onClick = { providerExpanded = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = selectedProvider.displayName,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(if (providerExpanded) "▲" else "▼")
+                    }
+                    DropdownMenu(
+                        expanded = providerExpanded,
+                        onDismissRequest = { providerExpanded = false }
+                    ) {
+                        AiService.entries.filter { it != AiService.DUMMY }.forEach { provider ->
+                            DropdownMenuItem(
+                                text = { Text(provider.displayName) },
+                                onClick = {
+                                    selectedProvider = provider
+                                    providerExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Model dropdown
+                Text(
+                    text = "Model",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFAAAAAA)
+                )
+                var modelExpanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(
+                        onClick = { modelExpanded = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = model,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1
+                        )
+                        Text(if (modelExpanded) "▲" else "▼")
+                    }
+                    DropdownMenu(
+                        expanded = modelExpanded,
+                        onDismissRequest = { modelExpanded = false }
+                    ) {
+                        modelsForProvider.forEach { m ->
+                            DropdownMenuItem(
+                                text = { Text(m) },
+                                onClick = {
+                                    model = m
+                                    modelExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // API Key
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = { apiKey = it },
+                        label = { Text("API Key") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation()
+                    )
+                    TextButton(onClick = { showKey = !showKey }) {
+                        Text(if (showKey) "Hide" else "Show", color = Color(0xFF6B9BFF))
+                    }
+                }
+
+                // Prompt selections (only if prompts exist)
+                if (aiSettings.prompts.isNotEmpty()) {
+                    HorizontalDivider(color = Color(0xFF444444))
+
+                    Text(
+                        text = "Prompts",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+
+                    PromptDropdown(
+                        label = "Game Prompt",
+                        selectedId = gamePromptId,
+                        prompts = aiSettings.prompts,
+                        onSelect = { gamePromptId = it }
+                    )
+
+                    PromptDropdown(
+                        label = "Server Player Prompt",
+                        selectedId = serverPlayerPromptId,
+                        prompts = aiSettings.prompts,
+                        onSelect = { serverPlayerPromptId = it }
+                    )
+
+                    PromptDropdown(
+                        label = "Other Player Prompt",
+                        selectedId = otherPlayerPromptId,
+                        prompts = aiSettings.prompts,
+                        onSelect = { otherPlayerPromptId = it }
+                    )
+                } else {
+                    Text(
+                        text = "⚠ No prompts available. Create prompts first.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFFF9800)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val newAgent = AiAgent(
+                        id = agent?.id ?: java.util.UUID.randomUUID().toString(),
+                        name = name.trim(),
+                        provider = selectedProvider,
+                        model = model,
+                        apiKey = apiKey.trim(),
+                        gamePromptId = gamePromptId,
+                        serverPlayerPromptId = serverPlayerPromptId,
+                        otherPlayerPromptId = otherPlayerPromptId
+                    )
+                    onSave(newAgent)
+                },
+                enabled = nameError == null && (aiSettings.prompts.isNotEmpty() || apiKey.isBlank())
+            ) {
+                Text(if (isEditing) "Save" else "Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/**
+ * Prompt dropdown selector.
+ */
+@Composable
+private fun PromptDropdown(
+    label: String,
+    selectedId: String,
+    prompts: List<AiPrompt>,
+    onSelect: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedPrompt = prompts.find { it.id == selectedId }
+
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFFAAAAAA)
+        )
+        Box {
+            OutlinedButton(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = selectedPrompt?.name ?: "Select...",
+                    modifier = Modifier.weight(1f)
+                )
+                Text(if (expanded) "▲" else "▼")
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                prompts.forEach { prompt ->
+                    DropdownMenuItem(
+                        text = { Text(prompt.name) },
+                        onClick = {
+                            onSelect(prompt.id)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Get default model for a provider.
+ */
+private fun getDefaultModelForProvider(provider: AiService): String {
+    return when (provider) {
+        AiService.CHATGPT -> "gpt-4o-mini"
+        AiService.CLAUDE -> "claude-sonnet-4-20250514"
+        AiService.GEMINI -> "gemini-2.0-flash"
+        AiService.GROK -> "grok-3-mini"
+        AiService.DEEPSEEK -> "deepseek-chat"
+        AiService.MISTRAL -> "mistral-small-latest"
+        AiService.PERPLEXITY -> "sonar"
+        AiService.TOGETHER -> "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+        AiService.OPENROUTER -> "anthropic/claude-3.5-sonnet"
+        AiService.DUMMY -> "dummy"
+    }
 }

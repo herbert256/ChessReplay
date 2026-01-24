@@ -246,28 +246,42 @@ fun GameScreen(
         )
     }
 
-    // Show AI Reports provider selection dialog
+    // Show AI Reports selection dialog (agent-based or provider-based)
     if (uiState.showAiReportsSelectionDialog) {
-        AiReportsSelectionDialog(
-            aiSettings = uiState.aiSettings,
-            savedProviders = viewModel.loadAiReportProviders(),
-            availableChatGptModels = uiState.availableChatGptModels,
-            availableGeminiModels = uiState.availableGeminiModels,
-            availableGrokModels = uiState.availableGrokModels,
-            availableDeepSeekModels = uiState.availableDeepSeekModels,
-            availableMistralModels = uiState.availableMistralModels,
-            availablePerplexityModels = uiState.availablePerplexityModels,
-            availableTogetherModels = uiState.availableTogetherModels,
-            availableOpenRouterModels = uiState.availableOpenRouterModels,
-            onModelChange = { service, model ->
-                viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
-            },
-            onGenerate = { selectedProviders ->
-                viewModel.saveAiReportProviders(selectedProviders.map { it.name }.toSet())
-                viewModel.generateAiReports(selectedProviders)
-            },
-            onDismiss = { viewModel.dismissAiReportsSelectionDialog() }
-        )
+        // Use agent-based dialog if agents are configured, otherwise fall back to provider-based
+        if (uiState.aiSettings.getConfiguredAgents().isNotEmpty()) {
+            AiAgentsReportsSelectionDialog(
+                aiSettings = uiState.aiSettings,
+                savedAgentIds = viewModel.loadAiReportAgents(),
+                onGenerate = { selectedAgentIds ->
+                    viewModel.saveAiReportAgents(selectedAgentIds)
+                    viewModel.generateAiReportsWithAgents(selectedAgentIds)
+                },
+                onDismiss = { viewModel.dismissAiReportsSelectionDialog() }
+            )
+        } else {
+            // Legacy provider-based dialog
+            AiReportsSelectionDialog(
+                aiSettings = uiState.aiSettings,
+                savedProviders = viewModel.loadAiReportProviders(),
+                availableChatGptModels = uiState.availableChatGptModels,
+                availableGeminiModels = uiState.availableGeminiModels,
+                availableGrokModels = uiState.availableGrokModels,
+                availableDeepSeekModels = uiState.availableDeepSeekModels,
+                availableMistralModels = uiState.availableMistralModels,
+                availablePerplexityModels = uiState.availablePerplexityModels,
+                availableTogetherModels = uiState.availableTogetherModels,
+                availableOpenRouterModels = uiState.availableOpenRouterModels,
+                onModelChange = { service, model ->
+                    viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
+                },
+                onGenerate = { selectedProviders ->
+                    viewModel.saveAiReportProviders(selectedProviders.map { it.name }.toSet())
+                    viewModel.generateAiReports(selectedProviders)
+                },
+                onDismiss = { viewModel.dismissAiReportsSelectionDialog() }
+            )
+        }
     }
 
     // Show GIF export progress dialog
@@ -396,29 +410,44 @@ fun GameScreen(
         )
     }
 
-    // Show Player AI Reports provider selection dialog
+    // Show Player AI Reports selection dialog (agent-based or provider-based)
     if (uiState.showPlayerAiReportsSelectionDialog) {
-        AiReportsSelectionDialog(
-            aiSettings = uiState.aiSettings,
-            savedProviders = viewModel.loadAiReportProviders(),
-            availableChatGptModels = uiState.availableChatGptModels,
-            availableGeminiModels = uiState.availableGeminiModels,
-            availableGrokModels = uiState.availableGrokModels,
-            availableDeepSeekModels = uiState.availableDeepSeekModels,
-            availableMistralModels = uiState.availableMistralModels,
-            availablePerplexityModels = uiState.availablePerplexityModels,
-            availableTogetherModels = uiState.availableTogetherModels,
-            availableOpenRouterModels = uiState.availableOpenRouterModels,
-            onModelChange = { service, model ->
-                viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
-            },
-            onGenerate = { selectedProviders ->
-                viewModel.saveAiReportProviders(selectedProviders.map { it.name }.toSet())
-                viewModel.startPlayerAiReports(selectedProviders)
-            },
-            onDismiss = { viewModel.dismissPlayerAiReportsSelectionDialog() },
-            title = "AI Reports: ${uiState.playerAiReportsPlayerName}"
-        )
+        // Use agent-based dialog if agents are configured, otherwise fall back to provider-based
+        if (uiState.aiSettings.getConfiguredAgents().isNotEmpty()) {
+            AiAgentsReportsSelectionDialog(
+                aiSettings = uiState.aiSettings,
+                savedAgentIds = viewModel.loadAiReportAgents(),
+                onGenerate = { selectedAgentIds ->
+                    viewModel.saveAiReportAgents(selectedAgentIds)
+                    viewModel.startPlayerAiReportsWithAgents(selectedAgentIds)
+                },
+                onDismiss = { viewModel.dismissPlayerAiReportsSelectionDialog() },
+                title = "AI Reports: ${uiState.playerAiReportsPlayerName}"
+            )
+        } else {
+            // Legacy provider-based dialog
+            AiReportsSelectionDialog(
+                aiSettings = uiState.aiSettings,
+                savedProviders = viewModel.loadAiReportProviders(),
+                availableChatGptModels = uiState.availableChatGptModels,
+                availableGeminiModels = uiState.availableGeminiModels,
+                availableGrokModels = uiState.availableGrokModels,
+                availableDeepSeekModels = uiState.availableDeepSeekModels,
+                availableMistralModels = uiState.availableMistralModels,
+                availablePerplexityModels = uiState.availablePerplexityModels,
+                availableTogetherModels = uiState.availableTogetherModels,
+                availableOpenRouterModels = uiState.availableOpenRouterModels,
+                onModelChange = { service, model ->
+                    viewModel.updateAiSettings(uiState.aiSettings.withModel(service, model))
+                },
+                onGenerate = { selectedProviders ->
+                    viewModel.saveAiReportProviders(selectedProviders.map { it.name }.toSet())
+                    viewModel.startPlayerAiReports(selectedProviders)
+                },
+                onDismiss = { viewModel.dismissPlayerAiReportsSelectionDialog() },
+                title = "AI Reports: ${uiState.playerAiReportsPlayerName}"
+            )
+        }
     }
 
     // Show Player AI Reports generation dialog
@@ -4157,6 +4186,165 @@ private fun AiReportsSelectionDialog(
                     }
                 },
                 enabled = selectedProviders.any { aiSettings.getApiKey(it).isNotBlank() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50)
+                )
+            ) {
+                Text("Generate Report")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/**
+ * Dialog for selecting AI Agents to include in the report (new three-tier architecture).
+ */
+@Composable
+private fun AiAgentsReportsSelectionDialog(
+    aiSettings: AiSettings,
+    savedAgentIds: Set<String>,
+    onGenerate: (Set<String>) -> Unit,  // Set of agent IDs
+    onDismiss: () -> Unit,
+    title: String = "Select AI Agents"
+) {
+    // Get configured agents (those with API keys)
+    val configuredAgents = aiSettings.getConfiguredAgents()
+
+    // Initialize selection from saved or default to all configured
+    val initialSelection = if (savedAgentIds.isNotEmpty()) {
+        configuredAgents.filter { savedAgentIds.contains(it.id) }.map { it.id }.toSet()
+    } else {
+        configuredAgents.map { it.id }.toSet()
+    }
+
+    var selectedAgents by remember { mutableStateOf(initialSelection) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Choose AI agents for the report:",
+                    color = Color.Gray,
+                    fontSize = 13.sp
+                )
+
+                if (configuredAgents.isEmpty()) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFF2D2D2D)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "No configured agents",
+                                color = Color(0xFFFF9800),
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "Configure agents in Settings → AI Setup → AI Agents",
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                } else {
+                    configuredAgents.forEach { agent ->
+                        val isSelected = selectedAgents.contains(agent.id)
+                        val providerColor = getAiServiceColor(agent.provider)
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (isSelected) Color(0xFF2D4A2D) else Color(0xFF2D2D2D)
+                                )
+                                .clickable {
+                                    selectedAgents = if (isSelected) {
+                                        selectedAgents - agent.id
+                                    } else {
+                                        selectedAgents + agent.id
+                                    }
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Provider color indicator
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(providerColor)
+                                )
+
+                                Column {
+                                    Text(
+                                        text = agent.name,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = "${agent.provider.displayName} / ${agent.model}",
+                                        color = Color(0xFF6B9BFF),
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = {
+                                    selectedAgents = if (isSelected) {
+                                        selectedAgents - agent.id
+                                    } else {
+                                        selectedAgents + agent.id
+                                    }
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Color(0xFF4CAF50),
+                                    uncheckedColor = Color.Gray
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (selectedAgents.isNotEmpty()) {
+                        onGenerate(selectedAgents)
+                    }
+                },
+                enabled = selectedAgents.isNotEmpty(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4CAF50)
                 )

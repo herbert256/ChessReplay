@@ -431,15 +431,19 @@ data class GameUiState(
     val showAiReportsDialog: Boolean = false,
     val aiReportsProgress: Int = 0,  // Number of completed calls
     val aiReportsTotal: Int = 0,     // Total number of calls to make
-    val aiReportsResults: Map<AiService, AiAnalysisResponse> = emptyMap(),
-    val aiReportsSelectedServices: Set<AiService> = emptySet(),  // Services being called
+    val aiReportsResults: Map<AiService, AiAnalysisResponse> = emptyMap(),  // Legacy keyed by provider
+    val aiReportsAgentResults: Map<String, AiAnalysisResponse> = emptyMap(),  // Keyed by agent ID
+    val aiReportsSelectedServices: Set<AiService> = emptySet(),  // Services being called (legacy)
+    val aiReportsSelectedAgents: Set<String> = emptySet(),  // Agent IDs being called (new three-tier)
     // Player AI Reports
     val showPlayerAiReportsSelectionDialog: Boolean = false,
     val showPlayerAiReportsDialog: Boolean = false,
     val playerAiReportsProgress: Int = 0,
     val playerAiReportsTotal: Int = 0,
-    val playerAiReportsResults: Map<AiService, AiAnalysisResponse> = emptyMap(),
-    val playerAiReportsSelectedServices: Set<AiService> = emptySet(),
+    val playerAiReportsResults: Map<AiService, AiAnalysisResponse> = emptyMap(),  // Legacy
+    val playerAiReportsAgentResults: Map<String, AiAnalysisResponse> = emptyMap(),  // Keyed by agent ID
+    val playerAiReportsSelectedServices: Set<AiService> = emptySet(),  // Legacy
+    val playerAiReportsSelectedAgents: Set<String> = emptySet(),  // Agent IDs (new three-tier)
     val playerAiReportsPlayerName: String = "",
     val playerAiReportsServer: String? = null,  // null for "other player" prompt
     val playerAiReportsPlayerInfo: com.eval.data.PlayerInfo? = null,  // Full player info for HTML

@@ -97,7 +97,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun saveInterfaceVisibilitySettings(settings: InterfaceVisibilitySettings) = settingsPrefs.saveInterfaceVisibilitySettings(settings)
     private fun loadGeneralSettings(): GeneralSettings = settingsPrefs.loadGeneralSettings()
     private fun saveGeneralSettings(settings: GeneralSettings) = settingsPrefs.saveGeneralSettings(settings)
-    private fun loadAiSettings(): AiSettings = settingsPrefs.loadAiSettings()
+    private fun loadAiSettings(): AiSettings = settingsPrefs.loadAiSettingsWithMigration()
     private fun saveAiSettings(settings: AiSettings) = settingsPrefs.saveAiSettings(settings)
 
     private fun getAppVersionCode(): Long {
@@ -1159,6 +1159,156 @@ ${opening.moves} *
 
     fun saveAiReportProviders(providers: Set<String>) {
         settingsPrefs.saveAiReportProviders(providers)
+    }
+
+    // Agent-based AI Reports methods
+    fun loadAiReportAgents(): Set<String> {
+        return settingsPrefs.loadAiReportAgents()
+    }
+
+    fun saveAiReportAgents(agentIds: Set<String>) {
+        settingsPrefs.saveAiReportAgents(agentIds)
+    }
+
+    fun generateAiReportsWithAgents(selectedAgentIds: Set<String>) {
+        val aiSettings = _uiState.value.aiSettings
+
+        // Get agents with configured API keys
+        val agentsToCall = selectedAgentIds.mapNotNull { agentId ->
+            aiSettings.agents.find { it.id == agentId && it.apiKey.isNotBlank() }
+        }
+
+        if (agentsToCall.isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "No configured agents selected. Please configure agents in Settings > AI Setup > AI Agents."
+            )
+            return
+        }
+
+        val fen = _uiState.value.currentBoard.getFen()
+
+        _uiState.value = _uiState.value.copy(
+            showAiReportsSelectionDialog = false,
+            showAiReportsDialog = true,
+            aiReportsProgress = 0,
+            aiReportsTotal = agentsToCall.size,
+            aiReportsAgentResults = emptyMap(),
+            aiReportsSelectedAgents = selectedAgentIds
+        )
+
+        viewModelScope.launch {
+            val results = mutableMapOf<String, AiAnalysisResponse>()
+            val mutex = Mutex()
+            var completedCount = 0
+
+            // Launch all API calls in parallel
+            val deferredResults = agentsToCall.map { agent ->
+                async {
+                    val prompt = aiSettings.getAgentGamePrompt(agent)
+
+                    var result = aiAnalysisRepository.analyzePositionWithAgent(
+                        agent = agent,
+                        fen = fen,
+                        prompt = prompt
+                    )
+
+                    // If failed, retry once after 1 second delay
+                    if (!result.isSuccess) {
+                        kotlinx.coroutines.delay(1000)
+                        result = aiAnalysisRepository.analyzePositionWithAgent(
+                            agent = agent,
+                            fen = fen,
+                            prompt = prompt
+                        )
+                    }
+
+                    mutex.withLock {
+                        results[agent.id] = result
+                        completedCount++
+                        _uiState.value = _uiState.value.copy(
+                            aiReportsProgress = completedCount,
+                            aiReportsAgentResults = results.toMap()
+                        )
+                    }
+                }
+            }
+
+            deferredResults.awaitAll()
+        }
+    }
+
+    fun startPlayerAiReportsWithAgents(selectedAgentIds: Set<String>) {
+        val aiSettings = _uiState.value.aiSettings
+        val playerName = _uiState.value.playerAiReportsPlayerName
+        val serverName = _uiState.value.playerAiReportsServer
+
+        // Get agents with configured API keys
+        val agentsToCall = selectedAgentIds.mapNotNull { agentId ->
+            aiSettings.agents.find { it.id == agentId && it.apiKey.isNotBlank() }
+        }
+
+        if (agentsToCall.isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "No configured agents selected."
+            )
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(
+            showPlayerAiReportsSelectionDialog = false,
+            showPlayerAiReportsDialog = true,
+            playerAiReportsProgress = 0,
+            playerAiReportsTotal = agentsToCall.size,
+            playerAiReportsAgentResults = emptyMap(),
+            playerAiReportsSelectedAgents = selectedAgentIds
+        )
+
+        viewModelScope.launch {
+            val results = mutableMapOf<String, AiAnalysisResponse>()
+            val mutex = Mutex()
+            var completedCount = 0
+
+            val deferredResults = agentsToCall.map { agent ->
+                async {
+                    // Select prompt based on server presence
+                    val prompt = if (serverName != null) {
+                        aiSettings.getAgentServerPlayerPrompt(agent)
+                    } else {
+                        aiSettings.getAgentOtherPlayerPrompt(agent)
+                    }
+
+                    // Replace placeholders in prompt
+                    val finalPrompt = prompt
+                        .replace("@PLAYER@", playerName)
+                        .replace("@SERVER@", serverName ?: "unknown")
+
+                    var result = aiAnalysisRepository.analyzePlayerWithAgent(
+                        agent = agent,
+                        prompt = finalPrompt
+                    )
+
+                    // If failed, retry once
+                    if (!result.isSuccess) {
+                        kotlinx.coroutines.delay(1000)
+                        result = aiAnalysisRepository.analyzePlayerWithAgent(
+                            agent = agent,
+                            prompt = finalPrompt
+                        )
+                    }
+
+                    mutex.withLock {
+                        results[agent.id] = result
+                        completedCount++
+                        _uiState.value = _uiState.value.copy(
+                            playerAiReportsProgress = completedCount,
+                            playerAiReportsAgentResults = results.toMap()
+                        )
+                    }
+                }
+            }
+
+            deferredResults.awaitAll()
+        }
     }
 
     fun generateAiReports(selectedProviders: Set<AiService>) {

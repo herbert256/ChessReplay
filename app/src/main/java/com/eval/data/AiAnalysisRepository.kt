@@ -21,9 +21,13 @@ data class AiAnalysisResponse(
     val service: AiService,
     val analysis: String?,
     val error: String?,
-    val tokenUsage: TokenUsage? = null
+    val tokenUsage: TokenUsage? = null,
+    val agentName: String? = null  // Name of the agent that generated this response (for three-tier architecture)
 ) {
     val isSuccess: Boolean get() = analysis != null && error == null
+
+    // Display name: use agent name if available, otherwise service name
+    val displayName: String get() = agentName ?: service.displayName
 }
 
 /**
@@ -216,6 +220,124 @@ class AiAnalysisRepository {
                     service = service,
                     analysis = null,
                     error = "Network error after retry: ${e2.message ?: "Unknown error"}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Analyze a chess position using an AI Agent configuration.
+     * Uses the agent's provider, model, and API key.
+     */
+    suspend fun analyzePositionWithAgent(
+        agent: com.eval.ui.AiAgent,
+        fen: String,
+        prompt: String
+    ): AiAnalysisResponse = withContext(Dispatchers.IO) {
+        if (agent.apiKey.isBlank()) {
+            return@withContext AiAnalysisResponse(
+                service = agent.provider,
+                analysis = null,
+                error = "API key not configured for agent ${agent.name}",
+                agentName = agent.name
+            )
+        }
+
+        val finalPrompt = buildChessPrompt(prompt, fen)
+
+        suspend fun makeApiCall(): AiAnalysisResponse {
+            val result = when (agent.provider) {
+                AiService.CHATGPT -> analyzeWithChatGpt(agent.apiKey, finalPrompt, agent.model)
+                AiService.CLAUDE -> analyzeWithClaude(agent.apiKey, finalPrompt, agent.model)
+                AiService.GEMINI -> analyzeWithGemini(agent.apiKey, finalPrompt, agent.model)
+                AiService.GROK -> analyzeWithGrok(agent.apiKey, finalPrompt, agent.model)
+                AiService.DEEPSEEK -> analyzeWithDeepSeek(agent.apiKey, finalPrompt, agent.model)
+                AiService.MISTRAL -> analyzeWithMistral(agent.apiKey, finalPrompt, agent.model)
+                AiService.PERPLEXITY -> analyzeWithPerplexity(agent.apiKey, finalPrompt, agent.model)
+                AiService.TOGETHER -> analyzeWithTogether(agent.apiKey, finalPrompt, agent.model)
+                AiService.OPENROUTER -> analyzeWithOpenRouter(agent.apiKey, finalPrompt, agent.model)
+                AiService.DUMMY -> analyzeWithDummy()
+            }
+            // Add agent name to result
+            return result.copy(agentName = agent.name)
+        }
+
+        // First attempt
+        try {
+            val result = makeApiCall()
+            if (result.isSuccess) {
+                return@withContext result
+            }
+            android.util.Log.w("AiAnalysis", "Agent ${agent.name} first attempt failed: ${result.error}, retrying...")
+            delay(500)
+            makeApiCall()
+        } catch (e: Exception) {
+            android.util.Log.w("AiAnalysis", "Agent ${agent.name} first attempt exception: ${e.message}, retrying...")
+            try {
+                delay(500)
+                makeApiCall()
+            } catch (e2: Exception) {
+                AiAnalysisResponse(
+                    service = agent.provider,
+                    analysis = null,
+                    error = "Network error after retry: ${e2.message ?: "Unknown error"}",
+                    agentName = agent.name
+                )
+            }
+        }
+    }
+
+    /**
+     * Analyze a player using an AI Agent configuration (no FEN, just prompt).
+     */
+    suspend fun analyzePlayerWithAgent(
+        agent: com.eval.ui.AiAgent,
+        prompt: String
+    ): AiAnalysisResponse = withContext(Dispatchers.IO) {
+        if (agent.apiKey.isBlank()) {
+            return@withContext AiAnalysisResponse(
+                service = agent.provider,
+                analysis = null,
+                error = "API key not configured for agent ${agent.name}",
+                agentName = agent.name
+            )
+        }
+
+        suspend fun makeApiCall(): AiAnalysisResponse {
+            val result = when (agent.provider) {
+                AiService.CHATGPT -> analyzeWithChatGpt(agent.apiKey, prompt, agent.model)
+                AiService.CLAUDE -> analyzeWithClaude(agent.apiKey, prompt, agent.model)
+                AiService.GEMINI -> analyzeWithGemini(agent.apiKey, prompt, agent.model)
+                AiService.GROK -> analyzeWithGrok(agent.apiKey, prompt, agent.model)
+                AiService.DEEPSEEK -> analyzeWithDeepSeek(agent.apiKey, prompt, agent.model)
+                AiService.MISTRAL -> analyzeWithMistral(agent.apiKey, prompt, agent.model)
+                AiService.PERPLEXITY -> analyzeWithPerplexity(agent.apiKey, prompt, agent.model)
+                AiService.TOGETHER -> analyzeWithTogether(agent.apiKey, prompt, agent.model)
+                AiService.OPENROUTER -> analyzeWithOpenRouter(agent.apiKey, prompt, agent.model)
+                AiService.DUMMY -> analyzeWithDummy()
+            }
+            return result.copy(agentName = agent.name)
+        }
+
+        try {
+            val result = makeApiCall()
+            if (result.isSuccess) {
+                return@withContext result
+            }
+            android.util.Log.w("AiAnalysis", "Agent ${agent.name} player analysis failed: ${result.error}, retrying...")
+            delay(500)
+            makeApiCall()
+        } catch (e: Exception) {
+            android.util.Log.w("AiAnalysis", "Agent ${agent.name} player analysis exception: ${e.message}, retrying...")
+            try {
+                delay(500)
+                makeApiCall()
+            } catch (e2: Exception) {
+                AiAnalysisResponse(
+                    service = agent.provider,
+                    analysis = null,
+                    error = "Network error after retry: ${e2.message ?: "Unknown error"}",
+                    agentName = agent.name
                 )
             }
         }

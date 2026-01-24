@@ -25,6 +25,7 @@ enum class SettingsSubScreen {
     BOARD_LAYOUT,
     GRAPH_SETTINGS,
     INTERFACE_VISIBILITY,
+    // Old AI settings structure (kept for backwards compatibility in navigation)
     AI_SETTINGS,
     AI_CHATGPT,
     AI_CLAUDE,
@@ -35,7 +36,12 @@ enum class SettingsSubScreen {
     AI_PERPLEXITY,
     AI_TOGETHER,
     AI_OPENROUTER,
-    AI_DUMMY
+    AI_DUMMY,
+    // New three-tier AI architecture
+    AI_SETUP,       // Hub with 3 navigation cards
+    AI_PROVIDERS,   // Provider model configuration
+    AI_PROMPTS,     // Prompts CRUD
+    AI_AGENTS       // Agents CRUD
 }
 
 /**
@@ -98,7 +104,11 @@ fun SettingsScreen(
             SettingsSubScreen.AI_PERPLEXITY,
             SettingsSubScreen.AI_TOGETHER,
             SettingsSubScreen.AI_OPENROUTER,
-            SettingsSubScreen.AI_DUMMY -> currentSubScreen = SettingsSubScreen.AI_SETTINGS
+            SettingsSubScreen.AI_DUMMY -> currentSubScreen = SettingsSubScreen.AI_PROVIDERS
+            // New three-tier screens navigate back to AI_SETUP
+            SettingsSubScreen.AI_PROVIDERS,
+            SettingsSubScreen.AI_PROMPTS,
+            SettingsSubScreen.AI_AGENTS -> currentSubScreen = SettingsSubScreen.AI_SETUP
             else -> currentSubScreen = SettingsSubScreen.MAIN
         }
     }
@@ -156,14 +166,14 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             availableModels = availableChatGptModels,
             isLoadingModels = isLoadingChatGptModels,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi,
             onFetchModels = onFetchChatGptModels
         )
         SettingsSubScreen.AI_CLAUDE -> ClaudeSettingsScreen(
             aiSettings = aiSettings,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi
         )
@@ -171,7 +181,7 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             availableModels = availableGeminiModels,
             isLoadingModels = isLoadingGeminiModels,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi,
             onFetchModels = onFetchGeminiModels
@@ -180,7 +190,7 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             availableModels = availableGrokModels,
             isLoadingModels = isLoadingGrokModels,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi,
             onFetchModels = onFetchGrokModels
@@ -189,7 +199,7 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             availableModels = availableDeepSeekModels,
             isLoadingModels = isLoadingDeepSeekModels,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi,
             onFetchModels = onFetchDeepSeekModels
@@ -198,7 +208,7 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             availableModels = availableMistralModels,
             isLoadingModels = isLoadingMistralModels,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi,
             onFetchModels = onFetchMistralModels
@@ -207,7 +217,7 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             availableModels = availablePerplexityModels,
             isLoadingModels = isLoadingPerplexityModels,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi,
             onFetchModels = onFetchPerplexityModels
@@ -216,7 +226,7 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             availableModels = availableTogetherModels,
             isLoadingModels = isLoadingTogetherModels,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi,
             onFetchModels = onFetchTogetherModels
@@ -225,14 +235,48 @@ fun SettingsScreen(
             aiSettings = aiSettings,
             availableModels = availableOpenRouterModels,
             isLoadingModels = isLoadingOpenRouterModels,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
             onBackToGame = onBack,
             onSave = onSaveAi,
             onFetchModels = onFetchOpenRouterModels
         )
         SettingsSubScreen.AI_DUMMY -> DummySettingsScreen(
             aiSettings = aiSettings,
-            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_SETTINGS },
+            onBackToAiSettings = { currentSubScreen = SettingsSubScreen.AI_PROVIDERS },
+            onBackToGame = onBack,
+            onSave = onSaveAi
+        )
+        // New three-tier AI architecture screens
+        SettingsSubScreen.AI_SETUP -> AiSetupScreen(
+            aiSettings = aiSettings,
+            onBackToSettings = { currentSubScreen = SettingsSubScreen.MAIN },
+            onBackToGame = onBack,
+            onNavigate = { currentSubScreen = it }
+        )
+        SettingsSubScreen.AI_PROVIDERS -> AiProvidersScreen(
+            aiSettings = aiSettings,
+            onBackToAiSetup = { currentSubScreen = SettingsSubScreen.AI_SETUP },
+            onBackToGame = onBack,
+            onNavigate = { currentSubScreen = it },
+            onSave = onSaveAi
+        )
+        SettingsSubScreen.AI_PROMPTS -> AiPromptsScreen(
+            aiSettings = aiSettings,
+            onBackToAiSetup = { currentSubScreen = SettingsSubScreen.AI_SETUP },
+            onBackToGame = onBack,
+            onSave = onSaveAi
+        )
+        SettingsSubScreen.AI_AGENTS -> AiAgentsScreen(
+            aiSettings = aiSettings,
+            availableChatGptModels = availableChatGptModels,
+            availableGeminiModels = availableGeminiModels,
+            availableGrokModels = availableGrokModels,
+            availableDeepSeekModels = availableDeepSeekModels,
+            availableMistralModels = availableMistralModels,
+            availablePerplexityModels = availablePerplexityModels,
+            availableTogetherModels = availableTogetherModels,
+            availableOpenRouterModels = availableOpenRouterModels,
+            onBackToAiSetup = { currentSubScreen = SettingsSubScreen.AI_SETUP },
             onBackToGame = onBack,
             onSave = onSaveAi
         )
@@ -316,11 +360,11 @@ private fun SettingsMainScreen(
             onClick = { onNavigate(SettingsSubScreen.INTERFACE_VISIBILITY) }
         )
 
-        // AI Analysis settings card
+        // AI Setup settings card (three-tier architecture)
         SettingsNavigationCard(
-            title = "AI analysis",
-            description = "Configure AI service API keys",
-            onClick = { onNavigate(SettingsSubScreen.AI_SETTINGS) }
+            title = "AI Setup",
+            description = "Providers, prompts, and agents",
+            onClick = { onNavigate(SettingsSubScreen.AI_SETUP) }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
