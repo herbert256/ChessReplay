@@ -35,13 +35,10 @@ import com.eval.data.LeaderboardPlayer
 private enum class RetrieveSubScreen {
     MAIN,
     LICHESS,
-    CHESS_COM,
     TOP_RANKINGS_LICHESS,
-    TOP_RANKINGS_CHESS_COM,
     TOURNAMENTS_LICHESS,
     BROADCASTS,
     LICHESS_TV,
-    DAILY_PUZZLE,
     STREAMERS,
     PGN_FILE,
     OPENING_SELECTION
@@ -139,10 +136,7 @@ fun RetrieveScreen(
                     val serverName = if (uiState.playerInfoError != null) {
                         null
                     } else {
-                        when (info.server) {
-                            com.eval.data.ChessServer.LICHESS -> "lichess.org"
-                            com.eval.data.ChessServer.CHESS_COM -> "chess.com"
-                        }
+                        "lichess.org"
                     }
                     viewModel.showPlayerAiReportsSelectionDialog(info.username, serverName, info)
                 }
@@ -161,11 +155,10 @@ fun RetrieveScreen(
     BackHandler {
         when (currentScreen) {
             RetrieveSubScreen.MAIN -> onBack()
-            RetrieveSubScreen.LICHESS, RetrieveSubScreen.CHESS_COM -> currentScreen = RetrieveSubScreen.MAIN
+            RetrieveSubScreen.LICHESS -> currentScreen = RetrieveSubScreen.MAIN
             RetrieveSubScreen.TOP_RANKINGS_LICHESS, RetrieveSubScreen.TOURNAMENTS_LICHESS,
-            RetrieveSubScreen.BROADCASTS, RetrieveSubScreen.LICHESS_TV -> currentScreen = RetrieveSubScreen.LICHESS
-            RetrieveSubScreen.TOP_RANKINGS_CHESS_COM, RetrieveSubScreen.DAILY_PUZZLE,
-            RetrieveSubScreen.STREAMERS -> currentScreen = RetrieveSubScreen.CHESS_COM
+            RetrieveSubScreen.BROADCASTS, RetrieveSubScreen.LICHESS_TV,
+            RetrieveSubScreen.STREAMERS -> currentScreen = RetrieveSubScreen.LICHESS
             RetrieveSubScreen.PGN_FILE -> {
                 if (uiState.selectedPgnEvent != null) {
                     viewModel.backToPgnEventList()
@@ -184,7 +177,6 @@ fun RetrieveScreen(
             viewModel = viewModel,
             onBack = onBack,
             onLichessClick = { currentScreen = RetrieveSubScreen.LICHESS },
-            onChessComClick = { currentScreen = RetrieveSubScreen.CHESS_COM },
             onPgnFileLoaded = { hasMultipleEvents ->
                 if (hasMultipleEvents) {
                     currentScreen = RetrieveSubScreen.PGN_FILE
@@ -215,20 +207,6 @@ fun RetrieveScreen(
             onTvClick = {
                 viewModel.showLichessTv()
                 currentScreen = RetrieveSubScreen.LICHESS_TV
-            }
-        )
-        RetrieveSubScreen.CHESS_COM -> ChessComRetrieveScreen(
-            viewModel = viewModel,
-            uiState = uiState,
-            onBack = { currentScreen = RetrieveSubScreen.MAIN },
-            onTopRankingsClick = {
-                viewModel.showTopRankings(ChessServer.CHESS_COM)
-                previousScreen = RetrieveSubScreen.TOP_RANKINGS_CHESS_COM
-                currentScreen = RetrieveSubScreen.TOP_RANKINGS_CHESS_COM
-            },
-            onDailyPuzzleClick = {
-                viewModel.showDailyPuzzle()
-                currentScreen = RetrieveSubScreen.DAILY_PUZZLE
             },
             onStreamersClick = {
                 viewModel.showStreamers()
@@ -238,21 +216,10 @@ fun RetrieveScreen(
         RetrieveSubScreen.TOP_RANKINGS_LICHESS -> TopRankingsScreen(
             viewModel = viewModel,
             uiState = uiState,
-            server = ChessServer.LICHESS,
             onBack = { currentScreen = RetrieveSubScreen.LICHESS },
             onPlayerClick = { player ->
                 previousScreen = RetrieveSubScreen.TOP_RANKINGS_LICHESS
                 viewModel.selectTopRankingPlayer(player.username, ChessServer.LICHESS)
-            }
-        )
-        RetrieveSubScreen.TOP_RANKINGS_CHESS_COM -> TopRankingsScreen(
-            viewModel = viewModel,
-            uiState = uiState,
-            server = ChessServer.CHESS_COM,
-            onBack = { currentScreen = RetrieveSubScreen.CHESS_COM },
-            onPlayerClick = { player ->
-                previousScreen = RetrieveSubScreen.TOP_RANKINGS_CHESS_COM
-                viewModel.selectTopRankingPlayer(player.username, ChessServer.CHESS_COM)
             }
         )
         RetrieveSubScreen.TOURNAMENTS_LICHESS -> TournamentsScreen(
@@ -279,20 +246,12 @@ fun RetrieveScreen(
                 currentScreen = RetrieveSubScreen.LICHESS
             }
         )
-        RetrieveSubScreen.DAILY_PUZZLE -> DailyPuzzleScreen(
-            viewModel = viewModel,
-            uiState = uiState,
-            onBack = {
-                viewModel.dismissDailyPuzzle()
-                currentScreen = RetrieveSubScreen.CHESS_COM
-            }
-        )
         RetrieveSubScreen.STREAMERS -> StreamersScreen(
             viewModel = viewModel,
             uiState = uiState,
             onBack = {
                 viewModel.dismissStreamers()
-                currentScreen = RetrieveSubScreen.CHESS_COM
+                currentScreen = RetrieveSubScreen.LICHESS
             }
         )
         RetrieveSubScreen.PGN_FILE -> PgnFileScreen(
@@ -312,7 +271,7 @@ fun RetrieveScreen(
 }
 
 /**
- * Main retrieve screen with options to select Lichess or Chess.com.
+ * Main retrieve screen with options to select Lichess.
  */
 @Composable
 private fun RetrieveMainScreen(
@@ -320,7 +279,6 @@ private fun RetrieveMainScreen(
     viewModel: GameViewModel,
     onBack: () -> Unit,
     onLichessClick: () -> Unit,
-    onChessComClick: () -> Unit,
     onPgnFileLoaded: (hasMultipleEvents: Boolean) -> Unit,
     onOpeningClick: () -> Unit
 ) {
@@ -386,7 +344,7 @@ private fun RetrieveMainScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Lichess card - at the top
+            // Lichess card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -405,37 +363,6 @@ private fun RetrieveMainScreen(
                 ) {
                     Text(
                         text = "lichess.org",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = ">",
-                        fontSize = 24.sp,
-                        color = Color.White
-                    )
-                }
-            }
-
-            // Chess.com card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onChessComClick() },
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF769656) // Chess.com green
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "chess.com",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -661,7 +588,8 @@ private fun LichessRetrieveScreen(
     onTopRankingsClick: () -> Unit,
     onTournamentsClick: () -> Unit,
     onBroadcastsClick: () -> Unit,
-    onTvClick: () -> Unit
+    onTvClick: () -> Unit,
+    onStreamersClick: () -> Unit
 ) {
     var username by remember { mutableStateOf(viewModel.savedLichessUsername) }
     val focusManager = LocalFocusManager.current
@@ -806,6 +734,20 @@ private fun LichessRetrieveScreen(
                 )
             }
 
+            // Streamers button
+            OutlinedButton(
+                onClick = onStreamersClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF629924)
+                )
+            ) {
+                Text(
+                    text = "Streamers",
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
             // Loading indicator
             if (uiState.isLoading) {
                 Box(
@@ -829,181 +771,17 @@ private fun LichessRetrieveScreen(
 }
 
 /**
- * Chess.com retrieve screen.
- */
-@Composable
-private fun ChessComRetrieveScreen(
-    viewModel: GameViewModel,
-    uiState: GameUiState,
-    onBack: () -> Unit,
-    onTopRankingsClick: () -> Unit,
-    onDailyPuzzleClick: () -> Unit,
-    onStreamersClick: () -> Unit
-) {
-    var username by remember { mutableStateOf(viewModel.savedChessComUsername) }
-    val focusManager = LocalFocusManager.current
-
-    // Handle back navigation
-    BackHandler { onBack() }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A2E))
-            .padding(16.dp)
-    ) {
-        // Header
-        EvalTitleBar(
-            title = "chess.com",
-            onBackClick = onBack,
-            onEvalClick = onBack
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Content
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Error message
-            if (uiState.errorMessage != null) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = uiState.errorMessage ?: "",
-                        color = Color.White,
-                        modifier = Modifier.padding(12.dp),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            // Username field
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username") },
-                placeholder = { Text("Enter Chess.com username") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFF555555),
-                    focusedBorderColor = Color(0xFF769656),
-                    unfocusedLabelColor = Color(0xFFAAAAAA),
-                    focusedLabelColor = Color(0xFF769656)
-                )
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Retrieve button
-            Button(
-                onClick = {
-                    focusManager.clearFocus()
-                    if (username.isNotBlank()) {
-                        viewModel.fetchGames(ChessServer.CHESS_COM, username)
-                    }
-                },
-                enabled = !uiState.isLoading && username.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF769656)
-                )
-            ) {
-                Text(
-                    text = "Retrieve games",
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Top rankings button
-            OutlinedButton(
-                onClick = onTopRankingsClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF769656)
-                )
-            ) {
-                Text(
-                    text = "Select from top rankings",
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-
-            // Daily puzzle button
-            OutlinedButton(
-                onClick = onDailyPuzzleClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF769656)
-                )
-            ) {
-                Text(
-                    text = "Daily puzzle",
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-
-            // Streamers button
-            OutlinedButton(
-                onClick = onStreamersClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF769656)
-                )
-            ) {
-                Text(
-                    text = "Streamers",
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-
-            // Loading indicator
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = Color(0xFF769656))
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Fetching games from Chess.com...",
-                            color = Color(0xFFAAAAAA)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Top rankings screen for a given chess server.
+ * Top rankings screen for Lichess.
  */
 @Composable
 private fun TopRankingsScreen(
     viewModel: GameViewModel,
     uiState: GameUiState,
-    server: ChessServer,
     onBack: () -> Unit,
     onPlayerClick: (LeaderboardPlayer) -> Unit
 ) {
-    val serverName = if (server == ChessServer.LICHESS) "lichess.org" else "chess.com"
-    val serverColor = if (server == ChessServer.LICHESS) Color(0xFF629924) else Color(0xFF769656)
+    val serverName = "lichess.org"
+    val serverColor = Color(0xFF629924)
 
     // Handle back navigation
     BackHandler { onBack() }
@@ -2000,109 +1778,10 @@ private fun TvChannelRow(
     }
 }
 
-// ==================== DAILY PUZZLE SCREEN ====================
-
-/**
- * Chess.com daily puzzle screen.
- */
-@Composable
-private fun DailyPuzzleScreen(
-    viewModel: GameViewModel,
-    uiState: GameUiState,
-    onBack: () -> Unit
-) {
-    val serverColor = Color(0xFF769656)
-
-    BackHandler { onBack() }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A2E))
-            .padding(16.dp)
-    ) {
-        // Header
-        EvalTitleBar(
-            title = "Daily Puzzle",
-            onBackClick = onBack,
-            onEvalClick = onBack
-        )
-
-        Text(
-            text = "chess.com",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFFAAAAAA),
-            modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
-        )
-
-        // Content
-        when {
-            uiState.dailyPuzzleLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = serverColor)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Loading puzzle...",
-                            color = Color(0xFFAAAAAA)
-                        )
-                    }
-                }
-            }
-            uiState.dailyPuzzle != null -> {
-                val puzzle = uiState.dailyPuzzle
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = puzzle.title,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 18.sp
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "FEN: ${puzzle.fen}",
-                            color = Color(0xFFAAAAAA),
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Note: Puzzles cannot be loaded as games. Visit chess.com to solve this puzzle.",
-                            color = Color(0xFFFFD700),
-                            fontSize = 14.sp
-                        )
-                        puzzle.url?.let { url ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = url,
-                                color = serverColor,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-            }
-            else -> {
-                Text(
-                    text = "Failed to load puzzle",
-                    color = Color(0xFFAAAAAA),
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        }
-    }
-}
-
 // ==================== STREAMERS SCREEN ====================
 
 /**
- * Chess.com streamers screen.
+ * Lichess streamers screen.
  */
 @Composable
 private fun StreamersScreen(
@@ -2110,7 +1789,7 @@ private fun StreamersScreen(
     uiState: GameUiState,
     onBack: () -> Unit
 ) {
-    val serverColor = Color(0xFF769656)
+    val serverColor = Color(0xFF629924)
 
     BackHandler { onBack() }
 
@@ -2128,7 +1807,7 @@ private fun StreamersScreen(
         )
 
         Text(
-            text = "chess.com streamers",
+            text = "lichess.org streamers",
             style = MaterialTheme.typography.bodyMedium,
             color = Color(0xFFAAAAAA),
             modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)

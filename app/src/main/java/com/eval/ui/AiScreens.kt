@@ -922,10 +922,7 @@ fun PlayerInfoScreenNav(
                 val serverName = if (uiState.playerInfoError != null) {
                     null
                 } else {
-                    when (info.server) {
-                        com.eval.data.ChessServer.LICHESS -> "lichess.org"
-                        com.eval.data.ChessServer.CHESS_COM -> "chess.com"
-                    }
+                    "lichess.org"
                 }
                 viewModel.showPlayerAiReportsSelectionDialog(info.username, serverName, info)
             }

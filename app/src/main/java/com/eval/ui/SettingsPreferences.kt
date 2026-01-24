@@ -28,14 +28,8 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
     val savedLichessUsername: String
         get() = prefs.getString(KEY_LICHESS_USERNAME, "DrNykterstein") ?: "DrNykterstein"
 
-    val savedChessComUsername: String
-        get() = prefs.getString(KEY_CHESSCOM_USERNAME, "magnuscarlsen") ?: "magnuscarlsen"
-
     val lichessMaxGames: Int
         get() = prefs.getInt(KEY_LICHESS_MAX_GAMES, 10)
-
-    val chessComMaxGames: Int
-        get() = prefs.getInt(KEY_CHESSCOM_MAX_GAMES, 10)
 
     // ============================================================================
     // Username and Server Save Methods
@@ -45,16 +39,8 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         prefs.edit().putString(KEY_LICHESS_USERNAME, username).apply()
     }
 
-    fun saveChessComUsername(username: String) {
-        prefs.edit().putString(KEY_CHESSCOM_USERNAME, username).apply()
-    }
-
     fun saveLichessMaxGames(max: Int) {
         prefs.edit().putInt(KEY_LICHESS_MAX_GAMES, max).apply()
-    }
-
-    fun saveChessComMaxGames(max: Int) {
-        prefs.edit().putInt(KEY_CHESSCOM_MAX_GAMES, max).apply()
     }
 
     // ============================================================================
@@ -273,7 +259,7 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         // Full screen mode is not persistent - always starts as false
         return GeneralSettings(
             longTapForFullScreen = false,
-            paginationPageSize = prefs.getInt(KEY_PAGINATION_PAGE_SIZE, 10).coerceIn(5, 50),
+            paginationPageSize = prefs.getInt(KEY_PAGINATION_PAGE_SIZE, 25).coerceIn(5, 50),
             moveSoundsEnabled = prefs.getBoolean(KEY_MOVE_SOUNDS_ENABLED, true),
             developerMode = prefs.getBoolean(KEY_DEVELOPER_MODE, false),
             trackApiCalls = prefs.getBoolean(KEY_TRACK_API_CALLS, false)
@@ -767,10 +753,6 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         // Lichess settings
         private const val KEY_LICHESS_USERNAME = "lichess_username"
         private const val KEY_LICHESS_MAX_GAMES = "lichess_max_games"
-
-        // Chess.com settings
-        private const val KEY_CHESSCOM_USERNAME = "chesscom_username"
-        private const val KEY_CHESSCOM_MAX_GAMES = "chesscom_max_games"
 
         // Retrieved games storage - list of lists
         const val KEY_RETRIEVES_LIST = "retrieves_list"

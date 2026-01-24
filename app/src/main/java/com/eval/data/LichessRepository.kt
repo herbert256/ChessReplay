@@ -16,8 +16,7 @@ sealed class Result<out T> {
  * Enum to track which chess server a game came from
  */
 enum class ChessServer {
-    LICHESS,
-    CHESS_COM
+    LICHESS
 }
 
 /**
@@ -54,8 +53,7 @@ data class PlayerInfo(
 )
 
 class ChessRepository(
-    private val lichessApi: LichessApi = LichessApi.create(),
-    private val chessComApi: ChessComApi = ChessComApi.create()
+    private val lichessApi: LichessApi = LichessApi.create()
 ) {
     private val gson = Gson()
 
@@ -100,136 +98,6 @@ class ChessRepository(
         } catch (e: Exception) {
             Result.Error(e.message ?: "Unknown error occurred")
         }
-    }
-
-    /**
-     * Get recent games from Chess.com
-     * Chess.com stores games in monthly archives, so we fetch the most recent archive(s)
-     */
-    suspend fun getChessComGames(
-        username: String,
-        maxGames: Int
-    ): Result<List<LichessGame>> = withContext(Dispatchers.IO) {
-        try {
-            // First get the list of archives
-            val archivesResponse = chessComApi.getArchives(username.lowercase())
-
-            if (!archivesResponse.isSuccessful) {
-                return@withContext when (archivesResponse.code()) {
-                    404 -> Result.Error("User not found on Chess.com")
-                    else -> Result.Error("Failed to fetch game data from Chess.com")
-                }
-            }
-
-            val archives = archivesResponse.body()?.archives
-            if (archives.isNullOrEmpty()) {
-                return@withContext Result.Error("No games found for this user on Chess.com")
-            }
-
-            // Get games from the most recent archives until we have enough
-            val allGames = mutableListOf<LichessGame>()
-
-            // Start from the most recent archive (last in the list)
-            for (archiveUrl in archives.reversed()) {
-                if (allGames.size >= maxGames) break
-
-                // Parse year and month from archive URL
-                // Format: https://api.chess.com/pub/player/{username}/games/{year}/{month}
-                val parts = archiveUrl.split("/")
-                if (parts.size < 2) continue
-
-                val month = parts.last()
-                val year = parts[parts.size - 2].toIntOrNull() ?: continue
-
-                try {
-                    val gamesResponse = chessComApi.getGamesForMonth(username.lowercase(), year, month)
-                    if (gamesResponse.isSuccessful) {
-                        val chessComGames = gamesResponse.body()?.games ?: emptyList()
-                        // Convert Chess.com games to LichessGame format (reversed to get most recent first)
-                        val converted = chessComGames.reversed().mapNotNull { game ->
-                            convertChessComGameToLichessFormat(game, username)
-                        }
-                        allGames.addAll(converted)
-                    }
-                } catch (e: Exception) {
-                    // Continue to next archive if one fails
-                    android.util.Log.e("ChessRepository", "Error fetching Chess.com archive: ${e.message}")
-                }
-            }
-
-            if (allGames.isEmpty()) {
-                return@withContext Result.Error("No games found for this user on Chess.com")
-            }
-
-            // Return only the requested number of games
-            Result.Success(allGames.take(maxGames))
-        } catch (e: Exception) {
-            Result.Error(e.message ?: "Unknown error occurred")
-        }
-    }
-
-    /**
-     * Convert a Chess.com game to LichessGame format for unified handling
-     */
-    private fun convertChessComGameToLichessFormat(game: ChessComGame, searchedUsername: String): LichessGame? {
-        val pgn = game.pgn ?: return null
-
-        // Determine winner from results
-        val winner = when {
-            game.white.result == "win" -> "white"
-            game.black.result == "win" -> "black"
-            else -> null
-        }
-
-        // Parse time control (e.g., "600" or "180+2")
-        val timeControl = game.time_control ?: "0"
-        val (initial, increment) = if (timeControl.contains("+")) {
-            val parts = timeControl.split("+")
-            Pair(parts[0].toIntOrNull() ?: 0, parts[1].toIntOrNull() ?: 0)
-        } else {
-            Pair(timeControl.toIntOrNull() ?: 0, 0)
-        }
-
-        // Determine speed from time class or time control
-        val speed = game.time_class ?: when {
-            initial < 180 -> "bullet"
-            initial < 600 -> "blitz"
-            initial < 1800 -> "rapid"
-            else -> "classical"
-        }
-
-        return LichessGame(
-            id = game.uuid ?: game.url.substringAfterLast("/"),
-            rated = game.rated ?: false,
-            variant = game.rules ?: "standard",
-            speed = speed,
-            perf = game.time_class,
-            status = game.white.result ?: game.black.result ?: "unknown",
-            winner = winner,
-            players = Players(
-                white = Player(
-                    user = User(
-                        name = game.white.username,
-                        id = game.white.username.lowercase()
-                    ),
-                    rating = game.white.rating,
-                    aiLevel = null
-                ),
-                black = Player(
-                    user = User(
-                        name = game.black.username,
-                        id = game.black.username.lowercase()
-                    ),
-                    rating = game.black.rating,
-                    aiLevel = null
-                )
-            ),
-            pgn = pgn,
-            moves = null,
-            clock = Clock(initial = initial, increment = increment),
-            createdAt = game.end_time?.times(1000),  // Convert to milliseconds
-            lastMoveAt = game.end_time?.times(1000)
-        )
     }
 
     /**
@@ -291,79 +159,10 @@ class ChessRepository(
     }
 
     /**
-     * Get player info from Chess.com
-     */
-    suspend fun getChessComPlayerInfo(username: String): Result<PlayerInfo> = withContext(Dispatchers.IO) {
-        try {
-            // Fetch both profile and stats
-            val profileResponse = chessComApi.getUser(username.lowercase())
-            val statsResponse = chessComApi.getUserStats(username.lowercase())
-
-            if (!profileResponse.isSuccessful) {
-                return@withContext when (profileResponse.code()) {
-                    404 -> Result.Error("User not found on Chess.com")
-                    else -> Result.Error("Failed to fetch user data from Chess.com")
-                }
-            }
-
-            val profile = profileResponse.body() ?: return@withContext Result.Error("No user data received")
-            val stats = statsResponse.body()
-
-            // Calculate totals from stats
-            var totalWins = 0
-            var totalLosses = 0
-            var totalDraws = 0
-
-            stats?.let { s ->
-                listOfNotNull(s.chess_daily, s.chess_rapid, s.chess_bullet, s.chess_blitz).forEach { cat ->
-                    cat.record?.let { rec ->
-                        totalWins += rec.win ?: 0
-                        totalLosses += rec.loss ?: 0
-                        totalDraws += rec.draw ?: 0
-                    }
-                }
-            }
-
-            val totalGames = totalWins + totalLosses + totalDraws
-
-            Result.Success(PlayerInfo(
-                username = profile.username ?: username,
-                server = ChessServer.CHESS_COM,
-                title = profile.title,
-                name = profile.name,
-                country = profile.country?.substringAfterLast("/"),
-                location = profile.location,
-                bio = null,
-                online = profile.status == "online",
-                createdAt = profile.joined?.times(1000),
-                lastOnline = profile.last_online?.times(1000),
-                profileUrl = profile.url ?: "https://www.chess.com/member/${profile.username}",
-                bulletRating = stats?.chess_bullet?.last?.rating,
-                blitzRating = stats?.chess_blitz?.last?.rating,
-                rapidRating = stats?.chess_rapid?.last?.rating,
-                classicalRating = null,
-                dailyRating = stats?.chess_daily?.last?.rating,
-                totalGames = if (totalGames > 0) totalGames else null,
-                wins = if (totalWins > 0) totalWins else null,
-                losses = if (totalLosses > 0) totalLosses else null,
-                draws = if (totalDraws > 0) totalDraws else null,
-                playTimeSeconds = null,
-                followers = profile.followers,
-                isStreamer = profile.is_streamer
-            ))
-        } catch (e: Exception) {
-            Result.Error(e.message ?: "Unknown error occurred")
-        }
-    }
-
-    /**
      * Get player info from the appropriate server
      */
     suspend fun getPlayerInfo(username: String, server: ChessServer): Result<PlayerInfo> {
-        return when (server) {
-            ChessServer.LICHESS -> getLichessPlayerInfo(username)
-            ChessServer.CHESS_COM -> getChessComPlayerInfo(username)
-        }
+        return getLichessPlayerInfo(username)
     }
 
     /**
@@ -430,63 +229,41 @@ class ChessRepository(
     }
 
     /**
-     * Get Chess.com leaderboard (top players for each format)
+     * Get Lichess live streamers
      */
-    suspend fun getChessComLeaderboard(): Result<Map<String, List<LeaderboardPlayer>>> = withContext(Dispatchers.IO) {
+    suspend fun getLichessStreamers(): Result<List<StreamerInfo>> = withContext(Dispatchers.IO) {
         try {
-            val response = chessComApi.getLeaderboards()
+            val response = lichessApi.getLiveStreamers()
 
             if (!response.isSuccessful) {
-                return@withContext Result.Error("Failed to fetch Chess.com leaderboard")
+                return@withContext Result.Error("Failed to fetch Lichess streamers")
             }
 
-            val leaderboards = response.body() ?: return@withContext Result.Error("No leaderboard data received")
+            val responseBody = response.body() ?: return@withContext Result.Error("No streamer data received")
 
-            val result = mutableMapOf<String, List<LeaderboardPlayer>>()
-
-            // Convert each category to LeaderboardPlayer list
-            leaderboards.live_bullet?.let { players ->
-                result["Bullet"] = players.take(10).map { p ->
-                    LeaderboardPlayer(
-                        username = p.username ?: "",
-                        title = p.title,
-                        rating = p.score,
-                        server = ChessServer.CHESS_COM
-                    )
+            // Parse the JSON array of streamers
+            val streamers = mutableListOf<StreamerInfo>()
+            try {
+                val jsonArray = com.google.gson.JsonParser().parse(responseBody).asJsonArray
+                for (element in jsonArray) {
+                    val obj = element.asJsonObject
+                    val username = obj.get("id")?.asString ?: continue
+                    val name = obj.get("name")?.asString ?: username
+                    val twitch = obj.get("twitch")?.asJsonObject
+                    val twitchUrl = twitch?.get("url")?.asString
+                    streamers.add(StreamerInfo(
+                        username = name,
+                        isLive = true,
+                        twitchUrl = twitchUrl,
+                        profileUrl = "https://lichess.org/@/$username",
+                        server = ChessServer.LICHESS
+                    ))
                 }
-            }
-            leaderboards.live_blitz?.let { players ->
-                result["Blitz"] = players.take(10).map { p ->
-                    LeaderboardPlayer(
-                        username = p.username ?: "",
-                        title = p.title,
-                        rating = p.score,
-                        server = ChessServer.CHESS_COM
-                    )
-                }
-            }
-            leaderboards.live_rapid?.let { players ->
-                result["Rapid"] = players.take(10).map { p ->
-                    LeaderboardPlayer(
-                        username = p.username ?: "",
-                        title = p.title,
-                        rating = p.score,
-                        server = ChessServer.CHESS_COM
-                    )
-                }
-            }
-            leaderboards.daily?.let { players ->
-                result["Daily"] = players.take(10).map { p ->
-                    LeaderboardPlayer(
-                        username = p.username ?: "",
-                        title = p.title,
-                        rating = p.score,
-                        server = ChessServer.CHESS_COM
-                    )
-                }
+            } catch (e: Exception) {
+                return@withContext Result.Error("Failed to parse streamers: ${e.message}")
             }
 
-            Result.Success(result)
+            Result.Success(streamers)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Unknown error occurred")
         }
@@ -1172,61 +949,6 @@ class ChessRepository(
         }
 
         return headers + moveText
-    }
-
-    /**
-     * Get Chess.com daily puzzle
-     */
-    suspend fun getChessComDailyPuzzle(): Result<PuzzleInfo> = withContext(Dispatchers.IO) {
-        try {
-            val response = chessComApi.getDailyPuzzle()
-
-            if (!response.isSuccessful) {
-                return@withContext Result.Error("Failed to fetch daily puzzle")
-            }
-
-            val puzzle = response.body() ?: return@withContext Result.Error("No puzzle data received")
-
-            Result.Success(PuzzleInfo(
-                title = puzzle.title ?: "Daily Puzzle",
-                fen = puzzle.fen ?: "",
-                pgn = puzzle.pgn,
-                url = puzzle.url,
-                publishTime = puzzle.publish_time,
-                server = ChessServer.CHESS_COM
-            ))
-        } catch (e: Exception) {
-            Result.Error(e.message ?: "Unknown error occurred")
-        }
-    }
-
-    /**
-     * Get Chess.com streamers
-     */
-    suspend fun getChessComStreamers(): Result<List<StreamerInfo>> = withContext(Dispatchers.IO) {
-        try {
-            val response = chessComApi.getStreamers()
-
-            if (!response.isSuccessful) {
-                return@withContext Result.Error("Failed to fetch streamers")
-            }
-
-            val streamersData = response.body() ?: return@withContext Result.Error("No streamer data received")
-
-            val result = streamersData.streamers?.map { s ->
-                StreamerInfo(
-                    username = s.username ?: "Unknown",
-                    isLive = s.is_live == true,
-                    twitchUrl = s.twitch_url,
-                    profileUrl = s.url,
-                    server = ChessServer.CHESS_COM
-                )
-            } ?: emptyList()
-
-            Result.Success(result)
-        } catch (e: Exception) {
-            Result.Error(e.message ?: "Unknown error occurred")
-        }
     }
 
     /**

@@ -623,10 +623,7 @@ fun GameScreenContent(
                     val serverName = if (uiState.playerInfoError != null) {
                         null
                     } else {
-                        when (info.server) {
-                            com.eval.data.ChessServer.LICHESS -> "lichess.org"
-                            com.eval.data.ChessServer.CHESS_COM -> "chess.com"
-                        }
+                        "lichess.org"
                     }
                     viewModel.showPlayerAiReportsSelectionDialog(info.username, serverName, info)
                 }
@@ -1385,14 +1382,8 @@ fun PlayerInfoScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Server badge
-                        val serverName = when (playerInfo.server) {
-                            ChessServer.LICHESS -> "Lichess"
-                            ChessServer.CHESS_COM -> "Chess.com"
-                        }
-                        val serverColor = when (playerInfo.server) {
-                            ChessServer.LICHESS -> Color(0xFF629924) // Lichess green
-                            ChessServer.CHESS_COM -> Color(0xFF769656) // Chess.com green
-                        }
+                        val serverName = "Lichess"
+                        val serverColor = Color(0xFF629924) // Lichess green
                         Surface(
                             color = serverColor,
                             shape = RoundedCornerShape(4.dp)

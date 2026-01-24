@@ -189,7 +189,7 @@ data class InterfaceVisibilitySettings(
 // General app settings
 data class GeneralSettings(
     val longTapForFullScreen: Boolean = false,
-    val paginationPageSize: Int = 10,
+    val paginationPageSize: Int = 25,
     val moveSoundsEnabled: Boolean = true,
     val developerMode: Boolean = false,
     val trackApiCalls: Boolean = false
@@ -297,8 +297,6 @@ data class GameUiState(
     val remainingAnalysisMoves: List<Int> = emptyList(),
     // Lichess settings
     val lichessMaxGames: Int = 10,
-    // Chess.com settings
-    val chessComMaxGames: Int = 10,
     // General settings (fullScreenMode is stored here, not persistent)
     val generalSettings: GeneralSettings = GeneralSettings(),
     // Game selection info for full screen display

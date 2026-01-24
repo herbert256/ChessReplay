@@ -55,10 +55,7 @@ class GameStorageManager(
      * Generate the SharedPreferences key for a specific retrieve entry.
      */
     fun getRetrievedGamesKey(accountName: String, server: ChessServer): String {
-        val serverPrefix = when (server) {
-            ChessServer.LICHESS -> "lichess"
-            ChessServer.CHESS_COM -> "chesscom"
-        }
+        val serverPrefix = "lichess"
         return "${SettingsPreferences.KEY_RETRIEVED_GAMES_PREFIX}${serverPrefix}_${accountName.lowercase()}"
     }
 

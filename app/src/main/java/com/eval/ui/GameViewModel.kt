@@ -79,9 +79,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val savedLichessUsername: String
         get() = settingsPrefs.savedLichessUsername
 
-    val savedChessComUsername: String
-        get() = settingsPrefs.savedChessComUsername
-
     private fun loadStockfishSettings(): StockfishSettings = settingsPrefs.loadStockfishSettings()
     private fun saveStockfishSettings(settings: StockfishSettings) = settingsPrefs.saveStockfishSettings(settings)
     private fun loadBoardLayoutSettings(): BoardLayoutSettings = settingsPrefs.loadBoardLayoutSettings()
@@ -208,7 +205,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             ApiTracer.isTracingEnabled = generalSettings.developerMode && generalSettings.trackApiCalls
             val aiSettings = loadAiSettings()
             val lichessMaxGames = settingsPrefs.lichessMaxGames
-            val chessComMaxGames = settingsPrefs.chessComMaxGames
             val retrievesList = gameStorage.loadRetrievesList()
             val hasPreviousRetrieves = retrievesList.isNotEmpty()
             val hasAnalysedGames = gameStorage.hasAnalysedGames()
@@ -232,7 +228,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 generalSettings = generalSettings,
                 aiSettings = aiSettings,
                 lichessMaxGames = lichessMaxGames,
-                chessComMaxGames = chessComMaxGames,
                 hasPreviousRetrieves = hasPreviousRetrieves,
                 previousRetrievesList = retrievesList,
                 hasAnalysedGames = hasAnalysedGames,
@@ -309,7 +304,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val generalSettings = loadGeneralSettings()
         val aiSettings = loadAiSettings()
         val lichessMaxGames = settingsPrefs.lichessMaxGames
-        val chessComMaxGames = settingsPrefs.chessComMaxGames
 
         // Load cached AI models
         val cachedChatGptModels = settingsPrefs.loadCachedChatGptModels()
@@ -330,7 +324,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             generalSettings = generalSettings,
             aiSettings = aiSettings,
             lichessMaxGames = lichessMaxGames,
-            chessComMaxGames = chessComMaxGames,
             playerGamesPageSize = generalSettings.paginationPageSize,
             gameSelectionPageSize = generalSettings.paginationPageSize,
             availableChatGptModels = cachedChatGptModels,
@@ -401,7 +394,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun nextGameSelectionPage() = gameLoader.nextGameSelectionPage()
     fun previousGameSelectionPage() = gameLoader.previousGameSelectionPage()
     fun setLichessMaxGames(max: Int) = gameLoader.setLichessMaxGames(max)
-    fun setChessComMaxGames(max: Int) = gameLoader.setChessComMaxGames(max)
 
     // PGN file loading
     fun loadGamesFromPgnContent(pgnContent: String, onMultipleEvents: ((Boolean) -> Unit)? = null) =

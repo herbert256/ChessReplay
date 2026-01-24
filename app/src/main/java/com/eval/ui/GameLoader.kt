@@ -38,9 +38,6 @@ internal class GameLoader(
     val savedLichessUsername: String
         get() = settingsPrefs.savedLichessUsername
 
-    val savedChessComUsername: String
-        get() = settingsPrefs.savedChessComUsername
-
     /**
      * Automatically load a game and start analysis on app startup.
      */
@@ -80,10 +77,7 @@ internal class GameLoader(
             )
         }
 
-        val result = when (server) {
-            ChessServer.LICHESS -> repository.getLichessGames(username, 1)
-            ChessServer.CHESS_COM -> repository.getChessComGames(username, 1)
-        }
+        val result = repository.getLichessGames(username, 1)
 
         when (result) {
             is Result.Success -> {
@@ -119,10 +113,7 @@ internal class GameLoader(
     }
 
     fun fetchGames(server: ChessServer, username: String) {
-        when (server) {
-            ChessServer.LICHESS -> settingsPrefs.saveLichessUsername(username)
-            ChessServer.CHESS_COM -> settingsPrefs.saveChessComUsername(username)
-        }
+        settingsPrefs.saveLichessUsername(username)
 
         settingsPrefs.setFirstGameRetrievedVersion(getAppVersionCode())
 
@@ -144,10 +135,7 @@ internal class GameLoader(
                 )
             }
 
-            val result = when (server) {
-                ChessServer.LICHESS -> repository.getLichessGames(username, pageSize)
-                ChessServer.CHESS_COM -> repository.getChessComGames(username, pageSize)
-            }
+            val result = repository.getLichessGames(username, pageSize)
 
             when (result) {
                 is Result.Success -> {
@@ -607,10 +595,7 @@ internal class GameLoader(
 
             viewModelScope.launch {
                 val newCount = currentGames.size + pageSize
-                val gamesResult = when (entry.server) {
-                    ChessServer.LICHESS -> repository.getLichessGames(entry.accountName, newCount)
-                    ChessServer.CHESS_COM -> repository.getChessComGames(entry.accountName, newCount)
-                }
+                val gamesResult = repository.getLichessGames(entry.accountName, newCount)
                 when (gamesResult) {
                     is Result.Success -> {
                         val fetchedGames = gamesResult.data
@@ -734,11 +719,5 @@ internal class GameLoader(
         val validMax = max.coerceIn(1, 25)
         settingsPrefs.saveLichessMaxGames(validMax)
         updateUiState { copy(lichessMaxGames = validMax) }
-    }
-
-    fun setChessComMaxGames(max: Int) {
-        val validMax = max.coerceIn(1, 25)
-        settingsPrefs.saveChessComMaxGames(validMax)
-        updateUiState { copy(chessComMaxGames = validMax) }
     }
 }

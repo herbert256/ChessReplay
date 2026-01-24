@@ -366,30 +366,10 @@ internal class ContentSourceManager(
         updateUiState {
             copy(
                 showDailyPuzzleScreen = true,
-                dailyPuzzleLoading = true,
-                dailyPuzzle = null
+                dailyPuzzleLoading = false,
+                dailyPuzzle = null,
+                errorMessage = "Daily puzzle feature is not available"
             )
-        }
-
-        viewModelScope.launch {
-            when (val result = repository.getChessComDailyPuzzle()) {
-                is Result.Success -> {
-                    updateUiState {
-                        copy(
-                            dailyPuzzleLoading = false,
-                            dailyPuzzle = result.data
-                        )
-                    }
-                }
-                is Result.Error -> {
-                    updateUiState {
-                        copy(
-                            dailyPuzzleLoading = false,
-                            errorMessage = result.message
-                        )
-                    }
-                }
-            }
         }
     }
 
@@ -402,7 +382,7 @@ internal class ContentSourceManager(
         }
     }
 
-    // ==================== CHESS.COM STREAMERS ====================
+    // ==================== LICHESS STREAMERS ====================
 
     fun showStreamers() {
         updateUiState {
@@ -414,7 +394,7 @@ internal class ContentSourceManager(
         }
 
         viewModelScope.launch {
-            when (val result = repository.getChessComStreamers()) {
+            when (val result = repository.getLichessStreamers()) {
                 is Result.Success -> {
                     updateUiState {
                         copy(
@@ -437,7 +417,7 @@ internal class ContentSourceManager(
 
     fun selectStreamer(streamer: StreamerInfo, showPlayerInfo: (String, ChessServer) -> Unit) {
         dismissStreamers()
-        showPlayerInfo(streamer.username, ChessServer.CHESS_COM)
+        showPlayerInfo(streamer.username, ChessServer.LICHESS)
     }
 
     fun dismissStreamers() {
@@ -530,10 +510,7 @@ internal class ContentSourceManager(
     }
 
     private suspend fun fetchPlayerGames(username: String, server: ChessServer, count: Int) {
-        val gamesResult = when (server) {
-            ChessServer.LICHESS -> repository.getLichessGames(username, count)
-            ChessServer.CHESS_COM -> repository.getChessComGames(username, count)
-        }
+        val gamesResult = repository.getLichessGames(username, count)
         when (gamesResult) {
             is Result.Success -> {
                 val fetchedGames = gamesResult.data
@@ -572,10 +549,7 @@ internal class ContentSourceManager(
 
             viewModelScope.launch {
                 val newCount = currentGames.size + pageSize
-                val gamesResult = when (playerInfo.server) {
-                    ChessServer.LICHESS -> repository.getLichessGames(playerInfo.username, newCount)
-                    ChessServer.CHESS_COM -> repository.getChessComGames(playerInfo.username, newCount)
-                }
+                val gamesResult = repository.getLichessGames(playerInfo.username, newCount)
                 when (gamesResult) {
                     is Result.Success -> {
                         val fetchedGames = gamesResult.data
@@ -657,10 +631,7 @@ internal class ContentSourceManager(
         }
 
         viewModelScope.launch {
-            val result = when (server) {
-                ChessServer.LICHESS -> repository.getLichessLeaderboard()
-                ChessServer.CHESS_COM -> repository.getChessComLeaderboard()
-            }
+            val result = repository.getLichessLeaderboard()
 
             when (result) {
                 is Result.Success -> {

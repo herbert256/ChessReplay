@@ -281,6 +281,13 @@ interface LichessApi {
         @Path("gameId") gameId: String
     ): Response<okhttp3.ResponseBody>
 
+    /**
+     * Get live streamers - returns JSON array of streaming users
+     */
+    @GET("api/streamer/live")
+    @Headers("Accept: application/json")
+    suspend fun getLiveStreamers(): Response<String>
+
     companion object {
         private const val BASE_URL = "https://lichess.org/"
 
