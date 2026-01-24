@@ -719,9 +719,8 @@ fun GameScreenContent(
                             .clickable {
                                 if (uiState.game != null) {
                                     viewModel.clearGame()
-                                } else {
-                                    onNavigateToRetrieve()
                                 }
+                                onNavigateToRetrieve()
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -1212,7 +1211,7 @@ fun AiAnalysisScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Back to game button
+        // Close button
         Button(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth(),
@@ -1221,7 +1220,7 @@ fun AiAnalysisScreen(
             )
         ) {
             Text(
-                text = "Back to game",
+                text = "Close",
                 fontSize = 16.sp,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
@@ -1900,7 +1899,7 @@ fun PlayerInfoScreen(
             }
         }
 
-        // Back to game button at the bottom
+        // Close button at the bottom
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onDismiss,
@@ -1910,7 +1909,7 @@ fun PlayerInfoScreen(
             )
         ) {
             Text(
-                text = "Back to game",
+                text = "Close",
                 fontSize = 16.sp,
                 modifier = Modifier.padding(vertical = 4.dp)
             )

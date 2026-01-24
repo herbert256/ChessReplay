@@ -1395,9 +1395,6 @@ fun DummySettingsScreen(
             OutlinedButton(onClick = onBackToAiSettings) {
                 Text("< AI Providers")
             }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
-            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1499,9 +1496,6 @@ fun DummySettingsScreen(
             OutlinedButton(onClick = onBackToAiSettings) {
                 Text("< AI Providers")
             }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
-            }
         }
     }
 }
@@ -1562,9 +1556,6 @@ private fun AiServiceSettingsScreenTemplate(
             OutlinedButton(onClick = onBackToAiSettings) {
                 Text("< AI Providers")
             }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
-            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1580,9 +1571,6 @@ private fun AiServiceSettingsScreenTemplate(
         ) {
             OutlinedButton(onClick = onBackToAiSettings) {
                 Text("< AI Providers")
-            }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
             }
         }
     }
@@ -2316,9 +2304,6 @@ fun AiProvidersScreen(
             OutlinedButton(onClick = onBackToAiSetup) {
                 Text("< AI Setup")
             }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
-            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -2394,9 +2379,6 @@ fun AiProvidersScreen(
             OutlinedButton(onClick = onBackToAiSetup) {
                 Text("< AI Setup")
             }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
-            }
         }
     }
 }
@@ -2436,9 +2418,6 @@ fun AiPromptsScreen(
         ) {
             OutlinedButton(onClick = onBackToAiSetup) {
                 Text("< AI Setup")
-            }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
             }
         }
 
@@ -2504,9 +2483,6 @@ fun AiPromptsScreen(
         ) {
             OutlinedButton(onClick = onBackToAiSetup) {
                 Text("< AI Setup")
-            }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
             }
         }
     }
@@ -2761,9 +2737,6 @@ fun AiAgentsScreen(
             OutlinedButton(onClick = onBackToAiSetup) {
                 Text("< AI Setup")
             }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
-            }
         }
 
         // Add button
@@ -2820,9 +2793,6 @@ fun AiAgentsScreen(
         ) {
             OutlinedButton(onClick = onBackToAiSetup) {
                 Text("< AI Setup")
-            }
-            OutlinedButton(onClick = onBackToGame) {
-                Text("< Back to game")
             }
         }
     }

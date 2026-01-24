@@ -67,6 +67,34 @@ fun RetrieveScreen(
         }
     }
 
+    // Navigate back to game screen when games are ready to be shown
+    LaunchedEffect(uiState.showSelectedRetrieveGames) {
+        if (uiState.showSelectedRetrieveGames) {
+            onBack()
+        }
+    }
+
+    // Navigate back to game screen when a single game is loaded
+    LaunchedEffect(uiState.game) {
+        if (uiState.game != null) {
+            onBack()
+        }
+    }
+
+    // Navigate back to game screen when analysed games selection is requested
+    LaunchedEffect(uiState.showAnalysedGamesSelection) {
+        if (uiState.showAnalysedGamesSelection) {
+            onBack()
+        }
+    }
+
+    // Navigate back to game screen when previous retrieves selection is requested
+    LaunchedEffect(uiState.showPreviousRetrievesSelection) {
+        if (uiState.showPreviousRetrievesSelection) {
+            onBack()
+        }
+    }
+
     // Show player info screen if requested (from top rankings)
     if (uiState.showPlayerInfoScreen) {
         PlayerInfoScreen(

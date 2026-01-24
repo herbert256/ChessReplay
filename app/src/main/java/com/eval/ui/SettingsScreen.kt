@@ -425,28 +425,18 @@ private fun SettingsNavigationCard(
 }
 
 /**
- * Reusable back buttons for settings sub-screens.
+ * Reusable back button for settings sub-screens.
+ * Note: "Back to game" removed since Android back gesture now works.
  */
 @Composable
 fun SettingsBackButtons(
     onBackToSettings: () -> Unit,
-    onBackToGame: () -> Unit
+    onBackToGame: () -> Unit = {}  // Kept for compatibility but not used
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    Button(
+        onClick = onBackToSettings,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Button(
-            onClick = onBackToSettings,
-            modifier = Modifier.weight(1f)
-        ) {
-            Text("Back to settings")
-        }
-        Button(
-            onClick = onBackToGame,
-            modifier = Modifier.weight(1f)
-        ) {
-            Text("Back to game")
-        }
+        Text("Back")
     }
 }
