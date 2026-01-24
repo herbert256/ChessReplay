@@ -26,7 +26,9 @@ data class AiAnalysisResponse(
     val error: String?,
     val tokenUsage: TokenUsage? = null,
     val agentName: String? = null,  // Name of the agent that generated this response (for three-tier architecture)
-    val promptUsed: String? = null  // The actual prompt sent to the AI (with @FEN@ etc. replaced)
+    val promptUsed: String? = null,  // The actual prompt sent to the AI (with @FEN@ etc. replaced)
+    val citations: List<String>? = null,  // Citations/sources returned by AI (e.g., Perplexity)
+    val searchResults: List<SearchResult>? = null  // Search results returned by AI (e.g., Grok, Perplexity)
 ) {
     val isSuccess: Boolean get() = analysis != null && error == null
 
@@ -528,6 +530,7 @@ class AiAnalysisRepository {
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
+            val searchResults = body?.search_results  // Grok may return search results
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -535,7 +538,7 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.GROK, content, null, usage)
+                AiAnalysisResponse(AiService.GROK, content, null, usage, searchResults = searchResults)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
                 AiAnalysisResponse(AiService.GROK, null, errorMsg)
@@ -561,6 +564,7 @@ class AiAnalysisRepository {
             // DeepSeek reasoning models may return content in reasoning_content field
             // Use content first, fall back to reasoning_content
             val content = message?.content ?: message?.reasoning_content
+            val searchResults = body?.search_results
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -568,7 +572,7 @@ class AiAnalysisRepository {
                 )
             }
             if (!content.isNullOrBlank()) {
-                AiAnalysisResponse(AiService.DEEPSEEK, content, null, usage)
+                AiAnalysisResponse(AiService.DEEPSEEK, content, null, usage, searchResults = searchResults)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
                 AiAnalysisResponse(AiService.DEEPSEEK, null, errorMsg)
@@ -591,6 +595,7 @@ class AiAnalysisRepository {
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
+            val searchResults = body?.search_results
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -598,7 +603,7 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.MISTRAL, content, null, usage)
+                AiAnalysisResponse(AiService.MISTRAL, content, null, usage, searchResults = searchResults)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
                 AiAnalysisResponse(AiService.MISTRAL, null, errorMsg)
@@ -621,6 +626,8 @@ class AiAnalysisRepository {
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
+            val citations = body?.citations  // Extract citations from Perplexity response
+            val searchResults = body?.search_results  // Extract search results
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -628,7 +635,7 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.PERPLEXITY, content, null, usage)
+                AiAnalysisResponse(AiService.PERPLEXITY, content, null, usage, citations = citations, searchResults = searchResults)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
                 AiAnalysisResponse(AiService.PERPLEXITY, null, errorMsg)
@@ -651,6 +658,7 @@ class AiAnalysisRepository {
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
+            val searchResults = body?.search_results
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -658,7 +666,7 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.TOGETHER, content, null, usage)
+                AiAnalysisResponse(AiService.TOGETHER, content, null, usage, searchResults = searchResults)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
                 AiAnalysisResponse(AiService.TOGETHER, null, errorMsg)
@@ -681,6 +689,7 @@ class AiAnalysisRepository {
         return if (response.isSuccessful) {
             val body = response.body()
             val content = body?.choices?.firstOrNull()?.message?.content
+            val searchResults = body?.search_results
             val usage = body?.usage?.let {
                 TokenUsage(
                     inputTokens = it.prompt_tokens ?: 0,
@@ -688,7 +697,7 @@ class AiAnalysisRepository {
                 )
             }
             if (content != null) {
-                AiAnalysisResponse(AiService.OPENROUTER, content, null, usage)
+                AiAnalysisResponse(AiService.OPENROUTER, content, null, usage, searchResults = searchResults)
             } else {
                 val errorMsg = body?.error?.message ?: "No response content"
                 AiAnalysisResponse(AiService.OPENROUTER, null, errorMsg)

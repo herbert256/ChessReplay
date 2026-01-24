@@ -3221,10 +3221,45 @@ internal fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Str
         } else {
             """<pre class="error">${escapeHtml(result.error ?: "Unknown error")}</pre>"""
         }
+        // Build citations HTML if available
+        val citationsHtml = if (!result.citations.isNullOrEmpty()) {
+            val citationsList = result.citations.map { url ->
+                """<li><a href="${escapeHtml(url)}" target="_blank">${escapeHtml(url)}</a></li>"""
+            }.joinToString("\n")
+            """
+            <div class="citations-section">
+                <h3>Sources</h3>
+                <ol class="citations-list">
+                    $citationsList
+                </ol>
+            </div>
+            """
+        } else ""
+        // Build search results HTML if available
+        val searchResultsHtml = if (!result.searchResults.isNullOrEmpty()) {
+            val searchResultsList = result.searchResults.mapNotNull { sr ->
+                val url = sr.url ?: return@mapNotNull null
+                val resultTitle = sr.name ?: url
+                val snippet = sr.snippet?.let { "<p class=\"search-snippet\">${escapeHtml(it)}</p>" } ?: ""
+                """<li><a href="${escapeHtml(url)}" target="_blank">${escapeHtml(resultTitle)}</a>$snippet</li>"""
+            }.joinToString("\n")
+            if (searchResultsList.isNotEmpty()) {
+                """
+                <div class="search-results-section">
+                    <h3>Search Results</h3>
+                    <ol class="search-results-list">
+                        $searchResultsList
+                    </ol>
+                </div>
+                """
+            } else ""
+        } else ""
         """
         <div id="panel-${agent.id}" class="tab-panel $isActive">
             <div class="panel-header">${escapeHtml(providerWithModel)}</div>
             $content
+            $citationsHtml
+            $searchResultsHtml
         </div>
         """
     }.joinToString("\n")
@@ -3330,6 +3365,69 @@ internal fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Str
             word-wrap: break-word;
             font-family: monospace;
             font-size: 13px;
+        }
+
+        /* Citations section */
+        .citations-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #252525;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .citations-section h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #8B5CF6;
+        }
+        .citations-list {
+            margin: 0;
+            padding-left: 24px;
+        }
+        .citations-list li {
+            margin: 6px 0;
+        }
+        .citations-list a {
+            color: #64B5F6;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .citations-list a:hover {
+            text-decoration: underline;
+        }
+
+        /* Search results section */
+        .search-results-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #252525;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .search-results-section h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #FF9800;
+        }
+        .search-results-list {
+            margin: 0;
+            padding-left: 24px;
+        }
+        .search-results-list li {
+            margin: 12px 0;
+        }
+        .search-results-list a {
+            color: #64B5F6;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .search-results-list a:hover {
+            text-decoration: underline;
+        }
+        .search-snippet {
+            margin: 4px 0 0 0;
+            color: #999;
+            font-size: 0.9em;
         }
 
         /* Footer */
@@ -3605,6 +3703,39 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
         } else {
             """<pre class="error">${escapeHtml(result.error ?: "Unknown error")}</pre>"""
         }
+        // Build citations HTML if available
+        val citationsHtml = if (!result.citations.isNullOrEmpty()) {
+            val citationsList = result.citations.map { url ->
+                """<li><a href="${escapeHtml(url)}" target="_blank">${escapeHtml(url)}</a></li>"""
+            }.joinToString("\n")
+            """
+            <div class="citations-section">
+                <h3>Sources</h3>
+                <ol class="citations-list">
+                    $citationsList
+                </ol>
+            </div>
+            """
+        } else ""
+        // Build search results HTML if available
+        val searchResultsHtml = if (!result.searchResults.isNullOrEmpty()) {
+            val searchResultsList = result.searchResults.mapNotNull { sr ->
+                val url = sr.url ?: return@mapNotNull null
+                val resultTitle = sr.name ?: url
+                val snippet = sr.snippet?.let { "<p class=\"search-snippet\">${escapeHtml(it)}</p>" } ?: ""
+                """<li><a href="${escapeHtml(url)}" target="_blank">${escapeHtml(resultTitle)}</a>$snippet</li>"""
+            }.joinToString("\n")
+            if (searchResultsList.isNotEmpty()) {
+                """
+                <div class="search-results-section">
+                    <h3>Search Results</h3>
+                    <ol class="search-results-list">
+                        $searchResultsList
+                    </ol>
+                </div>
+                """
+            } else ""
+        } else ""
         // Get the actual prompt used (with @FEN@ replaced)
         val promptUsed = result.promptUsed ?: ""
         val promptHtml = if (promptUsed.isNotBlank()) {
@@ -3619,6 +3750,8 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
         <div id="panel-${agent.id}" class="tab-panel $isActive">
             <div class="panel-header">${escapeHtml(providerWithModel)}</div>
             $content
+            $citationsHtml
+            $searchResultsHtml
             $promptHtml
         </div>
         """
@@ -3824,6 +3957,69 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
             word-wrap: break-word;
             font-family: monospace;
             font-size: 13px;
+        }
+
+        /* Citations section */
+        .citations-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #252525;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .citations-section h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #8B5CF6;
+        }
+        .citations-list {
+            margin: 0;
+            padding-left: 24px;
+        }
+        .citations-list li {
+            margin: 6px 0;
+        }
+        .citations-list a {
+            color: #64B5F6;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .citations-list a:hover {
+            text-decoration: underline;
+        }
+
+        /* Search results section */
+        .search-results-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #252525;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .search-results-section h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #FF9800;
+        }
+        .search-results-list {
+            margin: 0;
+            padding-left: 24px;
+        }
+        .search-results-list li {
+            margin: 12px 0;
+        }
+        .search-results-list a {
+            color: #64B5F6;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .search-results-list a:hover {
+            text-decoration: underline;
+        }
+        .search-snippet {
+            margin: 4px 0 0 0;
+            color: #999;
+            font-size: 0.9em;
         }
 
         /* Footer */

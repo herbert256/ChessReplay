@@ -53,11 +53,20 @@ data class OpenAiUsage(
     val total_tokens: Int?
 )
 
+// Search result from AI services that perform web searches
+data class SearchResult(
+    val name: String?,      // Title of the search result
+    val url: String?,       // URL of the result
+    val snippet: String?    // Text snippet/description
+)
+
 data class OpenAiResponse(
     val id: String?,
     val choices: List<OpenAiChoice>?,
     val usage: OpenAiUsage?,
-    val error: OpenAiError?
+    val error: OpenAiError?,
+    val citations: List<String>? = null,  // Perplexity returns citations as URLs
+    val search_results: List<SearchResult>? = null  // Some services return search results
 )
 
 data class OpenAiError(
