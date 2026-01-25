@@ -6,15 +6,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 /**
- * Data class for storing prompt history entries.
- */
-data class PromptHistoryEntry(
-    val timestamp: Long,
-    val title: String,
-    val prompt: String
-)
-
-/**
  * Helper class for managing all settings persistence via SharedPreferences.
  */
 class SettingsPreferences(private val prefs: SharedPreferences) {
@@ -940,10 +931,6 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         // AI report email
         const val KEY_AI_REPORT_EMAIL = "ai_report_email"
 
-        // Last AI report title and prompt (for New AI Report screen)
-        const val KEY_LAST_AI_REPORT_TITLE = "last_ai_report_title"
-        const val KEY_LAST_AI_REPORT_PROMPT = "last_ai_report_prompt"
-
         // AI prompts and agents (three-tier architecture)
         private const val KEY_AI_PROMPTS = "ai_prompts"
         private const val KEY_AI_AGENTS = "ai_agents"
@@ -964,10 +951,6 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         // FEN history
         private const val KEY_FEN_HISTORY = "fen_history"
         const val MAX_FEN_HISTORY = 10
-
-        // Prompt history for New AI Report
-        private const val KEY_PROMPT_HISTORY = "prompt_history"
-        const val MAX_PROMPT_HISTORY = 100
     }
 
     // ============================================================================
@@ -994,34 +977,6 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         val trimmed = history.take(MAX_FEN_HISTORY)
         val json = gson.toJson(trimmed)
         prefs.edit().putString(KEY_FEN_HISTORY, json).apply()
-    }
-
-    // ============================================================================
-    // Prompt History (for New AI Report)
-    // ============================================================================
-
-    fun loadPromptHistory(): List<PromptHistoryEntry> {
-        val json = prefs.getString(KEY_PROMPT_HISTORY, null) ?: return emptyList()
-        return try {
-            val type = object : TypeToken<List<PromptHistoryEntry>>() {}.type
-            gson.fromJson(json, type) ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    fun savePromptToHistory(title: String, prompt: String) {
-        val history = loadPromptHistory().toMutableList()
-        // Add at the beginning with current timestamp
-        history.add(0, PromptHistoryEntry(
-            timestamp = System.currentTimeMillis(),
-            title = title,
-            prompt = prompt
-        ))
-        // Keep only the last MAX_PROMPT_HISTORY entries
-        val trimmed = history.take(MAX_PROMPT_HISTORY)
-        val json = gson.toJson(trimmed)
-        prefs.edit().putString(KEY_PROMPT_HISTORY, json).apply()
     }
 
     // ============================================================================

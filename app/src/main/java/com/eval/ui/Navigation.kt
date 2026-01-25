@@ -18,19 +18,8 @@ object NavRoutes {
     const val SETTINGS = "settings"
     const val HELP = "help"
     const val RETRIEVE = "retrieve"
-    const val AI = "ai"
-    const val AI_HISTORY = "ai_history"
-    const val AI_NEW_REPORT = "ai_new_report"
-    const val AI_NEW_REPORT_WITH_PARAMS = "ai_new_report/{title}/{prompt}"
-    const val AI_PROMPT_HISTORY = "ai_prompt_history"
     const val PLAYER_INFO = "player_info"
     const val AI_REPORTS = "ai_reports"
-
-    fun aiNewReportWithParams(title: String, prompt: String): String {
-        val encodedTitle = java.net.URLEncoder.encode(title, "UTF-8")
-        val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")
-        return "ai_new_report/$encodedTitle/$encodedPrompt"
-    }
 }
 
 /**
@@ -53,7 +42,6 @@ fun EvalNavHost(
                 onNavigateToSettings = { navController.navigate(NavRoutes.SETTINGS) },
                 onNavigateToHelp = { navController.navigate(NavRoutes.HELP) },
                 onNavigateToRetrieve = { navController.navigate(NavRoutes.RETRIEVE) },
-                onNavigateToAi = { navController.navigate(NavRoutes.AI) },
                 onNavigateToPlayerInfo = { navController.navigate(NavRoutes.PLAYER_INFO) },
                 onNavigateToAiReports = { navController.navigate(NavRoutes.AI_REPORTS) }
             )
@@ -77,52 +65,6 @@ fun EvalNavHost(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToGame = { navController.navigate(NavRoutes.GAME) }
-            )
-        }
-
-        composable(NavRoutes.AI) {
-            AiHubScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToHistory = { navController.navigate(NavRoutes.AI_HISTORY) },
-                onNavigateToNewReport = { navController.navigate(NavRoutes.AI_NEW_REPORT) },
-                onNavigateToPromptHistory = { navController.navigate(NavRoutes.AI_PROMPT_HISTORY) }
-            )
-        }
-
-        composable(NavRoutes.AI_HISTORY) {
-            AiHistoryScreenNav(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(NavRoutes.AI_NEW_REPORT) {
-            AiNewReportScreen(
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAiReports = { navController.navigate(NavRoutes.AI_REPORTS) }
-            )
-        }
-
-        composable(NavRoutes.AI_NEW_REPORT_WITH_PARAMS) { backStackEntry ->
-            val encodedTitle = backStackEntry.arguments?.getString("title") ?: ""
-            val encodedPrompt = backStackEntry.arguments?.getString("prompt") ?: ""
-            val title = try { java.net.URLDecoder.decode(encodedTitle, "UTF-8") } catch (e: Exception) { encodedTitle }
-            val prompt = try { java.net.URLDecoder.decode(encodedPrompt, "UTF-8") } catch (e: Exception) { encodedPrompt }
-            AiNewReportScreen(
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAiReports = { navController.navigate(NavRoutes.AI_REPORTS) },
-                initialTitle = title,
-                initialPrompt = prompt
-            )
-        }
-
-        composable(NavRoutes.AI_PROMPT_HISTORY) {
-            PromptHistoryScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onSelectEntry = { entry ->
-                    navController.navigate(NavRoutes.aiNewReportWithParams(entry.title, entry.prompt))
-                }
             )
         }
 
