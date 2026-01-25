@@ -23,7 +23,6 @@ import com.eval.data.AiService
 @Composable
 fun AiSettingsScreen(
     aiSettings: AiSettings,
-    developerMode: Boolean,
     onBackToSettings: () -> Unit,
     onBackToGame: () -> Unit,
     onNavigate: (SettingsSubScreen) -> Unit,
@@ -127,15 +126,6 @@ fun AiSettingsScreen(
             accentColor = Color(0xFF6B5AED),
             onClick = { onNavigate(SettingsSubScreen.AI_OPENROUTER) }
         )
-        // Dummy provider only visible in developer mode
-        if (developerMode) {
-            AiServiceNavigationCard(
-                title = "Dummy",
-                subtitle = "For testing",
-                accentColor = Color(0xFF888888),
-                onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
-            )
-        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -360,7 +350,6 @@ private fun AiSetupNavigationCard(
 @Composable
 fun AiProvidersScreen(
     aiSettings: AiSettings,
-    developerMode: Boolean,
     onBackToAiSetup: () -> Unit,
     onBackToGame: () -> Unit,
     onNavigate: (SettingsSubScreen) -> Unit
@@ -440,14 +429,5 @@ fun AiProvidersScreen(
             accentColor = Color(0xFF6B5AED),
             onClick = { onNavigate(SettingsSubScreen.AI_OPENROUTER) }
         )
-        // Dummy provider only visible in developer mode
-        if (developerMode) {
-            AiServiceNavigationCard(
-                title = "Dummy",
-                subtitle = "For testing",
-                accentColor = Color(0xFF888888),
-                onClick = { onNavigate(SettingsSubScreen.AI_DUMMY) }
-            )
-        }
     }
 }

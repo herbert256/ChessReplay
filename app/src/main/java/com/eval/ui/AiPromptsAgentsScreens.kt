@@ -321,7 +321,6 @@ private fun PromptEditDialog(
 @Composable
 fun AiAgentsScreen(
     aiSettings: AiSettings,
-    developerMode: Boolean,
     availableChatGptModels: List<String>,
     availableGeminiModels: List<String>,
     availableGrokModels: List<String>,
@@ -428,7 +427,6 @@ fun AiAgentsScreen(
         AgentEditDialog(
             agent = dialogAgent,
             aiSettings = aiSettings,
-            developerMode = developerMode,
             availableChatGptModels = availableChatGptModels,
             availableGeminiModels = availableGeminiModels,
             availableGrokModels = availableGrokModels,
@@ -557,7 +555,6 @@ private fun AgentListItem(
 private fun AgentEditDialog(
     agent: AiAgent?,
     aiSettings: AiSettings,
-    developerMode: Boolean,
     availableChatGptModels: List<String>,
     availableGeminiModels: List<String>,
     availableGrokModels: List<String>,
@@ -573,12 +570,8 @@ private fun AgentEditDialog(
     onDismiss: () -> Unit
 ) {
     val isEditing = agent != null
-    // Filter providers based on developer mode (exclude DUMMY if not in developer mode)
-    val availableProviders = if (developerMode) {
-        AiService.entries.toList()
-    } else {
-        AiService.entries.filter { it != AiService.DUMMY }
-    }
+    // Filter out DUMMY provider
+    val availableProviders = AiService.entries.filter { it != AiService.DUMMY }
     val coroutineScope = rememberCoroutineScope()
 
     // Helper to find prompt ID by name, with fallback to first prompt

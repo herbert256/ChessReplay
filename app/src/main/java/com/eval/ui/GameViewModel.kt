@@ -10,7 +10,6 @@ import com.eval.data.AiAnalysisRepository
 import com.eval.data.AiAnalysisResponse
 import com.eval.data.AiHistoryManager
 import com.eval.data.AiService
-import com.eval.data.ApiTracer
 import com.eval.data.BroadcastInfo
 import com.eval.data.BroadcastRoundInfo
 import com.eval.data.ChessRepository
@@ -180,9 +179,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             moveSoundPlayer = moveSoundPlayer
         )
 
-        // Initialize ApiTracer for debugging
-        ApiTracer.init(application)
-
         // Initialize AiHistoryManager for AI report storage
         AiHistoryManager.init(application)
 
@@ -201,8 +197,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val interfaceVisibility = loadInterfaceVisibilitySettings()
             val generalSettings = loadGeneralSettings()
 
-            // Configure ApiTracer based on settings (requires both developer mode and track API calls)
-            ApiTracer.isTracingEnabled = generalSettings.developerMode && generalSettings.trackApiCalls
             val aiSettings = loadAiSettings()
             val lichessMaxGames = settingsPrefs.lichessMaxGames
             val retrievesList = gameStorage.loadRetrievesList()
@@ -802,37 +796,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(showRetrieveScreen = false)
     }
 
-    // ===== API TRACE SCREEN =====
-    fun showTraceScreen() {
-        _uiState.value = _uiState.value.copy(showTraceScreen = true)
-    }
-
-    fun hideTraceScreen() {
-        _uiState.value = _uiState.value.copy(
-            showTraceScreen = false,
-            showTraceDetailScreen = false,
-            traceDetailFilename = null
-        )
-    }
-
-    fun showTraceDetail(filename: String) {
-        _uiState.value = _uiState.value.copy(
-            showTraceDetailScreen = true,
-            traceDetailFilename = filename
-        )
-    }
-
-    fun hideTraceDetail() {
-        _uiState.value = _uiState.value.copy(
-            showTraceDetailScreen = false,
-            traceDetailFilename = null
-        )
-    }
-
-    fun clearTraces() {
-        ApiTracer.clearTraces()
-    }
-
     // ===== ECO OPENING SELECTION =====
     fun loadEcoOpenings() {
         if (_uiState.value.ecoOpenings.isNotEmpty()) return // Already loaded
@@ -1043,27 +1006,10 @@ ${opening.moves} *
             playerGamesPageSize = settings.paginationPageSize,
             gameSelectionPageSize = settings.paginationPageSize
         )
-        // Update ApiTracer when developer mode changes
-        ApiTracer.isTracingEnabled = settings.developerMode && settings.trackApiCalls
-        if (!settings.developerMode) {
-            // Clear traces when developer mode is disabled
-            ApiTracer.clearTraces()
-        }
-    }
-
-    fun updateTrackApiCalls(enabled: Boolean) {
-        // Only enable tracing if both developer mode and track API calls are enabled
-        val developerMode = _uiState.value.generalSettings.developerMode
-        ApiTracer.isTracingEnabled = developerMode && enabled
-        if (!enabled) {
-            // Clear traces when tracking is disabled
-            ApiTracer.clearTraces()
-        }
     }
 
     /**
      * Reset the app to the homepage (logo only), clearing all game state.
-     * Used when developer mode changes to ensure a clean slate.
      */
     fun resetToHomepage() {
         // Stop any ongoing analysis

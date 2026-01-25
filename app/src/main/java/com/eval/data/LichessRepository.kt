@@ -974,12 +974,8 @@ class ChessRepository(
 
     companion object {
         private val openingExplorerApi: OpeningExplorerApi by lazy {
-            val okHttpClient = okhttp3.OkHttpClient.Builder()
-                .addInterceptor(TracingInterceptor())
-                .build()
             retrofit2.Retrofit.Builder()
                 .baseUrl("https://explorer.lichess.org/")
-                .client(okHttpClient)
                 .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
                 .build()
                 .create(OpeningExplorerApi::class.java)

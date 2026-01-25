@@ -261,8 +261,6 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
             longTapForFullScreen = false,
             paginationPageSize = prefs.getInt(KEY_PAGINATION_PAGE_SIZE, 25).coerceIn(5, 50),
             moveSoundsEnabled = prefs.getBoolean(KEY_MOVE_SOUNDS_ENABLED, true),
-            developerMode = prefs.getBoolean(KEY_DEVELOPER_MODE, false),
-            trackApiCalls = prefs.getBoolean(KEY_TRACK_API_CALLS, false),
             lichessUsername = prefs.getString(KEY_LICHESS_USERNAME, "") ?: "",
             flipScoreWhenBlack = prefs.getBoolean(KEY_FLIP_SCORE_WHEN_BLACK, true)
         )
@@ -270,12 +268,9 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
 
     fun saveGeneralSettings(settings: GeneralSettings) {
         // Full screen mode is not persistent - do not save
-        // But pagination page size, move sounds, developer mode, and track API calls are saved
         prefs.edit()
             .putInt(KEY_PAGINATION_PAGE_SIZE, settings.paginationPageSize.coerceIn(5, 50))
             .putBoolean(KEY_MOVE_SOUNDS_ENABLED, settings.moveSoundsEnabled)
-            .putBoolean(KEY_DEVELOPER_MODE, settings.developerMode)
-            .putBoolean(KEY_TRACK_API_CALLS, settings.trackApiCalls)
             .putString(KEY_LICHESS_USERNAME, settings.lichessUsername)
             .putBoolean(KEY_FLIP_SCORE_WHEN_BLACK, settings.flipScoreWhenBlack)
             .apply()
@@ -854,8 +849,6 @@ class SettingsPreferences(private val prefs: SharedPreferences) {
         // General settings
         private const val KEY_PAGINATION_PAGE_SIZE = "pagination_page_size"
         private const val KEY_MOVE_SOUNDS_ENABLED = "move_sounds_enabled"
-        private const val KEY_DEVELOPER_MODE = "developer_mode"
-        private const val KEY_TRACK_API_CALLS = "track_api_calls"
         private const val KEY_FLIP_SCORE_WHEN_BLACK = "flip_score_when_black"
 
         // AI Analysis settings

@@ -1064,12 +1064,11 @@ fun GameContent(
         }
     }
 
-    // Raw Stockfish scores cards (Manual stage only, developer mode only)
+    // Raw Stockfish scores cards (Manual stage only)
     val showRawStockfishScore = uiState.interfaceVisibility.manualStage.showRawStockfishScore
-    val developerMode = uiState.generalSettings.developerMode
 
     // Raw Stockfish Scores - Preview stage
-    if (uiState.currentStage == AnalysisStage.MANUAL && showRawStockfishScore && developerMode && uiState.previewScores.isNotEmpty()) {
+    if (uiState.currentStage == AnalysisStage.MANUAL && showRawStockfishScore && uiState.previewScores.isNotEmpty()) {
         Spacer(modifier = Modifier.height(12.dp))
         RawStockfishScoresCard(
             title = "Raw Stockfish Scores - Preview stage",
@@ -1081,7 +1080,7 @@ fun GameContent(
     }
 
     // Raw Stockfish Scores - Analyse stage
-    if (uiState.currentStage == AnalysisStage.MANUAL && showRawStockfishScore && developerMode && uiState.analyseScores.isNotEmpty()) {
+    if (uiState.currentStage == AnalysisStage.MANUAL && showRawStockfishScore && uiState.analyseScores.isNotEmpty()) {
         Spacer(modifier = Modifier.height(12.dp))
         RawStockfishScoresCard(
             title = "Raw Stockfish Scores - Analyse stage",

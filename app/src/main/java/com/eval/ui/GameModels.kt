@@ -191,8 +191,6 @@ data class GeneralSettings(
     val longTapForFullScreen: Boolean = false,
     val paginationPageSize: Int = 25,
     val moveSoundsEnabled: Boolean = true,
-    val developerMode: Boolean = false,
-    val trackApiCalls: Boolean = false,
     val lichessUsername: String = "",
     val flipScoreWhenBlack: Boolean = true
 )
@@ -459,9 +457,5 @@ data class GameUiState(
     // ECO Opening selection
     val showOpeningSelection: Boolean = false,
     val ecoOpenings: List<EcoOpening> = emptyList(),
-    val ecoOpeningsLoading: Boolean = false,
-    // API Trace screen
-    val showTraceScreen: Boolean = false,
-    val showTraceDetailScreen: Boolean = false,
-    val traceDetailFilename: String? = null
+    val ecoOpeningsLoading: Boolean = false
 )

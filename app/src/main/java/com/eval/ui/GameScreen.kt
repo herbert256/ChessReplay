@@ -50,7 +50,6 @@ fun GameScreenContent(
     viewModel: GameViewModel = viewModel(),
     onNavigateToSettings: () -> Unit = {},
     onNavigateToHelp: () -> Unit = {},
-    onNavigateToTrace: () -> Unit = {},
     onNavigateToRetrieve: () -> Unit = {},
     onNavigateToAi: () -> Unit = {},
     onNavigateToPlayerInfo: () -> Unit = {},
@@ -310,14 +309,6 @@ fun GameScreenContent(
                             fontSize = 44,
                             size = 52,
                             offsetY = -12
-                        )
-                    }
-                    // Debug trace icon (only when developer mode and tracking are enabled)
-                    if (uiState.generalSettings.developerMode && uiState.generalSettings.trackApiCalls) {
-                        TitleBarIcon(
-                            icon = "\uD83D\uDC1E",
-                            onClick = { onNavigateToTrace() },
-                            fontSize = 24
                         )
                     }
                     // AI prompt icon
@@ -1153,8 +1144,6 @@ internal fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Str
         """<button class="tab-btn $isActive" onclick="showTab('${agent.id}')">${escapeHtml(agent.name)}</button>"""
     }.joinToString("\n")
 
-    val developerMode = uiState.generalSettings.developerMode
-
     // Generate content panels for each agent (no prompt per panel)
     val panelsHtml = agentsWithResults.mapIndexed { index, (agent, result) ->
         val isActive = if (index == 0) "active" else ""
@@ -1197,32 +1186,12 @@ internal fun convertGenericAiReportsToHtml(uiState: GameUiState, appVersion: Str
                 """
             } else ""
         } else ""
-        // Developer mode: raw usage JSON
-        val usageHtml = if (developerMode && !result.rawUsageJson.isNullOrBlank()) {
-            """
-            <div class="developer-section">
-                <h3>Usage (Developer Mode)</h3>
-                <pre class="developer-pre">${escapeHtml(result.rawUsageJson)}</pre>
-            </div>
-            """
-        } else ""
-        // Developer mode: HTTP headers
-        val headersHtml = if (developerMode && !result.httpHeaders.isNullOrBlank()) {
-            """
-            <div class="developer-section">
-                <h3>HTTP Headers (Developer Mode)</h3>
-                <pre class="developer-pre">${escapeHtml(result.httpHeaders)}</pre>
-            </div>
-            """
-        } else ""
         """
         <div id="panel-${agent.id}" class="tab-panel $isActive">
             <div class="panel-header">${escapeHtml(providerWithModel)}</div>
             $content
             $citationsHtml
             $searchResultsHtml
-            $usageHtml
-            $headersHtml
         </div>
         """
     }.joinToString("\n")
@@ -1684,8 +1653,6 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
         """<button class="tab-btn $isActive" onclick="showTab('${agent.id}')">${escapeHtml(agent.name)}</button>"""
     }.joinToString("\n")
 
-    val developerMode = uiState.generalSettings.developerMode
-
     // Generate content panels for each agent
     val panelsHtml = agentsWithResults.mapIndexed { index, (agent, result) ->
         val isActive = if (index == 0) "active" else ""
@@ -1728,24 +1695,6 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
                 """
             } else ""
         } else ""
-        // Developer mode: raw usage JSON
-        val usageHtml = if (developerMode && !result.rawUsageJson.isNullOrBlank()) {
-            """
-            <div class="developer-section">
-                <h3>Usage (Developer Mode)</h3>
-                <pre class="developer-pre">${escapeHtml(result.rawUsageJson)}</pre>
-            </div>
-            """
-        } else ""
-        // Developer mode: HTTP headers
-        val headersHtml = if (developerMode && !result.httpHeaders.isNullOrBlank()) {
-            """
-            <div class="developer-section">
-                <h3>HTTP Headers (Developer Mode)</h3>
-                <pre class="developer-pre">${escapeHtml(result.httpHeaders)}</pre>
-            </div>
-            """
-        } else ""
         // Get the actual prompt used (with @FEN@ replaced)
         val promptUsed = result.promptUsed ?: ""
         val promptHtml = if (promptUsed.isNotBlank()) {
@@ -1762,8 +1711,6 @@ private fun convertAiReportsToHtml(uiState: GameUiState, appVersion: String): St
             $content
             $citationsHtml
             $searchResultsHtml
-            $usageHtml
-            $headersHtml
             $promptHtml
         </div>
         """

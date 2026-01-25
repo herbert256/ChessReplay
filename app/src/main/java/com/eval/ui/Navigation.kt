@@ -17,8 +17,6 @@ object NavRoutes {
     const val GAME = "game"
     const val SETTINGS = "settings"
     const val HELP = "help"
-    const val TRACE_LIST = "trace_list"
-    const val TRACE_DETAIL = "trace_detail/{filename}"
     const val RETRIEVE = "retrieve"
     const val AI = "ai"
     const val AI_HISTORY = "ai_history"
@@ -28,7 +26,6 @@ object NavRoutes {
     const val PLAYER_INFO = "player_info"
     const val AI_REPORTS = "ai_reports"
 
-    fun traceDetail(filename: String) = "trace_detail/$filename"
     fun aiNewReportWithParams(title: String, prompt: String): String {
         val encodedTitle = java.net.URLEncoder.encode(title, "UTF-8")
         val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")
@@ -55,7 +52,6 @@ fun EvalNavHost(
                 viewModel = viewModel,
                 onNavigateToSettings = { navController.navigate(NavRoutes.SETTINGS) },
                 onNavigateToHelp = { navController.navigate(NavRoutes.HELP) },
-                onNavigateToTrace = { navController.navigate(NavRoutes.TRACE_LIST) },
                 onNavigateToRetrieve = { navController.navigate(NavRoutes.RETRIEVE) },
                 onNavigateToAi = { navController.navigate(NavRoutes.AI) },
                 onNavigateToPlayerInfo = { navController.navigate(NavRoutes.PLAYER_INFO) },
@@ -72,24 +68,6 @@ fun EvalNavHost(
 
         composable(NavRoutes.HELP) {
             HelpScreen(
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(NavRoutes.TRACE_LIST) {
-            TraceListScreen(
-                onBack = { navController.popBackStack() },
-                onSelectTrace = { filename ->
-                    navController.navigate(NavRoutes.traceDetail(filename))
-                },
-                onClearTraces = { viewModel.clearTraces() }
-            )
-        }
-
-        composable(NavRoutes.TRACE_DETAIL) { backStackEntry ->
-            val filename = backStackEntry.arguments?.getString("filename") ?: ""
-            TraceDetailScreen(
-                filename = filename,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -205,11 +183,6 @@ fun SettingsScreenNav(
         onSaveGraph = { viewModel.updateGraphSettings(it) },
         onSaveInterfaceVisibility = { viewModel.updateInterfaceVisibilitySettings(it) },
         onSaveGeneral = { viewModel.updateGeneralSettings(it) },
-        onTrackApiCallsChanged = { viewModel.updateTrackApiCalls(it) },
-        onDeveloperModeChanged = {
-            viewModel.resetToHomepage()
-            onNavigateBack()
-        },
         onSaveAi = { viewModel.updateAiSettings(it) },
         onFetchChatGptModels = { viewModel.fetchChatGptModels(it) },
         onFetchGeminiModels = { viewModel.fetchGeminiModels(it) },
