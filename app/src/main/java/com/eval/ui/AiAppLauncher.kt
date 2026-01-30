@@ -63,9 +63,9 @@ object AiAppLauncher {
      *
      * @param context Android context
      * @param fen The FEN string of the position to analyze
-     * @param promptTemplate The prompt template (with @FEN@ placeholder)
-     * @param whiteName White player name (for title)
-     * @param blackName Black player name (for title)
+     * @param promptTemplate The prompt template (with @FEN@, @BOARD@ placeholders)
+     * @param whiteName White player name (for title and board)
+     * @param blackName Black player name (for title and board)
      */
     fun launchGameAnalysis(
         context: Context,
@@ -80,7 +80,12 @@ object AiAppLauncher {
             "Chess Position Analysis"
         }
 
-        val prompt = processPrompt(promptTemplate, fen = fen)
+        val prompt = processPrompt(
+            template = promptTemplate,
+            fen = fen,
+            whiteName = whiteName,
+            blackName = blackName
+        )
         return launchAiReport(context, title, prompt)
     }
 
@@ -125,6 +130,7 @@ object AiAppLauncher {
      *
      * Supported placeholders:
      * - @FEN@ - Chess position in FEN notation
+     * - @BOARD@ - HTML code for interactive chess board with position
      * - @PLAYER@ - Player name
      * - @SERVER@ - Chess server name
      * - @DATE@ - Current date
@@ -133,12 +139,17 @@ object AiAppLauncher {
         template: String,
         fen: String? = null,
         player: String? = null,
-        server: String? = null
+        server: String? = null,
+        whiteName: String? = null,
+        blackName: String? = null
     ): String {
         var result = template
 
         if (fen != null) {
             result = result.replace("@FEN@", fen)
+            // Generate HTML board code for @BOARD@ placeholder
+            val boardHtml = generateBoardHtml(fen, whiteName ?: "", blackName ?: "")
+            result = result.replace("@BOARD@", boardHtml)
         }
         if (player != null) {
             result = result.replace("@PLAYER@", player)
@@ -152,5 +163,37 @@ object AiAppLauncher {
         result = result.replace("@DATE@", dateFormat.format(Date()))
 
         return result
+    }
+
+    /**
+     * Generate HTML code for an interactive chess board showing the position.
+     * Uses chessboard.js with Lichess piece images.
+     * Board orientation is set so the side to move is at the bottom.
+     *
+     * @param fen The FEN string of the position
+     * @param whiteName White player name
+     * @param blackName Black player name
+     * @return HTML code string
+     */
+    private fun generateBoardHtml(fen: String, whiteName: String, blackName: String): String {
+        // Determine who is to play from FEN (second field after the position)
+        val fenParts = fen.split(" ")
+        val toPlay = if (fenParts.size > 1) fenParts[1] else "w"
+        val orientation = if (toPlay == "b") "black" else "white"
+
+        // Top player is the opponent of the side to move
+        val topPlayer = if (toPlay == "b") whiteName.ifEmpty { "White" } else blackName.ifEmpty { "Black" }
+        val bottomPlayer = if (toPlay == "b") blackName.ifEmpty { "Black" } else whiteName.ifEmpty { "White" }
+
+        // Compact HTML without extra whitespace
+        return "<link rel=\"stylesheet\" href=\"https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css\">" +
+            "<script src=\"https://code.jquery.com/jquery-3.7.1.min.js\"></script>" +
+            "<script src=\"https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js\"></script>" +
+            "<div style=\"max-width:400px;margin:20px auto;\">" +
+            "<div style=\"background:#333;color:white;padding:8px 12px;font-weight:bold;text-align:center;\">$topPlayer</div>" +
+            "<div id=\"board\" style=\"width:100%;\"></div>" +
+            "<div style=\"background:#333;color:white;padding:8px 12px;font-weight:bold;text-align:center;\">$bottomPlayer</div>" +
+            "</div>" +
+            "<script>var board=Chessboard('board',{position:'$fen',orientation:'$orientation',pieceTheme:'https://lichess1.org/assets/piece/cburnett/{piece}.svg'});</script>"
     }
 }
