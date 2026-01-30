@@ -1050,7 +1050,11 @@ ${opening.moves} *
         val promptTemplate = _uiState.value.aiPromptsSettings.getGamePromptText()
         val whiteName = _uiState.value.game?.players?.white?.user?.name ?: ""
         val blackName = _uiState.value.game?.players?.black?.user?.name ?: ""
-        return AiAppLauncher.launchGameAnalysis(context, fen, promptTemplate, whiteName, blackName)
+        val currentMoveIndex = _uiState.value.currentMoveIndex
+        val lastMoveDetails = if (currentMoveIndex >= 0 && currentMoveIndex < _uiState.value.moveDetails.size) {
+            _uiState.value.moveDetails[currentMoveIndex]
+        } else null
+        return AiAppLauncher.launchGameAnalysis(context, fen, promptTemplate, whiteName, blackName, currentMoveIndex, lastMoveDetails)
     }
 
     /**

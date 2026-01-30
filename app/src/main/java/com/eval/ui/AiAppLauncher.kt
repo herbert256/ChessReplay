@@ -72,7 +72,9 @@ object AiAppLauncher {
         fen: String,
         promptTemplate: String,
         whiteName: String = "",
-        blackName: String = ""
+        blackName: String = "",
+        currentMoveIndex: Int = -1,
+        lastMoveDetails: MoveDetails? = null
     ): Boolean {
         val title = if (whiteName.isNotEmpty() && blackName.isNotEmpty()) {
             "Game Analysis: $whiteName vs $blackName"
@@ -84,7 +86,9 @@ object AiAppLauncher {
             template = promptTemplate,
             fen = fen,
             whiteName = whiteName,
-            blackName = blackName
+            blackName = blackName,
+            currentMoveIndex = currentMoveIndex,
+            lastMoveDetails = lastMoveDetails
         )
         return launchAiReport(context, title, prompt)
     }
@@ -141,14 +145,16 @@ object AiAppLauncher {
         player: String? = null,
         server: String? = null,
         whiteName: String? = null,
-        blackName: String? = null
+        blackName: String? = null,
+        currentMoveIndex: Int = -1,
+        lastMoveDetails: MoveDetails? = null
     ): String {
         var result = template
 
         if (fen != null) {
             result = result.replace("@FEN@", fen)
             // Generate HTML board code for @BOARD@ placeholder
-            val boardHtml = generateBoardHtml(fen, whiteName ?: "", blackName ?: "")
+            val boardHtml = generateBoardHtml(fen, whiteName ?: "", blackName ?: "", currentMoveIndex, lastMoveDetails)
             result = result.replace("@BOARD@", boardHtml)
         }
         if (player != null) {
@@ -169,13 +175,22 @@ object AiAppLauncher {
      * Generate HTML code for an interactive chess board showing the position.
      * Uses chessboard.js with Lichess piece images.
      * Board orientation is set so the side to move is at the bottom.
+     * Includes last move info above the board and side-to-move below.
      *
      * @param fen The FEN string of the position
      * @param whiteName White player name
      * @param blackName Black player name
+     * @param currentMoveIndex Current move index (0-based, -1 if no move)
+     * @param lastMoveDetails Details of the last move played
      * @return HTML code string
      */
-    private fun generateBoardHtml(fen: String, whiteName: String, blackName: String): String {
+    private fun generateBoardHtml(
+        fen: String,
+        whiteName: String,
+        blackName: String,
+        currentMoveIndex: Int = -1,
+        lastMoveDetails: MoveDetails? = null
+    ): String {
         // Determine who is to play from FEN (second field after the position)
         val fenParts = fen.split(" ")
         val toPlay = if (fenParts.size > 1) fenParts[1] else "w"
@@ -185,14 +200,35 @@ object AiAppLauncher {
         val topPlayer = if (toPlay == "b") whiteName.ifEmpty { "White" } else blackName.ifEmpty { "Black" }
         val bottomPlayer = if (toPlay == "b") blackName.ifEmpty { "Black" } else whiteName.ifEmpty { "White" }
 
+        // Last move info (displayed above the board)
+        val lastMoveHtml = if (currentMoveIndex >= 0 && lastMoveDetails != null) {
+            val moveNumber = (currentMoveIndex / 2) + 1
+            val isWhiteMove = currentMoveIndex % 2 == 0
+            val sideText = if (isWhiteMove) "white" else "black"
+            val pieceColor = if (isWhiteMove) "w" else "b"
+            val pieceCode = "${pieceColor}${lastMoveDetails.pieceType}"
+            val pieceImg = "<img src=\"https://lichess1.org/assets/piece/cburnett/$pieceCode.svg\" style=\"height:20px;vertical-align:text-top;\">"
+            val separator = if (lastMoveDetails.isCapture) "x" else "-"
+            val dots = if (isWhiteMove) "" else " ....."
+            "<div style=\"text-align:center;padding:6px 12px;color:#ccc;font-size:18px;\">" +
+                "Last move $sideText: $moveNumber$dots $pieceImg ${lastMoveDetails.from} $separator ${lastMoveDetails.to}" +
+                "</div>"
+        } else ""
+
+        // Side to move info (displayed below the board)
+        val toMoveText = if (toPlay == "w") "White to move" else "Black to move"
+        val toMoveHtml = "<div style=\"text-align:center;padding:6px 12px;color:#ccc;font-size:18px;\">$toMoveText</div>"
+
         // Compact HTML without extra whitespace
         return "<link rel=\"stylesheet\" href=\"https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css\">" +
             "<script src=\"https://code.jquery.com/jquery-3.7.1.min.js\"></script>" +
             "<script src=\"https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js\"></script>" +
             "<div style=\"max-width:400px;margin:20px auto;\">" +
+            lastMoveHtml +
             "<div style=\"background:#333;color:white;padding:8px 12px;font-weight:bold;text-align:center;\">$topPlayer</div>" +
             "<div id=\"board\" style=\"width:100%;\"></div>" +
             "<div style=\"background:#333;color:white;padding:8px 12px;font-weight:bold;text-align:center;\">$bottomPlayer</div>" +
+            toMoveHtml +
             "</div>" +
             "<script>var board=Chessboard('board',{position:'$fen',orientation:'$orientation',pieceTheme:'https://lichess1.org/assets/piece/cburnett/{piece}.svg'});</script>"
     }
